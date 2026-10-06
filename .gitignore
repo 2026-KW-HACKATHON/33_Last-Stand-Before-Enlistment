@@ -21,6 +21,8 @@ tmp/
 temp/
 
 # Build / generated
+.gradle/
+.vercel/
 dist/
 build/
 out/
