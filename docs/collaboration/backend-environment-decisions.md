@@ -1,6 +1,10 @@
 # Issue #1 백엔드 실행환경 결정 기록
 
-기준일: 2026-10-07 (Asia/Seoul). 작업 역할은 BE2이며, 작업 브랜치는 `back/feature/1-env`, PR base는 `back/develop`이다. 사용자 답변으로 정해진 선택과 팀 협의가 남은 항목을 구분한다. 이 기록은 API 정본과 제품 정책을 대체하지 않는다.
+## 2026-10-07 선택 갱신
+
+[MVP 결정 변경 기록](../specs/Discushion_MVP_결정변경_2026-10-07.md)에 따라 서비스 선택을 반영했다. #74는 변경 계약/문서, #75는 별도 시연 계정 준비다. 아래 과거 실행 검증 기록을 새로운 외부 서비스 검증으로 재사용하지 않는다.
+
+개정일: 2026-10-07 (Asia/Seoul), 제품 기준 v10.2. 서비스 결정 기록이며 실행 검증일/대상은 아래 이력에서 별도로 확인한다. 작업 역할은 BE2이며, 작업 브랜치는 `back/feature/1-env`, PR base는 `back/develop`이다. 사용자 답변으로 정해진 선택과 팀 협의가 남은 항목을 구분한다. 이 기록은 API 정본과 제품 정책을 대체하지 않는다.
 
 ## 확인된 선택
 
@@ -19,13 +23,13 @@ Frontend의 TanStack Query, React Hook Form, Zod, Zustand, Axios는 선택 후�
 | --- | --- | --- |
 | JDK·Spring Boot·Gradle 버전 | 기존 문서의 확정 버전은 미정. 실행 골격은 Java 17, Spring Boot 4.0.8, 공식 Initializr의 Gradle 9.7.1로 구성 | BE1·BE2가 초기화 버전 검토, Issue #1 |
 | Health Check | API 초안 4.1절: 인증 없는 `GET /health`, HTTP 200, `{"data":{"status":"UP"}}`를 구현. 계약 합의 완료로 표시하지 않음 | BE1 계약 정합성 확인, BE2 구현 |
-| 파일 저장 서비스 | 미정. 기존 md 문서에 서비스 선택 없음 | BE2, Issue #13 |
-| 이메일 발송 서비스 | 미정. 기존 md 문서에 서비스 선택 없음 | BE1·BE2, Issue #6 |
-| AI 연동 서비스 | 미정. 기존 md 문서에 서비스 선택 없음 | BE2, Issue #20 |
+| 파일 저장 서비스 | Supabase Storage, 게시물 사진 공개·파일 삭제·미완료 업로드 24시간 정리 | BE2·FE, #13·#16·#30 / 계약 #74 |
+| 인증 제공자 | Privy 이메일 OTP 로그인·인증. 자체 메일 코드 발급 대체; 별도 일반 메일 provider 선택 아님 | BE1·FE, 환경 BE2 / #6·#7·#8·#74 |
+| AI 연동 서비스 | Google Gemini 3.5 Flash-Lite 선택. API 모델 ID·키/요금·실제 호출 확인 필요 | BE2, #20·#30 |
 | 서버 배포 환경 | Vercel Container Images(베타)를 실행 후보로 문서화. 실제 프로젝트·설정 미정 | BE2, Issue #30 |
 | Supabase 연결 방식 | JDBC transaction pooler 예시, TLS·prepared statement 비활성화·기본 pool 1. 실제 주소·계정은 프로젝트의 Connect 화면에서 확인 | BE2 실행환경, BE1 DB 모델 |
 
-Supabase DB 선택만으로 Supabase Auth 또는 Storage를 선택한 것으로 간주하지 않는다. 실제 비밀번호·키·접속정보는 저장소와 이 문서에 기록하지 않는다.
+Supabase PostgreSQL과 Storage를 선택했다. 인증은 Privy이며 Supabase Auth를 추가 선택한 것으로 간주하지 않는다. 실제 비밀번호·키·접속정보는 저장소와 이 문서에 기록하지 않는다.
 
 ## Issue #1 범위와 검증
 
@@ -35,9 +39,9 @@ Supabase DB 선택만으로 Supabase Auth 또는 Storage를 선택한 것으로 
 
 버전 선택 근거: 기존 애플리케이션 의존성이 없고 로컬에는 JDK 17.0.19가 있다. Java 17과 호환되는 Spring Boot 4.0.8 안정 버전으로 초기화했고, Gradle 9.7.1은 공식 Spring Initializr에서 생성한 Wrapper 버전이다. Snapshot/Milestone은 사용하지 않았다. Wrapper JAR와 배포 ZIP의 공식 SHA-256을 확인했다. 이는 이번 골격의 기술 선택 기록이며 외부 서비스의 미정 상태나 API 초안의 상태를 바꾸지 않는다.
 
-Supabase 플러그인은 설치·활성화 상태지만 현재 채팅에 조회 도구가 제공되지 않아 실제 프로젝트를 조회하지 못했다. Vercel 플러그인으로 공식 컨테이너 지원 문서와 이름에 discushion이 포함된 프로젝트 목록을 조회했으며 검색 결과는 없었다. 프로젝트·배포·DB·인증 설정은 변경하지 않았다.
+당시 검증 시점에 Supabase 플러그인은 설치·활성화 상태였지만 조회 도구가 제공되지 않아 실제 프로젝트를 조회하지 못했다. Vercel 플러그인으로 공식 컨테이너 지원 문서와 이름에 discushion이 포함된 프로젝트 목록을 조회했으며 검색 결과는 없었다. 프로젝트·배포·DB·인증 설정은 변경하지 않았다.
 
-Issue #1 완료 조건 중 외부 서비스 선택·FE/BE 합의는 남아 있다. 초기화 코드가 통과해도 Issue 전체를 완료 처리하거나 닫지 않는다.
+외부 서비스 선택은 사용자 결정으로 갱신했다. #1의 초기화 버전·Health 계약 및 FE/BE 확인 기록은 여전히 남아 있다. 초기화 코드가 통과해도 Issue 전체를 완료 처리하거나 닫지 않는다.
 
 ## 검증 기록
 
@@ -53,7 +57,7 @@ Issue #1 완료 조건 중 외부 서비스 선택·FE/BE 합의는 남아 있�
 | 실제 Supabase DB 연결 | 미실행. 플러그인 조회 도구·실제 연결 설정 미확보 |
 | FE/BE 실제 연동·Vercel 배포 | 미실행. FE 실행환경·배포 프로젝트 미준비 |
 
-Vercel Functions의 요청 본문 제한은 4.5MB다. 제품 명세의 게시물 사진 합계 10MB와 기관 증빙 한도를 그대로 유지하려면 Issue #13·#12·#30에서 파일 저장소 직접 업로드 등 전송 경로를 FE/BE와 합의해야 한다. 요청 제한에 맞추려고 제품의 파일 한도를 임의로 줄이지 않는다. 파일 저장 서비스는 아직 미정이다. [Vercel 요청 제한](https://vercel.com/docs/functions/limitations#request-body-size)
+Vercel Functions의 요청 본문 제한은 4.5MB다. 제품 명세의 게시물 사진 합계 10MB와 기관 증빙 한도를 그대로 유지하려면 Issue #13·#12·#30에서 파일 저장소 직접 업로드 등 전송 경로를 FE/BE와 합의해야 한다. 요청 제한에 맞추려고 제품의 파일 한도를 임의로 줄이지 않는다. 파일 저장 서비스는 Supabase Storage로 선택했다. 직접 업로드/삭제·24시간 정리의 세부 계약과 실제 구성은 #74/#13/#30에서 확인한다. 기관 증빙 업로드는 이번 MVP에서 제외한다. [Vercel 요청 제한](https://vercel.com/docs/functions/limitations#request-body-size)
 
 ## 참고
 
@@ -63,3 +67,10 @@ Vercel Functions의 요청 본문 제한은 4.5MB다. 제품 명세의 게시물
 - [Supabase PostgreSQL 연결 안내](https://supabase.com/docs/guides/database/connecting-to-postgres)
 - [Spring Boot 4.0 시스템 요구사항](https://docs.spring.io/spring-boot/4.0/system-requirements.html)
 - [Vercel Container Images](https://vercel.com/docs/functions/container-images)
+
+## 추가 환경 준비 (#30/#75)
+
+- Privy 환경별 앱 설정·허용 도메인·토큰 검증/회원 연결, Supabase Storage 업로드/삭제 권한, Gemini 서버 키·사용 제한을 실제 프로젝트에서 확인한다.
+- 가비아 구매 도메인의 사용할 호스트·DNS 권한·Vercel 실제 Java 실행 방식/프로젝트·HTTPS·CORS를 확인한다.
+- 파일 정리의 실행 위치/간격·오류/재시도/관측과 24시간 기준은 #74/#13과 맞춘다. 무료 요금제·여유 용량·비용 0원은 확인 전 보장하지 않는다.
+- #75의 시연 계정 생성/설정·재실행/초기화·인증정보 보관을 확정 담당자가 수행한다. 실제 키와 계정 인증정보는 저장소에 기록하지 않는다.
