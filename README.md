@@ -10,7 +10,7 @@ backend/   백엔드 애플리케이션 영역
 docs/      제품 기준·API·설계·협업 문서
 ```
 
-현재 저장소에는 기준 문서와 개발 협업 자료가 있습니다. Frontend/Backend 프레임워크와 애플리케이션 코드는 아직 초기화되지 않았습니다.
+현재 저장소에는 기준 문서와 개발 협업 자료, Spring Boot Backend 실행 골격이 있습니다. 실행·테스트·Supabase 연결·Vercel 배포 준비는 [Backend 안내](backend/README.md)를 확인하세요. Frontend 애플리케이션은 아직 초기화되지 않았습니다.
 
 ## 개발 기준
 

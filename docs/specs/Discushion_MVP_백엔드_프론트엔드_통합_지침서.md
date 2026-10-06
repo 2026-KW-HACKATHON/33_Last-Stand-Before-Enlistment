@@ -431,6 +431,23 @@ sequenceDiagram
 
 **게스트 UI.** 게스트에게는 공유받은 상세만 렌더링하고 일반 내비게이션을 제공하지 않는다. 댓글/답글 입력은 허용하되 공개명은 `게스트`로 고정한다. 로그인 뒤에도 이웃 인증이 없는 지역의 참여 기능은 활성화하지 않는다.
 
+### 개발환경 및 FE/BE 연결 기준 (Issue #1)
+
+아래 기술 선택은 개발환경의 출발점이다. 기능 동작·API 계약은 이 문서와 API 정본을 따르며, 개발환경 선택만으로 미확정 계약을 확정하지 않는다.
+
+| 구분 | 현재 기준 | 프론트엔드 전달 사항 |
+| --- | --- | --- |
+| Frontend | Next.js, TypeScript, Tailwind CSS | 버전과 App Router 여부는 실제 `package.json`에서 확인한다. TanStack Query, React Hook Form, Zod, Zustand, Axios는 선택 후보이며 설치를 선행조건으로 삼지 않는다. |
+| Backend | Java 17, Spring Boot 4.0.8, Gradle Wrapper 9.7.1 | 로컬 백엔드 주소는 `http://localhost:8080`이다. 로컬 FE에서 API를 연결할 때는 API 정본의 `/api/v1` 경로를 사용한다. |
+| Database | Supabase PostgreSQL | 현재 선택은 백엔드 JDBC 연결용 DB다. FE에서 DB에 직접 연결하거나 브라우저에 DB 자격증명을 노출하지 않는다. Supabase Auth·Storage·Realtime은 별도로 선택되지 않았다. |
+| Deployment | Vercel 플러그인 사용 예정 | 실제 Vercel 프로젝트, 배포 형태, FE→BE 라우팅과 환경별 API 주소는 Issue #30에서 BE2와 합의한다. 아직 운영/Preview 주소는 없다. |
+
+**API 및 인증 연결.** API 정본의 Base path는 `/api/v1`이며 실제 호스트는 환경별 설정으로 제공한다. 개발 중 사용할 주소와 환경변수 이름은 현재 FE 프로젝트 설정을 확인해 정하고, 별도 호스트 배포·동일 Vercel 프로젝트 라우팅·CORS·쿠키/토큰 전달 방식은 BE2와 합의한다. 인증 방식 및 보호 경로는 API 계약과 Issue #4를 따른다. API 초안 또는 Health Check만으로 실제 사용자 기능의 FE/BE 연동이 완료된 것으로 보지 않는다. Health Check는 상태 확인용이며 제품 화면의 기능 API를 대체하지 않는다.
+
+**사진·증빙 업로드 경로.** 제품 한도는 유지한다: 게시물 사진은 JPG/PNG 최대 10장·게시물 합계 10MB, 기관 증빙은 PDF/JPG/PNG·파일당 10MB·요청 합계 50MB다. Vercel Functions의 요청 본문 제한은 4.5MB이므로 해당 파일들을 일반 API 요청 본문에 실어 보내는 방식으로는 제품 한도를 만족할 수 없다. FE는 한도를 임의 축소하거나 Supabase/Vercel Blob 직접 업로드를 구현하지 않는다. 저장 서비스와 업로드 세션/직접 업로드 계약을 BE2·BE1과 Issue #12, #13, #30에서 정한 뒤 그 흐름에 맞춰 UI와 진행·오류 처리를 연결한다. [Vercel 요청 제한](https://vercel.com/docs/functions/limitations#request-body-size)
+
+**합의 대기 항목.** 실제 FE 의존성·라우터, 환경별 API 주소, 인증 전달 방식, Vercel 프로젝트/라우팅, 파일 저장소와 업로드 계약은 현재 확정된 것으로 간주하지 않는다. FE/BE 담당자는 계약을 합의한 뒤 실제 기능 API를 대상으로 통합 확인하며, mock 응답 검증과 실제 백엔드 연동 결과는 구분해 기록한다.
+
 ## 9. 통합 테스트 및 인수 체크리스트
 
 테스트 전제: 해커톤 시연을 위해 개발자는 테스트 계정에 이웃 인증 **완료 지역**과 현재 유효 기관 인증 **완료 상태/담당 지역**을 직접 설정할 수 있어야 한다. 접수 상태만 설정한 계정은 권한을 얻으면 안 된다. [C,Y]
