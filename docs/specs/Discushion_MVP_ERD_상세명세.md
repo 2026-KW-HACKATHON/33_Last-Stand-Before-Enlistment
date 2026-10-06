@@ -1,7 +1,8 @@
 # Discushion MVP 상세 ERD 및 테이블 명세
 
 > 작성일: 2026-10-06 (Asia/Seoul)
-> 버전: 1.0
+> 버전: 1.0.1
+> 표현 정정: 2026-10-06 — 증빙 파일의 식별 관계, 신청 근거의 유일키 표시, API 문서 경로를 정정. 테이블·컬럼 구성과 MVP 정책은 기존과 동일.
 > 상태: 제공 명세를 구체화한 논리 ERD·물리 설계 제안. 실제 DB 생성·마이그레이션 실행 결과는 아님.
 > 주 파일: 이 문서. 같은 전체 ERD의 편집용 원본은 `Discushion_MVP_ERD.mmd`.
 > 제공 폴더에는 제품/API/협업 문서만 있으며 애플리케이션 소스 코드, ORM 엔티티, 기존 DDL은 없음.
@@ -10,12 +11,12 @@
 
 | 근거 파일 | 반영 내용 |
 | --- | --- |
-| [API 명세](./Discushion_API_SPEC_v2.md) | 내부 버전 v1.1의 API §4~9: 요청·응답 필드, 권한, 관계 유일성, 집계, 삭제·재시도 |
+| [API 명세](../api/Discushion_API_SPEC_v2.md) | 내부 버전 v1.1의 API §4~9: 요청·응답 필드, 권한, 관계 유일성, 집계, 삭제·재시도 |
 | [통합 지침서](./Discushion_MVP_백엔드_프론트엔드_통합_지침서.md) | §2~3: 기존 엔터티·ERD, 인증과 권한 분리, 유형별 게시물 확장 |
 | [기능명세서](./Discushion_기능명세서_2026-10-06_MVP반영_정리본_v10.1.md) | 확정 정책 보완·MVP 범위·Domain 색인과 기능 ID |
 | [PRD](./Discushion_PRD_2026-10-06_MVP반영_정리본_v10.1.md) | 사용자 흐름, 필수/선택 동의, 게스트, 기관 인증·채택 정책 |
 
-문서에 오래된 참조 파일명이 남아 있어 위 표에는 현재 폴더에 실제 존재하는 파일명을 사용했다. 제품 정책은 최신 v10.1의 확정 정책과 MVP 범위를 우선하고 API의 영문 코드·저장 형식은 설계 제안으로 취급한다.
+문서에 오래된 참조 파일명이 남아 있어 위 표에는 저장소에 실제 존재하는 파일명을 사용했다. 경로는 이 문서가 있는 docs/specs 기준이며 API 명세는 docs/api를 참조한다. 제품 정책은 최신 v10.1의 확정 정책과 MVP 범위를 우선하고 API의 영문 코드·저장 형식은 설계 제안으로 취급한다.
 
 - **확정**: 원본에 명시된 제품 동작·제한.
 - **설계 제안**: 이번 ERD에서 선택한 테이블 분리, 컬럼, 키, 저장 방식. 구현팀이 그대로 채택하거나 같은 정책을 만족하는 구조로 조정할 수 있다.
@@ -125,7 +126,7 @@ erDiagram
     neighbor_verified_regions {
         bigint user_id PK,FK "NN 완료 회원"
         bigint region_id PK,FK "NN 완료 지역"
-        bigint source_request_id FK "NULL 시연 seed 허용"
+        bigint source_request_id FK,UK "NULL 시연 seed 허용 신청당 완료 관계 하나"
         timestamp verified_at "NN 완료 시각"
     }
     institutions {
@@ -287,7 +288,7 @@ erDiagram
     users ||..o{ neighbor_verification_requests : "id to user_id"
     regions ||..o{ neighbor_verification_requests : "id to region_id"
     neighbor_verification_requests ||--|{ neighbor_verification_evidences : "id to request_id"
-    media_files ||..o{ neighbor_verification_evidences : "id to file_id"
+    media_files ||--o{ neighbor_verification_evidences : "id to file_id"
     users ||--o{ neighbor_verified_regions : "id to user_id"
     regions ||--o{ neighbor_verified_regions : "id to region_id"
     neighbor_verification_requests o|..o| neighbor_verified_regions : "id to source_request_id"
@@ -295,7 +296,7 @@ erDiagram
     institutions o|..o{ institution_verification_requests : "id to institution_id"
     regions ||..o{ institution_verification_requests : "id to responsible_region_id"
     institution_verification_requests ||--|{ institution_verification_evidences : "id to request_id"
-    media_files ||..o{ institution_verification_evidences : "id to file_id"
+    media_files ||--o{ institution_verification_evidences : "id to file_id"
     institution_verification_requests ||..o| institution_credentials : "id to request_id"
     users ||..o{ institution_credentials : "id to user_id"
     institutions ||..o{ institution_credentials : "id to institution_id"
@@ -558,7 +559,7 @@ PK(request_id,file_id), UNIQUE(request_id,sort_order). 신청 완료 시 연결�
 | --- | --- | --- |
 | user_id | BIGINT PK/FK | 완료 회원 |
 | region_id | BIGINT PK/FK | 완료 지역 |
-| source_request_id | BIGINT FK NULL | 같은 회원·지역의 COMPLETED 신청 |
+| source_request_id | BIGINT FK UNIQUE NULL | 같은 회원·지역의 COMPLETED 신청. NULL은 여러 행 허용, 값이 있으면 신청당 완료 관계 하나 |
 | verified_at | TIMESTAMP | 완료 시각 |
 
 PK(user_id,region_id). UNIQUE(source_request_id)는 NULL을 여러 개 허용하는 방식으로 선언해 신청 1개가 여러 완료 관계를 만들지 못하도록 한다. 시연 seed는 신청 없는 NULL 근거를 허용하는 설계 제안이며 사용자 쓰기 API에서 이 경로를 열지 않는다.
