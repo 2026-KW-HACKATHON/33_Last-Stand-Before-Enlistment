@@ -1,0 +1,33 @@
+# Environment
+.env
+.env.*
+!.env.example
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Temporary
+tmp/
+temp/
+
+# Build / generated
+dist/
+build/
+out/
+
+# Dependency directories
+node_modules/
+
+# Secrets / keys
+*.pem
+*.key
