@@ -1,6 +1,7 @@
 "use client";
 /* eslint-disable @next/next/no-img-element -- profile images are supplied by the existing profile adapter. */
 import {useEffect,useRef,useState} from "react";
+import {SettingRow} from "../../components/ui/SettingRow";
 import {Button} from "../../components/ui/Button";
 import {Notice} from "../../components/ui/Notice";
 import {Header,HeaderAction} from "../../components/layout/Header";
@@ -15,12 +16,12 @@ import {institutionAccess} from "../institution/model";
 import {activityLabels,menus,menuEntry,type MyMenuId,type ActivitySummary} from "./model";
 import {useMyPage} from "./provider";
 export function ActivityCounts({summary}:{summary:ActivitySummary}){return <><p className="text-caption">실제 행동 횟수</p><span className="sr-only">누적 전체 {summary.totalCount}회</span><div className="grid grid-cols-3 gap-internal">{(Object.keys(activityLabels) as (keyof typeof activityLabels)[]).map(key=><div key={key} className="rounded-chip bg-[#F3F4F6] px-page py-internal text-center text-caption text-[#4B5563]">{activityLabels[key]} {summary.counts[key]}</div>)}</div></>;}
-function Menu({id,onClick}:{id:MyMenuId;onClick:()=>void}){const menu=menus.find(m=>m.id===id)!;return <button type="button" onClick={onClick} className="flex w-full flex-col gap-internal rounded-card border border-border bg-surface px-page py-section text-left text-body"><span>{menu.label}</span><span aria-hidden="true" className="text-secondary">　›</span></button>;}
+function Menu({id,onClick}:{id:MyMenuId;onClick:()=>void}){const menu=menus.find(m=>m.id===id)!;return <SettingRow label={menu.label} onClick={onClick}/>;}
 function Content(){const navigation=useNavigation();const {session}=useSession();const profile=useProfile();const mine=useMyPage();const institution=useInstitution();const shell=useRef<HTMLDivElement>(null);const [panel,setPanel]=useState<"neighbor"|"institution"|null>(null);const [notice,setNotice]=useState("");
  useEffect(()=>{profile.store.setActive(true);if(profile.store.getState().phase==="idle")void profile.store.load();if(mine.store.getState().phase==="idle")void mine.store.load();},[profile.store,mine.store]);
  useEffect(()=>{const main=shell.current?.querySelector("main");if(!main||panel)return;main.scrollTop=mine.store.getState().scroll;const record=()=>mine.store.setScroll(main.scrollTop);main.addEventListener("scroll",record);return()=>main.removeEventListener("scroll",record);},[mine.store,panel,profile.state.phase,mine.state.phase]);
  const saved=profile.state.saved;const region=saved?.activityRegion;const work=institutionAccess(institution.state,mine.subjectId,session);
- function open(id:MyMenuId){setNotice("");if(id==="neighbor"||id==="institution"){setPanel(id);return;}const entry=menuEntry(id);if(mine.onMenu){mine.onMenu(id,entry);return;}if((id==="profile"||id==="activityRegion")&&entry){navigation.navigate(entry);return;}const menu=menus.find(m=>m.id===id)!;setNotice(menu.label+" 화면 연결 준비 중입니다. 담당 Issue #"+menu.issue+"의 연결 콜백을 기다립니다.");}
+ function open(id:MyMenuId){setNotice("");if(id==="settings"){navigation.navigate(menuEntry(id)!);return;}if(id==="neighbor"||id==="institution"){setPanel(id);return;}const entry=menuEntry(id);if(mine.onMenu){mine.onMenu(id,entry);return;}if((id==="profile"||id==="activityRegion")&&entry){navigation.navigate(entry);return;}const menu=menus.find(m=>m.id===id)!;setNotice(menu.label+" 화면 연결 준비 중입니다. 담당 Issue #"+menu.issue+"의 연결 콜백을 기다립니다.");}
  const back=()=>{if(panel)setPanel(null);else navigation.back();};
  return <div ref={shell}><MobileLayout header={<Header title={panel?panel==="neighbor"?"이웃 완료 지역":"기관 자격 상태":"마이페이지"} onBack={back} rightAction={!panel&&<HeaderAction action="settings" onAction={()=>open("settings")}/>}/>} bottomNavigation={<BottomNavigation activeItem="my" onNavigate={item=>{if(item==="my"){setPanel(null);return;}const entry={destination:bottomNavigationDestinations[item],origin:{id:"me" as const}};if(item==="notification"){open("notifications");return;}navigation.navigate(entry);}}/>}>
  {panel==="neighbor"?<NeighborStatus targetRegion={{id:region?.reference??"unresolved",name:region?.label??"지역 미설정"}} onBack={back} onAuthenticate={()=>navigation.beginAuthentication()}/>
