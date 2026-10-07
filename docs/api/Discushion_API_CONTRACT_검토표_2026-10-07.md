@@ -167,7 +167,7 @@ Privy 이메일 OTP로 인증·로그인한다. 최초 사용자는 필수/선�
 | D07 | 실제 금칙어 사전 | 제품 확인 + BE2·BE1 | #22, 댓글 필터 구현 전 |
 | D08 | 제목/본문/질문/옵션 길이·URL 검증·과거 투표 종료시각·중복 선택지·활동 일정 구조 | 제품 확인 + BE1·BE2·FE | #14·#16·#25, 각 입력 구현 전 |
 | D09 | 사진 저장 파일 삭제 확정. 다른 관계의 물리 보존·소프트 삭제·투표 상태 필터는 미정 | BE1·BE2·FE | #3·#13·#16·#26·#27 |
-| D10 | cursor 형식·size 기본/상한·기본 정렬·ID 동률 정렬·초기 댓글 수/답글 페이지 | BE1·BE2·FE | #9·#15·#17·#22·#27·#28, 목록 구현 전 |
+| D10 | cursor 형식·size 기본/상한·기본 정렬·ID 동률 정렬·초기 댓글 수/답글 페이지. #9의 사용자 채택·구현/FE 확인 경계는 §14, 다른 목록의 미정 조건 유지 | BE1·BE2·FE | #9·#15·#17·#22·#27·#28, 목록 구현 전 |
 | D11 | Region 계층·지도 원천·기관 정본 식별/seed·동시 유효 기관 인증 개수 | BE1·BE2, 기관 정책 제품 확인 | #3·#9·#12·#19·#29, Schema·권한 구현 전 |
 | D12 | 공유 토큰 저장/서명·TTL·재발급·링크 원문 재사용 | BE2·BE1·FE | #21, 공유 구현 전 |
 | D13 | Gemini 3.5 Flash-Lite 선택. 실제 API 모델 ID·생성/저장/재생성·재시도·짧은 원문은 확인/합의 필요 | BE2·BE1·FE | #74·#20·#30 |
@@ -758,3 +758,85 @@ DB 보존은 원본/감사 이력 유지를 위한 기술 기준이며 삭제된
 사용자가 back/develop pull·AGENTS.md 확인·PR 생성과 조건 충족 시 병합을 요청했다. #4 미커밋 변경을 untracked 포함 stash로 보존한 뒤 로컬 back/develop을 `git pull --ff-only origin back/develop`으로 `c768080`까지 갱신했다. 기준 상태를 실제 localhost JDBC/Java17 test/build로 먼저 검증했고16개 중13통과/원격3skip, 실패0/오류0/build 성공이다. #4 Feature를 최신 기준으로 fast-forward한 뒤 원래 변경을 복원했으며 충돌 없음. 복원된 최종 Feature도 2026-10-07 23:29 KST에45개 중42통과/원격3skip, 실패0/오류0/build 성공을 확인했다. 기존 §12.5 검증 범위와 실제 연동 미완료 조건은 유지한다.
 
 최신 AGENTS.md의 Backend PR 리뷰 기준과 Backend 협업전략 §5.1을 적용한다. **리뷰 분류: 상대 리뷰 필요.** 인증/가입 상태·제품 권한·공통 오류/API 계약과 기본 DB 권한표를 포함하므로 일반 PR의 상대 승인 생략 대상이 아니다. BE2의 최신 변경 리뷰·승인, 필수 CI, 최신 base·충돌/미해결 지적 없음과 PR 생성 후 최종 diff 재검토를 확인한다. GitHub의 일괄 승인 수0이나 Codex 검증을 BE2 승인으로 대신하지 않는다. 실제 권한표 공동 확정·Privy/서버 역할/FE 검증 전 #4 전체 완료·Issue 종료로 표시하지 않으며 PR에는 Refs #4와 남은 조건을 명시한다. 조건을 만족하지 않으면 Draft/병합 대기로 보고한다.
+
+## 14. #9 지역 후보 조회 계약과 검증 (2026-10-08)
+
+### 14.1 착수·사용자 결정·범위
+
+- 역할 BE1, Issue #9 (F-QQKYLC·F-ATWJDJ), `back/feature/9-region`. 작업 트리 clean을 확인하고 실제 `git pull --ff-only origin back/develop`으로 최신 `cc148e1`을 확인했다. Feature 생성 전 Java17/localhost PostgreSQL17.11 기준 test/build는45개 중42통과/원격Supabase3skip/실패0/오류0/build 성공이다. #4 PR #113은 원격에서 병합됐지만 실제 Privy/서버 역할/FE 확인의 #4 잔여 완료 조건은 유지한다.
+- 사용자(BE1)가 가입 전 조회, 지역 이름 검색, 가나다순, 기본20·최대100/요청, DB 등록 지역만 반환을 채택했다. 이름/ID keyset cursor와 기존 envelope·숫자 ID를 사용한다. 다른 목록/API/공통 오류·사진·게시물·집계·삭제/보존·담당 분담은 변경하지 않는다.
+- 구현 범위: 실제 GET /api/v1/regions, 입력 검사, SELECT-only JDBC, 같은 이름의 별도 ID와 기존 nullable map_feature_key, A영역의 findById 조회. Schema/기존 Migration·운영 seed·서버 역할/환경 설정 변경 없음.
+- 검증 기준: q NFC/공백·입력 범위·문자 그대로의 부분 검색, 가나다순/동률ID, 기본20·상한100·전체100초과 연속 조회, cursor/검색 조건 불일치, 실제 JDBC 공유 FK/비존재 ID, 실제 HTTP 익명/미가입/미완료·오류 envelope, 기존 test/build와 최종 diff.
+
+### 14.2 FE 계약 대조와 지도 연결 확인 항목
+
+확인자 **Codex(BE1 구현 준비)**, 검토 대상은 back/develop `cc148e1`의 API 정본 §4.6/5.2·검토표 §11/DB 명세 §5.6 및 origin/front/develop `b9d2acc`의 기존 FE 상세지침서(지역 선택 §608·신규 가입 §1354·탐색 지역 선택 §1420·wire 표 §2510)와 auth/contracts.ts다. 숫자는 해당 SHA의 줄 번호다. FE wire는 id/name·기존 data/meta·cursor/size를 요구하며 지역명 q는 합의 대기였다. FE auth service 타입은 Backend DTO가 아니므로 이를 그대로 서버 wire로 복제하지 않았다. 후보 선택과 가입/프로필 저장, 임시 탐색 지역을 구분한다.
+
+이 기록은 문서/코드 대조이며 **FE 담당자·BE2의 실제 확인/승인 기록이나 FE/BE 연결 결과가 아니다.** 사용자 결정과 검토안을 이번 Feature의 API 정본 §4.6에 포함하며 다음을 공동 확인한다.
+
+최종 fetch에서 origin/front/develop이 `4bb2052`로 갱신된 것도 확인했다. 위 FE 기준 문서와 auth/contracts.ts는 바뀌지 않았으며 신규 explore/model.ts·service.ts·mock.ts를 추가 대조했다. ExploreRegion의 string ID·neighborVerified는 명시적으로 FE display/mock 계약이고 실제 /regions HTTP adapter는 없다. 이를 서버 JSON number ID나 공개 후보의 자격 응답으로 변경하지 않는다. FE 실연결 시 기존 숫자 ID를 display 모델로 변환하고 이웃 자격은 별도 회원 상태 원본에서 조합하는 소비 계약을 확인해야 한다. FE mock의 실명 지역/문자열 ID는 DB 정본 seed로 사용하지 않는다.
+
+| 확인 주체·시점 | 구체적인 남은 항목 |
+| --- | --- |
+| BE1·BE2, #9 완료 전/실제 지역 적재 전 | 시연 지역 범위·행정동/법정동 기준·정본 데이터의 출처/버전·external_code 대응. 임의 지역·코드·계층/geometry를 추가하지 않음 |
+| BE1·BE2, #9 연결 합의 및 #19 지도 구현 전 | 기존 regions.id ↔ 정적 지도 feature의 map_feature_key 대응을 검토. 같은 이름을 키로 쓰지 않고, 누락은 null. 실제 지도 원천/경계·좌표는 미확정이며 연결 성공으로 표시하지 않음 |
+| FE 담당자·BE2, 소비 계약 확인/연동 전 | 익명 GET, q·size·cursor/400 field 상세, id/name/mapFeatureKey nullable와 data/meta 소비 확인. q 변경 시 cursor 초기화, 선택 ID로 가입/프로필 저장·임시 탐색 구분 |
+| BE2 #30와 BE1 #9, 실제 서버 역할 검증 시 | 기존 권한표의 regions SELECT·Schema USAGE 및 서버 전용 SELECT RLS 정책으로 실조회/TLS 확인. 공개 anon/authenticated DB 역할을 열지 않음. Spring의 공개 조회 예외와 DB 직접 공개는 다름 |
+| FE·BE, #30/#31 연결 이관 해소 | 합의 환경에서 가입 전 후보 조회→선택→가입 저장, 프로필 변경 저장/재조회 사용자 흐름과 오류/재시도. 직접 HTTP 검사를 실제 FE 연결로 기록하지 않음 |
+
+계약/Schema가 준비된 #9 조회 개발은 #19 지도 전체 완료를 기다리지 않는다. 지도 대표 조회 자체는 BE2 #19, 화면 표시/선택은 FE 범위다. #9의 공동 연결 합의·실제 데이터 원본 검증 조건은 별개로 유지한다. 실제 지역 데이터가 없는 환경에서는 빈 목록을 반환한다.
+
+### 14.3 실행 결과와 완료 상태
+
+2026-10-08 00:34 KST, Codex(BE1), 기준 `cc148e1` + #9 미커밋 작업 트리. Java17 `gradlew.bat --no-daemon test build --console=plain --rerun-tasks` 성공. 총69개 중66통과/실패0/오류0/원격Supabase3skip. 신규24개(입력/cursor8·실제JDBC7·실제HTTP7·DB없는HTTP2)는 모두 통과했다.
+
+| 검사 | 실제 결과·한계 |
+| --- | --- |
+| 실제 JDBC 검색·페이지 | 한글 가나다순/동일 이름 ID 정렬, NFC 이름/cursor 일치, `%_!` 문자 검색·SQL 주입 문자열 분리, 103행을100+3으로 중복/누락 없이 조회, 미존재 ID/검색 결과 없음 확인 |
+| 공통 Region 원본 | 합성 fixture의 profiles·neighbor_verified_regions·institution_credentials·posts가 같은 regions.id에 연결되고 미존재 ID 저장은 FK 거부. 조회로 자격/회원 완료 상태를 만들지 않음. 각 후속 기능 전체 API/운영 시연 원본 연결은 아님 |
+| 실제 HTTP | 실제 운영 Region Controller·Configuration·JDBC·공통 ES256/PEM filter 연결. 익명/미가입/가입 미완료 조회200, 기본20·후속3, 숫자ID·mapFeatureKey/null·external_code 비노출, 입력400 field/traceId, 검색 조건 바꾼 cursor400, 잘못된 Bearer401·후속 익명200 확인. 앱/서명키·행 데이터만 합성 test-only |
+| SELECT 전용 모의 역할 | localhost transaction 안에서 NOLOGIN/NOSUPERUSER/NOBYPASSRLS 역할·SELECT RLS 정책을 만들고 rollback. Schema USAGE·regions SELECT만으로 조회/ID 확인 성공, INSERT/UPDATE/DELETE·시퀀스 USAGE 없음, 실제 INSERT는42501 거부. 실제 Supabase 서버 LOGIN 계정 시험 아님 |
+| DB 미설정·JAR | DB 없는 local Health200 유지, 정상 지역 입력은500 INTERNAL_ERROR/원문 비노출, 잘못된 입력400. 운영 JAR 별도 localhost 실행에서도 Health200·지역500·입력400·잘못된 Bearer401 확인. Region 운영 class11개, 테스트 fixture0개 |
+| 실제 ERD/카탈로그 | 기존27테이블·180컬럼·단일FK47/복합FK8, 대조 errors0. Migration 수정/추가 없음. #9 합성 지역/임시 역할 잔존0, 이번 시험 Java/DB 서버 종료 |
+| 문서·경계 | API §4.6 외 모든 절(공통·사진·게시물 포함)과 검토표 D10/§14 외 모든 내용 보존. JSON 예시34개/상대 파일 링크26개 통과. 기존 contracts/support·인증 코드·환경/CI·BE2 코드 변경 없음 |
+| 최신 기준·병행 PR | 최종 fetch의 origin/back/develop은 `cc148e1`로 변경 없음. PR #107 사진 head `33379cb`와 두 API 문서를 merge-base 기준으로 temp 파일에서 git merge-file 검사해 충돌0. 실제 branch 병합/PR CI 결과를 뜻하지 않음. working/staged diff 공백·미해결 conflict0 |
+
+**상태: #9 조회 구현/로컬 실제 DB·HTTP 검증 완료, 공동 데이터·소비 계약 확인/운영·FE 연결 대기.** §14.2의 미완료 조건은 유지한다. #9 Issue 종료·commit/push/PR 생성·병합은 수행하지 않았다. API 계약을 포함하므로 향후 PR은 상대 Backend 리뷰 대상이다. 원격 Supabase3개는 opt-in 검사로 이번 localhost 실행에서 제외됐으며 이 로컬 결과를 원격 연결 검증으로 표시하지 않는다.
+
+### 14.4 제외된 원격 Supabase3개 별도 실행 (2026-10-08)
+
+사용자가 반복된 skip의 이유를 확인해 달라고 요청해 #9 구현·최종 diff 검토 후 검사 코드를 확인했다. SupabaseJdbcSmokeTests는 `DISCUSHION_VERIFY_SUPABASE=true`일 때만 실행하며 기존 localhost 검증 스크립트/CI는 false를 사용한다. 실제 공유 DB의 지정 환경·비밀 설정·TLS CA를 쓰는 검사이므로 localhost 시험과 분리한 것이며 skip은 통과/원격 연동 완료가 아니다.
+
+기존 ignored backend/.env의 대상이 시험에 고정된 개발 프로젝트와 일치하고 TLS verify-full/인증서 설정이 있음을 확인한 뒤 2026-10-08 00:41 KST, Codex(BE1)가 `gradlew.bat --no-daemon test --tests com.discushion.SupabaseJdbcSmokeTests --console=plain --rerun-tasks`를 true 환경변수로 별도 실행했다. **3개 모두 통과/실패0/오류0/skip0**. 지정 개발 DB의 SELECT만 수행했고 DB 변경/Migration·GRANT·계정/환경 설정 변경 없음. 테스트 pool은 종료됐다. 전체 로컬66개와 별도 원격3개가 통과한 것이며 같은 실행에서69개가 모두 원격으로 검증됐다는 뜻이 아니다. build 성공은 §14.3의 전체 로컬 실행 결과다.
+
+| 원격 검사 | 실제 확인 결과 |
+| --- | --- |
+| TLS JDBC 연결 | 인증서·호스트명 검증 포함 접속, SELECT1, postgres DB/PostgreSQL17 확인 |
+| 원격 Schema/Migration 이력 | 27테이블·176컬럼·FK55·RLS27·#3의 Migration4개 확인 |
+| 공개 API 역할 격리 | anon/authenticated/service_role3개가 private discushion Schema USAGE/테이블 데이터 권한을 갖지 않음 |
+
+**원격·로컬 차이 유지:** 원격은4개 Migration/176컬럼, 로컬 최신은 사진 보완 Migration 포함5개/180컬럼이다. 원격 검사 통과는 기존 #3 적용 상태에 대한 것이며 PR #85의 사진 보완 원격 적용 성공을 뜻하지 않는다. BE2가 #13/#30 실제 실행 전에 통합된 사진 보완을 조율해 적용하고 해당 rollout에서 smoke 기대 이력/컬럼을 함께 갱신·검증해야 한다. #9는 기존 regions 컬럼만 사용한다. 실제 최소 권한 서버 LOGIN 계정·지역 원본/지도 대응·Privy/FE 연결은 이 기존 postgres 계정의 SELECT 검사로 대신하지 않는다.
+
+### 14.5 최신 기준 pull·사진 보완 원격 적용 (2026-10-08)
+
+사용자가 최신 pull 및 사진 보완 Migration1개 미적용 문제 해결을 명시적으로 요청했다. 실제 병합은 사진 계약 PR #107이며 #13 기능 구현 Issue는 아직 열려 있음을 확인했다. #9 변경18파일(untracked 포함)을 stash로 보존하고 로컬 back/develop을 `git pull --ff-only origin back/develop`으로 `42dfb14`까지 갱신했다. 기준 test/build45개 중42통과/원격3skip를 확인한 뒤 #9 Feature를 fast-forward하고 stash를 복원했다. 문서 자동 병합 충돌0, 보존한 Region 소스/시험13파일의 내용 동일(Windows 줄바꿈 전환만 존재), 백업 stash도 유지한다. #107 사진 문단과 확정 공통 규약을 보존한다.
+
+이전 §14.4의 원격176컬럼/이력4개는 **적용 전 기록**이다. 이번에는 통합된 `20261007104543_support_photo_cleanup_leases.sql`을 그대로 지정 개발 프로젝트 `pmhmgqpyvrbbseqelpze`에 적용했다. 사용자 지시는 기존 원격 적용 보류의 후속 실행 요청이며 새 계약·Migration 내용을 임의로 결정하지 않았다. CLI2.120.0 help와 공식 changelog를 확인했다. dry-run에서 승인된1파일만 대상임을 확인하고 `db push --linked --project-ref pmhmgqpyvrbbseqelpze --skip-vault --yes`를 실행했다. 기존 Migration5개는 수정하지 않았고 역할/seed/Vault/Storage·비밀 설정도 변경하지 않았다.
+
+| 검증 | 실제 결과 |
+| --- | --- |
+| 원격 적용 전 | 27테이블·176컬럼·이력4개, media_files/post_photos 각각0행, 중복 파일 참조0, lifecycle shape 위반0 |
+| 원격 적용 후 | 27테이블·180컬럼·FK55·RLS27·이력5개. 추적4컬럼, 신규4제약 및 교체2제약 검증됨, cleanup 인덱스2개 유효/ready. 기존 사진/파일 행0 유지 |
+| 재실행/Advisor | 후속 dry-run migrations=[]/upToDate=true. security WARN/ERROR0(INFO1), performance WARN/ERROR0(INFO2). 정보성 안내를 권한 확대/운영 연동 완료로 취급하지 않음 |
+| 원격 smoke 갱신 | SupabaseJdbcSmokeTests의 기대180컬럼/이력5개 및 추가4컬럼·6제약·2유효인덱스 검사를 갱신. TLS verify-full 접속과 공개 API3역할 접근 차단은 유지 |
+| 전체 Java17 test/build | 2026-10-08 01:16 KST, `42dfb14` + #9/이번 rollout 미커밋 변경, `gradlew.bat --no-daemon test build --console=plain --rerun-tasks`. localhost 시험과 원격 opt-in3개를 함께 활성화해 **69통과/실패0/오류0/skip0/build 성공**. 실제 원격 검사는SELECT-only, 쓰기 fixture/잠금 시험은localhost만 사용. test pool/HTTP 서버와 이번에 시작한 PostgreSQL 종료 |
+
+**미적용 사진 Migration 문제는 해결됨.** 실제 최소 권한 서버 계정/RLS 작업 정책·Privy·Storage 전송/삭제/worker·FE 연결, #9 지역 원천/지도 대응 공동 확인은 별도 완료 조건으로 유지한다. 소스·검증 기대값·기존 문서 갱신은 현재 Feature 작업 트리에 있으며 commit/push/PR·GitHub 병합·배포는 수행하지 않았다. DB 실행 결과는 [DB 연결 결정 기록](../collaboration/backend-db-connection-decisions.md)의 최신 절을 함께 따른다.
+
+### 14.6 #9 Feature PR·조건부 병합 준비 (2026-10-08)
+
+사용자가 #9 commit/push/PR 생성과 조건 충족 시 병합까지 요청했다. 최신 origin/back/develop은 `42dfb14`이며 Feature의 기준과 분기0/0을 확인했다. 이 PR은 Region 구현9파일·신규 시험4파일·실제 원격 smoke1파일 및 기존 문서7파일을 포함한다. 사진 보완 원격 적용의 사용자 요청에 따른 smoke 기대값/실행 기록도 함께 공유하며 새 Migration/Schema·역할/환경 코드 변경은 없다. §14.5의69개 모두 통과/skip0/build 성공 결과와 최종 commit을 대조하고 PR 생성 후 원격 최종 diff를 다시 검토해 결과를 기록한다.
+
+**리뷰 분류: 상대 리뷰 필요.** 새 공개 지역 API 계약과 소비 DTO/인증 예외, 원격 Schema 검증 기대값을 포함하므로 최신 변경에 대한 BE2 승인1명이 필요하다. AGENTS.md Backend PR 리뷰 기준과 협업전략 §5.1에 따라 필수 CI·최신 base·충돌/미해결 지적 없음·작성자/Codex 최종 diff 검토를 함께 확인한다. GitHub의 일괄 승인 수0이나 합성 시험/다른 PR의 승인을 이번 상대 승인으로 대신하지 않는다.
+
+PR은 Refs #9를 사용한다. 후보 조회·공통 FK의 로컬 실제 구현 검증은 끝났으나 §14.2의 실제 지역 원천/지도 대응·소비 계약 공동 확인과 서버 역할·FE 연결 완료 조건은 남아 있어 Issue를 자동 종료하지 않는다. BE2 리뷰 요청에는 현재 조회 계약의 정합성과 남은 지도/기관 지역 연결 기준 확인을 명시한다. FE 실제 사용자 흐름은 기존 #30/#31 이관 조건을 유지한다. 별도 사용자 요청이 없었던 main/develop 직접 push·배포는 수행하지 않는다. 조건 충족 여부와 실제 PR 링크·CI/리뷰·병합 결과는 PR 및 Issue에 기록한다.

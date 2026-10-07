@@ -109,6 +109,15 @@ var reader = new ContractFixtures.Posts()
 
 읽기 대체 구현의 `findForUpdate`는 예외를 발생시킨다. 쓰기 서비스의 단위 시험에는 해당 테스트에서 명시한 guard 대체 구현을 사용할 수 있지만 실제 DB 잠금 성공으로 보고하지 않는다. 실제 adapter 이후 같은 트랜잭션·자격 변경·게시물 삭제·투표 종료 경합을 JDBC 통합 시험으로 확인한다. 테스트 지원 파일은 JAR에 포함하지 않는다.
 
+## #9 지역 후보 조회
+
+- `GET /api/v1/regions?q=...&size=20&cursor=...`: 가입 전에도 Bearer 없이 조회한다. Bearer가 있으면 기존 공통 검증을 통과해야 한다. 조회가 가입 완료·이웃/기관 자격을 만들지는 않는다.
+- 실제 `discushion.regions`만 SELECT한다. 지역명 부분 검색, NFC 이름/ID 순서의 cursor 페이지, 기본20/최대100, 기존 `data/meta`·숫자 ID·`mapFeatureKey` null을 사용한다. q/size/cursor 입력 오류는 기존400 VALIDATION_ERROR다. 공개 anon/authenticated DB 권한을 추가하지 않는다.
+- 실제 설정된 `supabase` 프로필 DataSource를 사용한다. DB 없는 기본 `local` 프로필은 기존 Health 실행을 유지하며 지역 요청은500 INTERNAL_ERROR로 표시한다. 빈 운영 DB를 임의/test 데이터로 채우거나 DB 미설정을 정상 빈 목록으로 숨기지 않는다.
+- `RegionQueryTests`는 입력/cursor, `JdbcRegionCatalogIntegrationTests`는 실제 localhost DB 검색·페이지·공유 FK, `RegionHttpIntegrationTests`는 **운영 Region route**와 실제 JDBC/공통 인증을 검증한다. HTTP 시험의 데이터·앱/서명키는 test-only다. 기존 CI의 localhost 환경에서 함께 실행하고 실제 Supabase3개는 기존 opt-in을 유지한다.
+- 계약·실행 결과와 공동 확인 대기는 [API 정본 §4.6](../docs/api/Discushion_API_SPEC_v2.md#46-지역-후보), [계약 검토표 §14](../docs/api/Discushion_API_CONTRACT_검토표_2026-10-07.md#14-9-지역-후보-조회-계약과-검증-2026-10-08)를 따른다. 실제 지역 원천/지도 대응·FE 사람 확인/연동·실제 서버 역할 검증 전 전체 #9 완료로 표시하지 않는다. 지도 조회 구현은 BE2 #19다.
+- 최신 검증(2026-10-08 01:16 KST): 사용자 요청으로 사진 보완 Migration을 지정 Supabase 개발 DB에 적용했다. 원격과 localhost 모두27테이블·180컬럼·이력5개다. 원격 검사3개를 포함한 전체69개 통과/실패0/오류0/skip0, build 성공. SupabaseJdbcSmokeTests의 기대 이력/컬럼과 사진 추적4컬럼·검증된6제약·유효2인덱스 검사를 갱신했다. 실제 서버 역할·Storage worker/Privy/FE 연결 완료와 구분하며 검토표 §14.5와 DB 연결 결정 기록의 최신 적용 절을 따른다. 이전 §14.4의176컬럼/4이력은 적용 전 역사 기록이다.
+
 ## GitHub CI와 CD 상태
 
 추가 batch port는 `ParticipationSnapshotReader`(BE1), `PostSummaryReader`(BE2)다. `SharedReadFixtures`에서 공개 집계/본인 상태 분리와 공개/삭제 요약을 시험한다. `PostDeletionParticipant`는 기존 transaction에서 북마크를 해제하는 BE1 adapter의 규약이며 아직 구현은 없다. 정확한 batch 누락·오류·접근·삭제/보존 의미는 계약 검토표 §11.9를 따른다. guest와 타회원의 개인 상태가 섞이지 않는지, 삭제 요약에 display가 없는지를 회귀 검증한다.
