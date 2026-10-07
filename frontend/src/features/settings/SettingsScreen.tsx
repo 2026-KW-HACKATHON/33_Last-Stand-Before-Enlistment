@@ -6,14 +6,15 @@ import { Button } from "../../components/ui/Button";
 import { Notice } from "../../components/ui/Notice";
 import { SettingRow } from "../../components/ui/SettingRow";
 import { AccessGuard, snapshotReference, useNavigation } from "../../lib/navigation";
+import { useOpenInterestKeywords } from "../interest-keywords/InterestKeywordsHost";
 import { createSettingsMenuStore, settingsMenus, settingsMenuEntry, type SettingsMenuHandler, type SettingsMenuId } from "./model";
 export function SettingsScreen({ onBack, onMenu, onReturn, visible, getScroll, onScroll }: { onBack: () => void; onMenu?: SettingsMenuHandler; onReturn: () => void; visible: boolean; getScroll: () => number; onScroll: (value: number) => void }) {
- const navigation = useNavigation(); const shell = useRef<HTMLDivElement>(null);
+ const openKeywords = useOpenInterestKeywords(); const navigation = useNavigation(); const shell = useRef<HTMLDivElement>(null);
  const store = useMemo(() => createSettingsMenuStore(onMenu), [onMenu]);
  const state = useSyncExternalStore(store.subscribe, store.getState, store.getState);
  useEffect(() => () => store.dispose(), [store]);
  useEffect(() => { const main = shell.current?.querySelector("main"); if (!main) return; if (!visible) return; main.scrollTop = getScroll(); const record = () => onScroll(main.scrollTop); main.addEventListener("scroll", record); return () => main.removeEventListener("scroll", record); }, [onScroll, getScroll, visible]);
- function open(id: SettingsMenuId) { const target = settingsMenuEntry(id); const ref = target ? snapshotReference(navigation.state, target.destination, "list") : undefined; void store.open(id, settingsMenuEntry(id, ref), onReturn); }
+ function open(id: SettingsMenuId) { if (id === "interestKeywords" && openKeywords) { openKeywords(); return; } const target = settingsMenuEntry(id); const ref = target ? snapshotReference(navigation.state, target.destination, "list") : undefined; void store.open(id, settingsMenuEntry(id, ref), onReturn); }
  const selected = settingsMenus.find(menu => menu.id === state.selected);
  function back() { store.cancel(); onBack(); }
  return <div ref={shell}><MobileLayout header={<Header title="설정" onBack={back}/> }><AccessGuard destination={{ id: "settings" }} fallback={(result, retry) => <><Notice role="status">{result.status === "loading" ? "인증 상태 확인 중" : result.status === "error" ? "인증 상태 확인 실패" : "로그인과 가입 완료가 필요합니다."}</Notice>{retry && <Button onClick={() => void retry()}>다시 확인</Button>}{result.status === "login-required" && <Button onClick={() => { back(); navigation.beginAuthentication({ destination: { id: "settings" }, origin: navigation.state.current?.destination }); }}>로그인</Button>}{result.status === "signup-required" && <Button onClick={() => { back(); navigation.beginAuthentication({ destination: { id: "settings" }, origin: navigation.state.current?.destination }, "signup"); }}>가입 계속하기</Button>}</>}>
