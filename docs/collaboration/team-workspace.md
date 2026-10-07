@@ -33,10 +33,10 @@ A는 인증·지역 권한 계약, B는 게시물 원본·공통 상세, C는 �
 | 영역 | 실행 위치 | 실제 실행 명령 | 테스트 명령 | 빌드 명령 | 상태 |
 | --- | --- | --- | --- | --- | --- |
 | Frontend | frontend/ | 미정 | 미정 | 미정 | 기술 스택 확정·초기화 전 |
-| Backend | backend/ | 미정 | 미정 | 미정 | 기술 스택 확정·초기화 전 |
+| Backend | backend/ | `gradlew.bat bootRun` / `sh ./gradlew bootRun` | `gradlew.bat test` / `sh ./gradlew test` | `gradlew.bat build` / `sh ./gradlew build` | Issue #1 실행 골격 구현·테스트 통과, 외부 서비스 선택·실제 연결 미완료 |
 | FE/BE 연동 | 미정 | 미정 | 합의된 시나리오·테스트 계정·인증 지역 등록 필요 | 해당 없음 | API 원본 및 실행 환경 미준비 |
 
-현재는 문서·폴더 골격만 있어 기능 테스트와 빌드는 실행할 수 없다. 기술 스택 초기화 후 실제 설정과 일치하는 명령을 등록한다. 실행하지 않은 검증을 통과로 기록하지 않는다. 실제 비밀번호·토큰·증빙 자료는 이 문서에 기록하지 않는다.
+Backend의 실행·검증 명령과 프로필은 [Backend 안내](../../backend/README.md), 기술 선택과 실제 검증 결과는 [Issue #1 결정 기록](backend-environment-decisions.md)을 따른다. Frontend 실행환경과 실제 FE/BE 연동은 아직 미준비다. 실행하지 않은 검증을 통과로 기록하지 않는다. 실제 비밀번호·토큰·증빙 자료는 이 문서에 기록하지 않는다.
 
 ## 개발 시작 전 남은 합의
 
