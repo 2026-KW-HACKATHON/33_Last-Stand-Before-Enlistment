@@ -19,6 +19,7 @@ logs/
 # Temporary
 tmp/
 temp/
+.local-db/
 
 # Build / generated
 .gradle/
