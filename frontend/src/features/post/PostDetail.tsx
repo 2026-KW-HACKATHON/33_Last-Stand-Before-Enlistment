@@ -33,8 +33,8 @@ export type PostDetailProps = {
 
 function Meta({ post }: { post: PostDisplayModel }) {
   return <>
-    <div className="flex flex-wrap gap-1 text-caption text-secondary">
-      <span className="rounded-chip bg-soft px-2 py-0.5 text-primary">{postTypeLabel(post.type)}</span>
+    <div className="flex flex-wrap items-center gap-1.5 text-caption text-secondary">
+      <span className="rounded-chip bg-soft px-2 py-0.5 leading-none text-primary">{postTypeLabel(post.type)}</span>
       <span>{post.metadata.regionName}</span><span aria-hidden="true">·</span><span>{post.metadata.topic}</span>
     </div>
     <div className="mt-3 flex items-center justify-between gap-2 text-caption text-secondary">

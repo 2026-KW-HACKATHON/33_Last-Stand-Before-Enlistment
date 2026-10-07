@@ -21,8 +21,8 @@ export function PostCard({ post, onOpen, className = "" }: PostCardProps) {
   }
   const firstImage = post.images[0];
   const body = <>
-    <div className="flex flex-wrap gap-1 text-caption text-secondary">
-      <span className="rounded-chip bg-soft px-2 py-0.5 text-primary">{postTypeLabel(post.type)}</span>
+    <div className="flex flex-wrap items-center gap-1.5 text-caption text-secondary">
+      <span className="rounded-chip bg-soft px-2 py-0.5 leading-none text-primary">{postTypeLabel(post.type)}</span>
       <span>{post.metadata.regionName}</span><span aria-hidden="true">·</span><span>{post.metadata.topic}</span>
     </div>
     <h2 className="mt-2 text-card-title text-text">{post.title}</h2>
