@@ -3,7 +3,7 @@
 import { createContext, useContext, useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
 import type { SessionState } from "./guard";
 import type { Destination } from "./routes";
-import { createNavigationStore, type NavigationEntry, type NavigationResult, type NavigationStore, type TargetAvailability } from "./state";
+import { createNavigationStore, type NavigationEntry, type NavigationResult, type NavigationStore, type TargetAvailability, backDestination } from "./state";
 
 type NavigationContextValue = {
   state: ReturnType<NavigationStore["getState"]>;
@@ -18,10 +18,12 @@ type NavigationContextValue = {
 };
 const NavigationContext = createContext<NavigationContextValue | null>(null);
 
-export function NavigationProvider({ children, currentDestination, onNavigate }: {
+export function NavigationProvider({ children, currentDestination, onNavigate, onIntent }: {
   children: ReactNode;
   currentDestination: Destination | null;
   onNavigate: (href: string, replace: boolean) => void;
+  /** Consumer of a confirmed logical identity whose URL is still unconfirmed. */
+  onIntent?: (entry: NavigationEntry) => void;
 }) {
   const [store] = useState(() => createNavigationStore(currentDestination ? { destination: currentDestination } : undefined));
   const state = useSyncExternalStore(store.subscribe, store.getState, store.getState);
@@ -32,10 +34,10 @@ export function NavigationProvider({ children, currentDestination, onNavigate }:
   }
   return <NavigationContext.Provider value={{
     state,
-    navigate: (entry, replace = false) => deliver(store.navigate(entry, replace), replace),
-    back: () => deliver(store.back(), true),
+    navigate: (entry, replace = false) => { const result = store.navigate(entry, replace); if (result.status === "unresolved") onIntent?.(entry); return deliver(result, replace); },
+    back: () => { const current = store.getState().current; const result = store.back(); if (result.status === "unresolved" && current) onIntent?.({ destination: backDestination(current), origin: current.origin }); return deliver(result, true); },
     beginAuthentication: (entry, step) => deliver(store.beginAuthentication(entry, step), true),
-    completeAuthentication: (session, availability) => deliver(store.completeAuthentication(session, availability), true),
+    completeAuthentication: (session, availability) => { const target = store.getState().returnTo?.target; const result = store.completeAuthentication(session, availability); if (result.status === "unresolved" && target) onIntent?.(target); return deliver(result, true); },
     cancelAuthentication: () => deliver(store.cancelAuthentication(), true),
     registerSnapshot: store.registerSnapshot,
     removeSnapshot: store.removeSnapshot,
