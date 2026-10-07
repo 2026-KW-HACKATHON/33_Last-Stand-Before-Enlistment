@@ -154,7 +154,7 @@ erDiagram
     neighbor_verified_regions {
         bigint user_id PK,FK "NN 완료 회원"
         bigint region_id PK,FK "NN 완료 지역"
-        bigint source_request_id FK "NULL 시연 seed 허용"
+        bigint source_request_id FK,UK "NULL 시연 seed 허용 신청당 완료 관계 하나"
         timestamp verified_at "NN 완료 시각"
     }
     institutions {
@@ -316,7 +316,7 @@ erDiagram
     users ||..o{ neighbor_verification_requests : "id to user_id"
     regions ||..o{ neighbor_verification_requests : "id to region_id"
     neighbor_verification_requests ||--|{ neighbor_verification_evidences : "id to request_id"
-    media_files ||..o{ neighbor_verification_evidences : "id to file_id"
+    media_files ||--o{ neighbor_verification_evidences : "id to file_id"
     users ||--o{ neighbor_verified_regions : "id to user_id"
     regions ||--o{ neighbor_verified_regions : "id to region_id"
     neighbor_verification_requests o|..o| neighbor_verified_regions : "id to source_request_id"
@@ -324,7 +324,7 @@ erDiagram
     institutions o|..o{ institution_verification_requests : "id to institution_id"
     regions ||..o{ institution_verification_requests : "id to responsible_region_id"
     institution_verification_requests ||--|{ institution_verification_evidences : "id to request_id"
-    media_files ||..o{ institution_verification_evidences : "id to file_id"
+    media_files ||--o{ institution_verification_evidences : "id to file_id"
     institution_verification_requests ||..o| institution_credentials : "id to request_id"
     users ||..o{ institution_credentials : "id to user_id"
     institutions ||..o{ institution_credentials : "id to institution_id"
@@ -637,7 +637,7 @@ PK(request_id,file_id), UNIQUE(request_id,sort_order). 신청 완료 시 연결�
 | --- | --- | --- |
 | user_id | BIGINT PK/FK | 완료 회원 |
 | region_id | BIGINT PK/FK | 완료 지역 |
-| source_request_id | BIGINT FK NULL | 같은 회원·지역의 COMPLETED 신청 |
+| source_request_id | BIGINT FK UNIQUE NULL | 같은 회원·지역의 COMPLETED 신청. NULL은 여러 행 허용, 값이 있으면 신청당 완료 관계 하나 |
 | verified_at | TIMESTAMP | 완료 시각 |
 
 PK(user_id,region_id). UNIQUE(source_request_id)는 NULL을 여러 개 허용하는 방식으로 선언해 신청 1개가 여러 완료 관계를 만들지 못하도록 한다. 시연 seed는 신청 없는 NULL 근거를 허용하는 설계 제안이며 사용자 쓰기 API에서 이 경로를 열지 않는다.

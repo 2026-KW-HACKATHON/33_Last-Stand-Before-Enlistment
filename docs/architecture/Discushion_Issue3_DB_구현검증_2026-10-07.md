@@ -151,3 +151,11 @@ Java 결과 XML의 이번 실행 시각은 13:47:12~13:47:20 KST이며 JAR도 �
 1번 기본 권한표는 BE1·BE2가 #4 완료/병합 전에 확정하고 #30의 서버 계정 생성·GRANT 전에 준비한다(#30의 해당 작업 착수가 더 빠르면 그 전에 확정). 기능별 추가 권한은 해당 기능 Issue 완료/병합 전에 갱신한다. 3번 계정·연결은 BE2/#30과 #4 협업으로 서버 역할 기능 검증 전에 준비한다. 4번은 실제 서버 계정의 DB 권한 시험과 각 API 권한 거부 시험으로 수행하고 #31 전에 해소한다. 상세 담당·시점·완료 조건은 [DB 연결 결정 기록](../collaboration/backend-db-connection-decisions.md)의 마지막 절에 명시했다. 실제 계정/RLS 정책 구성은 아직 미완료이며 위 113/9/11개 검사는 새 서버 역할 검증 결과가 아니다.
 
 이번 후속 변경은 결정·검증 문서만 수정하며 코드·Migration·DB 권한은 변경하지 않는다. §11의 실제 test/build 결과는 코드 SHA `2d3f87a912dc290c20e62f05ac20e3991c5969eb`에 대한 결과로 유지한다. BE2 공동 검토·후속 배정 확인과 필수 리뷰·CI 후에만 병합 여부를 판단한다.
+
+## 13. PR #35 병합 이후 최신 back/develop 반영
+
+2026-10-07 16:12 KST 사용자 요청으로 `origin/back/develop`의 `ea9005c7979e0a463644b43fe263ce0d91903411`(PR #35 병합)을 `back/feature/3-schema`에 병합했다. 병합 전 Feature는 `32b507e1249a14e295ab363e1b7f06b971568576`이며 충돌 없이 문서 두 파일이 반영됐다. 기존 미추적 `Discushion_MVP_ERD.mmd`가 원격 병합 파일과 동일함을 Git blob hash로 확인하고 Git 제외 `.local-db/issue3-pre-merge-erd-a88d21b24d6a469fbe554034f06d8983.mmd`에 보존한 뒤 원격 추적 파일로 반영했다.
+
+기존 native 시험 DB를 localhost:55432로 시작해 `node supabase/tests/check-erd-schema.mjs`를 실제 실행했다. 결과는 27테이블·176컬럼·단일 FK 47·복합 FK 8·Privy UNIQUE 대조 오류 0이다. #35의 source_request_id UNIQUE와 식별 관계 표기 수정, #78의 승인된 MVP v10.2 설명이 함께 유지된 것을 diff로 확인했다. 병합 diff 공백 검사도 통과했고 시험 DB를 정상 종료했다.
+
+변경은 ERD와 검증 문서이며 코드·Migration·DB 권한은 변경되지 않았다. 이번에는 ERD 카탈로그 대조만 재실행했으며 SQL 113개·역할 모의 9개·Java test/build·원격 JDBC는 §11 결과로 유지하고 재실행했다고 기록하지 않는다. #35와의 문서 병합 순서는 해소됐으며 BE2 검토·후속 배정 확인·#74 계약 경계·필수 리뷰/CI는 여전히 확인이 필요하다.
