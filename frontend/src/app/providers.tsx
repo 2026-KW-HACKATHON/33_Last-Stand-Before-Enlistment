@@ -5,17 +5,21 @@ import { usePathname, useRouter } from "next/navigation";
 import { ApiClientProvider } from "../lib/api/provider";
 import type { ApiClient } from "../lib/api/types";
 import { NavigationProvider, SessionProvider, destinationFromPathname, type SessionState } from "../lib/navigation";
+import { LoginProvider } from "../features/auth/provider";
+import type { OtpLoginService } from "../features/auth/contracts";
 
 /** Real adapters/client are injected by Integration; no production Mock or guessed base URL. */
-export function AppProviders({ children, session, retrySession, apiClient }: {
-  children: ReactNode; session?: SessionState; retrySession?: () => void | Promise<void>; apiClient?: ApiClient;
+export function AppProviders({ children, session, retrySession, apiClient, loginService }: {
+  children: ReactNode; session?: SessionState; retrySession?: () => void | Promise<void>; apiClient?: ApiClient; loginService?: OtpLoginService;
 }) {
   const router = useRouter();
   const pathname = usePathname();
   const currentDestination = useMemo(() => destinationFromPathname(pathname), [pathname]);
   return <SessionProvider session={session} retry={retrySession}>
     <NavigationProvider currentDestination={currentDestination} onNavigate={(href, replace) => replace ? router.replace(href) : router.push(href)}>
-      {apiClient ? <ApiClientProvider client={apiClient}>{children}</ApiClientProvider> : children}
+      <LoginProvider service={loginService}>
+        {apiClient ? <ApiClientProvider client={apiClient}>{children}</ApiClientProvider> : children}
+      </LoginProvider>
     </NavigationProvider>
   </SessionProvider>;
 }

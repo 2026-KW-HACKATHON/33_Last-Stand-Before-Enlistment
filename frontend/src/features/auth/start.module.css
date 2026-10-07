@@ -1,0 +1,17 @@
+/* A01-specific geometry; no new global tokens or system status-bar imitation. */
+@font-face {
+  font-family: "DiscushionStartInter";
+  src: url("/fonts/InterVariable.woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+.content { gap: 0; }
+.brand { padding-top: 105px; }
+.image { width: min(336px, 100%); height: auto; margin-inline: auto; }
+.slogan { margin-top: 14px; text-align: center; font-family: "DiscushionStartInter", var(--font-sans); font-size: 16px; font-weight: 700; line-height: normal; color: #000; }
+.actions { margin-top: 123px; }
+@media (max-height: 650px) {
+  .brand { padding-top: var(--spacing-content-top); }
+  .actions { margin-top: var(--spacing-content-bottom); }
+}
