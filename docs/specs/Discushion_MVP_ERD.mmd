@@ -1,0 +1,285 @@
+erDiagram
+    users {
+        bigint id PK "회원 식별자"
+        text email UK "NN 등록 로그인 이메일"
+        text password_hash "NN 비밀번호 검증값"
+        timestamp email_verified_at "NN 가입 이메일 확인 시각"
+        timestamp created_at "NN 가입 시각"
+        timestamp updated_at "NN 계정 변경 시각"
+    }
+    profiles {
+        bigint user_id PK,FK "users.id 일대일"
+        varchar nickname UK "NN 최대 10자"
+        varchar bio "NULL 최대 50자"
+        bigint activity_region_id FK "NN 기본 활동 지역"
+        bigint profile_image_file_id FK "NULL 프로필 사진"
+        timestamp updated_at "NN 프로필 변경 시각"
+    }
+    profile_attributes {
+        bigint user_id PK,FK "profiles.user_id"
+        varchar attribute PK "복합 PK 복수 이웃 속성"
+    }
+    user_agreements {
+        bigint user_id PK,FK "users.id"
+        varchar agreement_type PK "필수 2종 선택 1종"
+        boolean agreed "NN 동의 여부"
+        text policy_version "NN 적용 약관 버전 제안"
+        timestamp recorded_at "NN 선택 기록 시각"
+    }
+    email_verifications {
+        bigint id PK "가입 전에도 생성"
+        text email "NN 인증 대상 이메일"
+        varchar purpose "NN SIGN_UP"
+        text code_digest "NULL 발송 준비 전"
+        varchar delivery_status "NN 발송 처리 상태"
+        timestamp requested_at "NN 요청 시각"
+        timestamp sent_at "NULL 성공 발송 시각"
+        timestamp expires_at "NULL 코드 만료 시각"
+        timestamp resend_available_at "NULL 재발송 가능 시각"
+        integer attempt_count "NN 코드 확인 시도 수"
+        timestamp verified_at "NULL 코드 확인 성공"
+        timestamp invalidated_at "NULL 재발급 무효화"
+        text proof_token_digest UK "NULL 가입 인증 증명 해시"
+        timestamp proof_expires_at "NULL 증명 만료 시각"
+        timestamp consumed_at "NULL 가입에 소비된 시각"
+        bigint registered_user_id FK "NULL 가입 완료 회원"
+    }
+    regions {
+        bigint id PK "동 단위 지역"
+        text name "NN 지역 표시명"
+        text external_code UK "NULL 원천 지역 코드"
+        text map_feature_key UK "NULL 지도 경계 참조"
+    }
+    media_files {
+        bigint id PK "업로드 파일 메타데이터"
+        bigint owner_user_id FK "NN 업로드한 회원"
+        text storage_key UK "NN 내부 파일 식별"
+        text original_name "NN 원 파일명"
+        text mime_type "NN 검증 MIME"
+        bigint size_bytes "NN 파일 바이트 크기"
+        varchar purpose "NN 파일 사용 용도"
+        timestamp created_at "NN 저장 시각"
+    }
+    neighbor_verification_requests {
+        bigint id PK "이웃 인증 신청"
+        bigint user_id FK "NN 신청 회원"
+        bigint region_id FK "NN 신청 지역"
+        varchar status "NN RECEIVED 또는 COMPLETED"
+        timestamp submitted_at "NN 최종 제출 시각"
+        timestamp completed_at "NULL 완료 시각"
+    }
+    neighbor_verification_evidences {
+        bigint request_id PK,FK "이웃 신청"
+        bigint file_id PK,FK "비공개 증빙 파일"
+        integer sort_order "NN 첨부 순서"
+    }
+    neighbor_verified_regions {
+        bigint user_id PK,FK "NN 완료 회원"
+        bigint region_id PK,FK "NN 완료 지역"
+        bigint source_request_id FK,UK "NULL 시연 seed 허용 신청당 완료 관계 하나"
+        timestamp verified_at "NN 완료 시각"
+    }
+    institutions {
+        bigint id PK "기관 정본 식별자"
+        text name "NN 기관명 이름만으로 동일성 판단 금지"
+        text external_code UK "NULL 기관 원천 코드"
+        timestamp created_at "NN 정본 등록 시각"
+    }
+    institution_verification_requests {
+        bigint id PK "기관 인증 신청"
+        bigint user_id FK "NN 신청 회원"
+        bigint institution_id FK "NULL 접수 후 정본 연결"
+        text submitted_institution_name "NN 신청에 입력한 기관명"
+        text department_name "NN 부서"
+        text position_name "NN 직책"
+        text applicant_name "NN 담당자 이름 비공개"
+        text work_email "NN 업무 이메일 비공개"
+        text phone_number "NN 전화번호 비공개"
+        bigint responsible_region_id FK "NN 담당 지역"
+        varchar status "NN RECEIVED 또는 COMPLETED"
+        timestamp submitted_at "NN 최종 제출 시각"
+        timestamp completed_at "NULL 완료 시각"
+    }
+    institution_verification_evidences {
+        bigint request_id PK,FK "기관 신청"
+        bigint file_id PK,FK "재직 증빙 파일"
+        integer sort_order "NN 첨부 순서"
+    }
+    institution_credentials {
+        bigint id PK "완료 기관 인증"
+        bigint request_id FK,UK "NN 완료 근거 신청"
+        bigint user_id FK "NN 인증 회원"
+        bigint institution_id FK "NN 확정 기관 정본"
+        bigint responsible_region_id FK "NN 인증 담당 지역"
+        timestamp completed_at "NN 인증 완료 시각"
+        timestamp valid_until "NN 완료일부터 1년"
+    }
+    posts {
+        bigint id PK "세 유형의 공통 게시물"
+        bigint author_user_id FK "NN 작성 회원"
+        bigint region_id FK "NN 게시물 지역"
+        varchar type "NN 안건 활동 투표"
+        varchar topic "NN 7개 주제 중 하나"
+        text title "NN 제목"
+        text content "NN 원문"
+        varchar status "NN PUBLISHED 또는 DELETED"
+        bigint content_revision "NN 요약 원문 버전"
+        timestamp created_at "NN 최초 게시 시각"
+        timestamp updated_at "NN 변경 시각"
+        timestamp deleted_at "NULL 삭제 시각"
+    }
+    activity_post_details {
+        bigint post_id PK,FK "LOCAL_ACTIVITY 전용"
+        text source "NN 활동 출처"
+        text schedule "NN 일정 문자열 제안"
+        text place "NN 장소"
+        varchar activity_status "NN 4상태 기본값 없음"
+        text external_participation_url "NULL 외부 참여 링크"
+    }
+    polls {
+        bigint id PK "투표 식별자"
+        bigint post_id FK,UK "NN VOTE 게시물"
+        text question "NN 투표 질문"
+        timestamp ends_at "NN 서버 종료 기준"
+    }
+    poll_options {
+        bigint id PK "선택지 식별자"
+        bigint poll_id FK "NN 소속 투표"
+        text content "NN 선택지 내용"
+        integer sort_order "NN 표시 순서"
+    }
+    vote_selections {
+        bigint poll_id PK,FK "회원당 해당 투표 한 표"
+        bigint user_id PK,FK "복합 PK"
+        bigint option_id FK "NN 동일 투표 선택지"
+        timestamp first_submitted_at "NN 최초 참여 시각"
+        timestamp updated_at "NN 현재 선택 변경 시각"
+    }
+    post_photos {
+        bigint id PK "사진 관계 식별자"
+        bigint post_id FK "NN 소속 게시물"
+        bigint file_id FK "NN 이미지 파일"
+        integer sort_order "NN 첫 순서가 썸네일"
+    }
+    comments {
+        bigint id PK "댓글 또는 답글"
+        bigint post_id FK "NN 소속 게시물"
+        bigint parent_comment_id FK "NULL 원 부모 댓글"
+        bigint reply_to_comment_id FK "NULL 지목한 댓글 또는 답글"
+        bigint author_user_id FK "NULL 게스트일 때만"
+        varchar author_kind "NN MEMBER 또는 GUEST"
+        text content "NN 빈 내용 금지"
+        text reply_to_display_name "NULL 지목 이름 기록 제안"
+        timestamp created_at "NN 작성 시각"
+    }
+    post_reactions {
+        bigint post_id PK,FK "NN 반응 게시물"
+        bigint user_id PK,FK "NN 반응 회원"
+        varchar reaction_type PK "복합 PK 세 반응 독립"
+        timestamp created_at "NN 현재 등록 시각"
+    }
+    comment_evaluations {
+        bigint comment_id PK,FK "NN 댓글 또는 답글"
+        bigint user_id PK,FK "복합 PK 평가 회원"
+        varchar evaluation_type "NN LIKE 또는 DISLIKE"
+        timestamp created_at "NN 현재 관계 최초 등록"
+        timestamp updated_at "NN 직접 전환 시각"
+    }
+    bookmarks {
+        bigint post_id PK,FK "NN 저장 게시물"
+        bigint user_id PK,FK "복합 PK 저장 회원"
+        timestamp created_at "NN 현재 등록 시각"
+    }
+    activity_events {
+        bigint id PK "누적 플러스1 행동"
+        text transition_key UK "NN 실제 상태 전이 식별"
+        bigint user_id FK "NN 행동 주체 회원"
+        bigint post_id FK "NN 행동 대상 게시물"
+        bigint comment_id FK "NULL 댓글 관련 행동"
+        bigint poll_id FK "NULL 투표 최초 참여"
+        varchar event_type "NN 활동 12개 종류"
+        timestamp occurred_at "NN 발생 시각"
+    }
+    institution_agenda_adoptions {
+        bigint id PK "채택 회차 식별자"
+        bigint post_id FK "NN 공개 지역 안건"
+        bigint institution_id FK "NN 채택 기관 정본"
+        bigint adopted_by_user_id FK "NN 채택 회원 비공개"
+        bigint credential_id FK "NN 당시 인증 근거 비공개"
+        timestamp adopted_at "NN 채택 시각"
+        timestamp canceled_at "NULL 현재 채택이면 비어 있음"
+        bigint canceled_by_user_id FK "NULL 취소 회원 비공개"
+    }
+    ai_agenda_summaries {
+        bigint post_id PK,FK "LOCAL_AGENDA 전용 최신 슬롯"
+        bigint source_revision "NN 원문 버전"
+        varchar status "NN 생성 결과 상태"
+        text summary "NULL 성공한 3문장 한 문단"
+        timestamp requested_at "NN 생성 착수 시각 제안"
+        timestamp generated_at "NULL 성공 생성 시각"
+        timestamp updated_at "NN 상태 갱신 시각"
+    }
+    post_share_links {
+        bigint post_id PK,FK "선택 테이블 저장형 공유"
+        text token_digest UK "NN 게시물 귀속 공유 토큰 해시"
+        bigint issued_by_user_id FK "NN 발급 회원 감사용"
+        timestamp created_at "NN 최초 발급 시각"
+        timestamp expires_at "NULL 수명 미확정"
+        timestamp revoked_at "NULL 무효화 시각 제안"
+    }
+
+    users ||--|| profiles : "id to user_id"
+    profiles ||--o{ profile_attributes : "user_id to user_id"
+    users ||--|{ user_agreements : "id to user_id"
+    users o|..o{ email_verifications : "id to registered_user_id after signup"
+    regions ||..o{ profiles : "id to activity_region_id"
+    users ||..o{ media_files : "id to owner_user_id"
+    media_files o|..o| profiles : "id to profile_image_file_id"
+    users ||..o{ neighbor_verification_requests : "id to user_id"
+    regions ||..o{ neighbor_verification_requests : "id to region_id"
+    neighbor_verification_requests ||--|{ neighbor_verification_evidences : "id to request_id"
+    media_files ||--o{ neighbor_verification_evidences : "id to file_id"
+    users ||--o{ neighbor_verified_regions : "id to user_id"
+    regions ||--o{ neighbor_verified_regions : "id to region_id"
+    neighbor_verification_requests o|..o| neighbor_verified_regions : "id to source_request_id"
+    users ||..o{ institution_verification_requests : "id to user_id"
+    institutions o|..o{ institution_verification_requests : "id to institution_id"
+    regions ||..o{ institution_verification_requests : "id to responsible_region_id"
+    institution_verification_requests ||--|{ institution_verification_evidences : "id to request_id"
+    media_files ||--o{ institution_verification_evidences : "id to file_id"
+    institution_verification_requests ||..o| institution_credentials : "id to request_id"
+    users ||..o{ institution_credentials : "id to user_id"
+    institutions ||..o{ institution_credentials : "id to institution_id"
+    regions ||..o{ institution_credentials : "id to responsible_region_id"
+    users ||..o{ posts : "id to author_user_id"
+    regions ||..o{ posts : "id to region_id"
+    posts ||--o| activity_post_details : "id to post_id for activity"
+    posts ||..o| polls : "id to post_id for vote"
+    polls ||..|{ poll_options : "id to poll_id"
+    polls ||--o{ vote_selections : "id to poll_id"
+    users ||--o{ vote_selections : "id to user_id"
+    poll_options ||..o{ vote_selections : "poll_id and id to poll_id and option_id"
+    posts ||..o{ post_photos : "id to post_id"
+    media_files ||..o{ post_photos : "id to file_id"
+    posts ||..o{ comments : "id to post_id"
+    users o|..o{ comments : "id to author_user_id MEMBER only"
+    comments o|..o{ comments : "same post id to parent_comment_id"
+    comments o|..o{ comments : "same thread id to reply_to_comment_id"
+    posts ||--o{ post_reactions : "id to post_id"
+    users ||--o{ post_reactions : "id to user_id"
+    comments ||--o{ comment_evaluations : "id to comment_id"
+    users ||--o{ comment_evaluations : "id to user_id"
+    posts ||--o{ bookmarks : "id to post_id"
+    users ||--o{ bookmarks : "id to user_id"
+    users ||..o{ activity_events : "id to user_id"
+    posts ||..o{ activity_events : "id to post_id"
+    comments o|..o{ activity_events : "same post id to comment_id"
+    polls o|..o{ activity_events : "same post id to poll_id"
+    posts ||..o{ institution_agenda_adoptions : "id to post_id LOCAL_AGENDA"
+    institutions ||..o{ institution_agenda_adoptions : "id to institution_id"
+    users ||..o{ institution_agenda_adoptions : "id to adopted_by_user_id"
+    users o|..o{ institution_agenda_adoptions : "id to canceled_by_user_id"
+    institution_credentials ||..o{ institution_agenda_adoptions : "id user_id institution_id to credential_id adopted_by_user_id institution_id"
+    posts ||--o| ai_agenda_summaries : "id to post_id LOCAL_AGENDA"
+    posts ||--o| post_share_links : "id to post_id optional storage model"
+    users ||..o{ post_share_links : "id to issued_by_user_id audit only"
