@@ -136,21 +136,21 @@ AI 생성 실패는 가능한 한 200 응답의 실패 상태와 원문 fallback
 
 ### 1.3 세션·지역·기관 권한
 
-Bearer 인증은 기존 계약을 유지하는 **[설계 제안]**이다.
+2026-10-07 공통 기반 합의로 **Privy access token의 Bearer 전달과 Spring 직접 검증**을 채택했다. 자체 세션 교환은 채택하지 않는다. 아래 인증 잔여 계약 절은 검증·회원 상태·FE wire의 미정 세부만 구분한다.
 
 ```http
 Authorization: Bearer <access-token>
 ```
 
 - **[확정]** 사용자/작성자/소유자는 서버 인증 주체에서 판별한다. Request userId·authorId·역할·배지 플래그를 권한 근거로 쓰지 않는다.
-- Privy OTP를 가입/로그인의 인증 제공자로 사용한다. Privy 인증·로컬 가입 완료·지역/기관 자격을 구분하며 세션 연결/오류 계약은 #74에서 합의한다.
+- Privy OTP를 가입/로그인의 인증 제공자로 사용한다. 검증된 Privy subject로 로컬 회원을 조회하고 미가입·가입 미완료·완료를 구분한다. 이메일만 같다고 자동 연결하지 않는다. HTTP 오류/가입 응답의 미정 세부는 아래 #74 인증 잔여 계약에서 제안 상태로 추적한다.
 - 게스트는 계정 역할이 아니라 비로그인 공유 상세 컨텍스트다. 유효 공유 컨텍스트가 있어도 회원 전용 권한은 생기지 않는다.
 - 지역 게시·댓글/답글·반응·댓글 평가·투표는 대상 지역 이웃 인증 완료 회원만 가능하다. 공유 게스트의 댓글/답글만 예외다.
 - 기본 활동 지역 설정, 기관 인증, 프로필의 거주자/학생/직장인/상인 속성은 이웃 인증을 대체하지 않는다.
 - 게시물 수정/삭제는 작성자 소유권·대상 지역 자격·유형별 제한을 요청 시점에 확인한다. 기관 채택은 별도 기관 권한을 적용한다.
 - 북마크는 로그인 회원이면 가능하며 해당 지역 이웃 인증을 요구하지 않는다.
 - 기관 전체 안건 조회는 현재 유효 기관 인증, 채택/취소는 추가로 담당 지역·공개 지역 안건·본인 기관 관계가 필요하다.
-- 토큰 형식/TTL/갱신/폐기·기기 세션 모델은 **[확인 필요]**다. refresh token API나 로그아웃 기능을 MVP 필수로 추가하지 않는다.
+- 토큰 검증은 서명·앱 대상/발급자·유효시간을 확인하며 수명은 실제 token의 exp를 따른다. FE는 Privy SDK로 토큰을 얻고 갱신하며 자체 refresh token API를 추가하지 않는다. SDK 저장 설정·앱 검증키/회전·시간 허용오차의 실제 값은 #4/#6~8/#30에서 확인한다. 서버 로그아웃/기기 세션 모델을 MVP 필수로 추가하지 않는다.
 
 ### 1.4 공유 컨텍스트·로그인 복귀 [설계 제안]
 
@@ -340,6 +340,8 @@ Privy 이메일 OTP로 인증·로그인한다. 최초 사용자는 필수/선�
 
 검증된 Privy 식별자와 로컬 회원의 관계·중복 처리·약관·프로필·활동 지역 저장·가입 미완료 상태 및 Request/Response/세션 방식은 #74/#7에서 정한다. 기존 password/passwordConfirmation/emailVerificationToken은 현재 필수 입력으로 사용하지 않는다. 닉네임/소개 등 변경하지 않은 프로필 제품 제약은 유지한다.
 
+공통 기반의 직접 Bearer 검증·subject 1:1 연결·가입 상태 구분은 이미 채택됐다. 남은 가입 wire/이메일 출처·오류 매핑과 검증 기준은 문서 끝의 **#74 인증 잔여 계약 정리**를 따른다. 아래 변경 전 세션/accessToken 응답은 현재 구현 계약이 아니다.
+
 <details>
 <summary>변경 전 v10.1 / API 초안 — 이번 MVP에 적용하지 않음</summary>
 
@@ -384,6 +386,8 @@ Privy 이메일 OTP로 인증·로그인한다. 최초 사용자는 필수/선�
 Privy 이메일 OTP로 인증·로그인한다. 최초 사용자는 필수/선택 동의·프로필·활동 지역을 완료해 로컬 회원으로 가입한다. 자체 비밀번호 설정·확인·로그인과 자체 가입 코드 발급은 대체한다. OTP 세부 제한과 토큰/회원 연결 계약은 #74에서 합의한다. `returnTo`를 전체 과정에서 보존하고 복귀만으로 참여·북마크를 자동 실행하지 않는다.
 
 기존 회원과 로컬 가입 미완료를 구분한다. 세션 연결·만료/갱신·오류·Method/Path는 #74/#8에서 합의하고 검증된 인증 주체만 사용한다. 비밀번호 로그인 Request는 현재 계약이 아니다.
+
+자체 세션 연결 방식의 선택은 종료됐으며 Privy Bearer 직접 검증을 사용한다. 앱 로그인 endpoint의 입력/회원 상태 응답은 아래 #74 인증 잔여 계약의 검토안으로 구분한다. 기존 비밀번호 입력·자체 accessToken 발급 응답은 변경 전 이력이다.
 
 <details>
 <summary>변경 전 v10.1 / API 초안 — 이번 MVP에 적용하지 않음</summary>
@@ -1251,3 +1255,80 @@ FE의 실제 확인자·날짜·PR/SHA·이견은 #74에 기록한다. 최신 fr
 Backend 내부 호출은 [계약 검토표 §11](Discushion_API_CONTRACT_검토표_2026-10-07.md#11-독립-개발용-내부-인터페이스-상세안-2026-10-07)을 따른다. CurrentActor/MemberQualification/MemberWriteGuard/PostContext와 참여 batch 집계·게시물 batch 요약·삭제 시 북마크 해제 port를 준비했다. 이는 HTTP Request/Response 확정이나 실제 adapter 구현을 뜻하지 않는다.
 
 BE1은 A·C·D/참여 집계, BE2는 B/게시물 요약·사진·환경을 맡으며 각자 자기 API/Migration을 작성한다. 삭제 시 공개/공유/추가 참여를 차단하고 북마크 자동 해제·사진 삭제 예약은 같은 DB transaction으로 처리한다. 참여/활동/기관 감사 관계는 보존하되 삭제 콘텐츠·선택지·결과는 비노출한다. 삭제 투표의 개인 이력은 기존 UNAVAILABLE 계약을 유지한다. 진행 중 투표의 질문·선택지·지역·주제 변경 금지, 종료 후 수정/삭제/신규·변경 제출 금지는 유지한다.
+
+## #74 인증 잔여 계약 정리 — BE1
+
+기준: `back/develop d9fe885`, AGENTS.md의 공통 기반 합의, 계약 검토표 §11과 GitHub #74/#4의 최신 완료 조건. 2026-10-07 사용자 요청으로 남은 인증 세부만 정리한다. 아래는 **기존 합의**, **provider 확인 사실**, **BE1 검토안/공동 확인 필요**, **실제 환경 확인 필요**를 구분한다. 공통 port/DTO·오류 envelope·권한/잠금·사진/게시물/집계·삭제 보존·담당 분담·CI/리뷰 조건은 변경하지 않는다. #4 adapter 구현·Dependency·Migration·환경 설정·실제 token 검증은 이번 범위가 아니다.
+
+### 유지하는 합의와 인증 처리 경계
+
+- FE는 Privy access token을 `Authorization: Bearer ...`로 전달하고 Spring 공통 계층이 직접 검증한다. refresh/identity token을 API Bearer로 대체하지 않고 자체 세션·accessToken/refreshToken 발급을 추가하지 않는다.
+- CurrentActorProvider/VerifiedActor/LocalMember 및 MemberQualificationReader/MemberWriteGuard는 검토표 §11의 서명/의미 그대로 사용한다. 토큰 없음은 current 비어 있음, 잘못된 토큰은 인증 실패, 검증된 subject에 회원이 없으면 member 비어 있음이다. 요청 종료 후 컨텍스트를 비우며 다른 스레드/요청에 주체를 재사용하지 않는다.
+- users.privy_user_id UNIQUE로 subject 1:1 연결을 유지한다. NULL legacy 회원을 이메일로 자동 연결하지 않고 신규 Privy 인증만으로 로컬 회원/가입 완료/지역·기관 자격을 생성하지 않는다. 가입 미완료는 registration_completed_at=NULL, 완료는 동의·프로필·활동 지역 저장이 원자 커밋된 이후다.
+- 중요한 쓰기는 기존 MemberWriteGuard와 같은 트랜잭션에서 최신 회원·자격을 재조회한다. 기능별 최종 소유권/지역/기관/대상 상태 판정과 기존 잠금 순서는 바꾸지 않는다.
+
+### provider 검증 사실과 #4 구현 수용 기준
+
+공식 [access token 설명](https://docs.privy.io/authentication/user-authentication/access-tokens)과 [token 설명](https://docs.privy.io/authentication/user-authentication/tokens)에 따른 확인 사실: access token은 JWT/ES256, iss는 privy.io, aud는 해당 Privy app ID, sub는 Privy DID, iat/exp는 발급/만료 시각이다. 실제 exp를 검사하며 문서의 기본 수명을 서비스 고정 TTL로 복사하지 않는다. sid는 provider 세션 정보이며 로컬 회원 ID/권한이 아니다.
+
+검토 기준은 신뢰한 앱 검증키로 서명을 검증하고 허용 알고리즘·iss/aud·비어 있지 않은 subject·필수 시각 및 유효기간을 검사하는 것이다. 검증 전 JWT decode/클라이언트 userId/email/역할로 주체를 만들지 않는다. 토큰의 jku/x5u 등을 신뢰해 임의 URL에서 키를 가져오지 않는다. 서명/클레임 실패와 검증에 필요한 키·provider 확인 불가 장애를 구분하며 실패 시 게스트로 강등하지 않는다.
+
+**실제 키/검증기 확인 필요:** official access-token 페이지는 ES256 설명과 Ed25519 공개키 문구를 함께 포함한다. [RFC 7518 §3.4](https://datatracker.ietf.org/doc/html/rfc7518#section-3.4)의 ES256 키/알고리즘 규약과 일치하는 앱 검증키·공식 지원 검증 방법을 확인해야 한다. 확인 전 특정 Java SDK/키 타입/JWKS URL을 추측해 고정하지 않는다. 앱 ID·키 공급/회전·허용 clock skew·캐시/외부 호출 timeout의 실제 설정과 정상/위조 token 증거는 #4에서 BE1, 실행값은 BE2/#30과 확인한다. 이미 검증 가능한 신뢰 키가 있으면 매 요청별 provider user API 호출을 인증 필수로 만들지 않으며, 검증 불가 장애를 성공으로 우회하지 않는다.
+
+### 로컬 회원 연결·가입 완료의 남은 세부
+
+| 대상 | 유지/검토 기준 | 확인 상태·영향 |
+| --- | --- | --- |
+| 검증된 subject 조회 | Privy subject로만 로컬 회원 조회. 이메일/Request ID로 다른 회원 선택 금지 | 기존 합의, #4 identity adapter |
+| 이메일 원본 | access token에 이메일이 있다고 가정하지 않는다. BE1안: 최초 가입 시 검증된 subject의 provider 서버 사용자 정보에서 검증된 email 계정을 확인하고 기존 users.email에 저장 | [provider user 조회](https://docs.privy.io/api-reference/users/get) 확인. 실제 email 계정 선택/검증시각·서버 credential/조회 방법은 #6/#7, 실행환경 BE2와 확인. FE 신고 이메일만 신뢰하지 않음 |
+| 이메일 중복 | 다른 subject 또는 미연결 legacy의 기존 이메일과 충돌하면 기존 EMAIL_ALREADY_IN_USE 409로 거부. 기존 회원 자동 병합/연결·이메일 일괄 변경 없음 | 기존 UNIQUE/자동 연결 금지 유지. 대소문자/정규화 정책을 새로 추가하지 않음 |
+| 미가입 | 유효 토큰이나 local member 없음. 가입 가능 상태와 일반 회원 API 접근을 구분하며 조회/로그인 상태 확인이 DB 회원을 자동 생성하지 않음 | §11 의미 유지. 아래 wire 제안은 FE 확인 필요 |
+| 가입 미완료 | local member 있음/registration_completed_at 없음. 가입 재개와 일반 회원 기능을 구분. 프로필/활동 지역 존재만으로 자동 완료하지 않음 | §11 의미 유지. 새 API 권한 근거 아님 |
+| 가입 저장 | provider 확인을 DB 잠금 중 외부 호출로 수행하지 않는다. 기존 subject/이메일 중복을 다시 확인하고 회원·동의·프로필·활동 지역·완료시각을 같은 트랜잭션에 저장. 기존 미완료 회원 갱신은 §11 users 행 잠금 사용 | #7 실제 DB/경합/rollback 검증 필요. UNIQUE 경합 결과를 성공/자동 계정 연결로 숨기지 않음 |
+
+### FE 데이터 계약 검토안 — 합의된 공통 규약을 변경하지 않음
+
+다음은 아직 비어 있는 Auth wire를 채우기 위한 제안이다. 기존 endpoint 후보를 재사용하며 구현·FE/BE2 확인 완료로 선언하지 않는다. 일반 프로필/자격/사진 DTO를 변경하지 않는다.
+
+1. `POST /api/v1/auth/login`: Bearer 필요, JSON `{}`. 자체 비밀번호·이메일·token body는 받지 않는다. 새 세션을 발급하는 endpoint가 아니라 검증된 현재 주체의 로컬 가입 상태 조회로 정리하는 안이다. 200 성공 envelope에 registrationStatus와 nullable member를 반환한다. NOT_REGISTERED에서는 member=null, INCOMPLETE에서는 완료시각 null, COMPLETED에서는 완료시각이 존재한다. 반환 토큰·refresh token·Privy subject·역할/배지는 추가하지 않는다.
+
+```json
+{ "data": { "registrationStatus": "NOT_REGISTERED", "member": null } }
+```
+
+```json
+{ "data": { "registrationStatus": "INCOMPLETE", "member": { "id": 23, "registrationCompletedAt": null } } }
+```
+
+```json
+{ "data": { "registrationStatus": "COMPLETED", "member": { "id": 23, "registrationCompletedAt": "2026-10-07T12:00:00+09:00" } } }
+```
+
+2. `POST /api/v1/auth/sign-up`: Bearer 필요, JSON의 기존 agreements/profile 입력을 유지하고 자체 emailVerificationToken/password/passwordConfirmation 및 client subject/회원 ID를 제외하는 안이다. 이메일은 위 서버 확인 기준을 따른다. 약관/프로필/지역의 기존 제품 검증은 그대로다. 프로필 사진의 미정 계약을 게시물 사진 규칙으로 채우지 않는다. 신규 원자 저장 201은 위 COMPLETED 상태와 member를 반환하고 토큰을 발급하지 않는다. 기존 완료 회원의 재가입/유실 응답 재시도는 login 상태 조회로 먼저 확인하는 안이며 정확한 중복 POST 응답은 #7/FE 검토 후 고정한다.
+
+3. login 상태 조회의 200은 지역/기관 기능 허용을 뜻하지 않는다. 일반 회원 endpoint는 현재 가입 상태와 기존 제품 자격을 검사한다. returnTo는 FE에서 보존·검증하고 기존 복귀 규칙을 유지한다. 인증/가입 후 복귀만으로 원래 참여·북마크 요청을 자동 실행하지 않는다.
+
+### 공통 오류 등록 제안 — 기존 표/구현은 변경하지 않음
+
+기존 오류 envelope `{code,message,details,traceId}`와 HTTP 상태표는 유지한다. 토큰 없음/위조/만료·앱/발급자 불일치는 기존 401 UNAUTHORIZED로 매핑하고 내부 이유·token/provider 원문은 노출하지 않는다. 키/provider 확인 장애는 인증 실패와 구분해 기존 503 외부 서비스 장애 범주로 처리하되 code 등록은 아래 공동 검토 대상이다. DB 장애는 로컬 회원 없음/미가입으로 숨기지 않는다.
+
+| 제안 | 이유 | 영향·확인 상태 |
+| --- | --- | --- |
+| 403 USER_REGISTRATION_REQUIRED | token은 유효하지만 로컬 회원 없음. 401로 보내 FE의 불필요한 재인증 루프를 만들지 않고 가입 진입을 구분 | 회원 endpoint/FE API client 영향. A 담당 BE1의 새 Auth 매핑 제안이며 공통 오류표에 아직 등록하지 않음 |
+| 403 REGISTRATION_INCOMPLETE | 로컬 회원은 있으나 가입 미완료. 지역/기관 자격 오류와 가입 재개를 구분 | 회원 endpoint/FE 가입 재개 영향. 공통 오류표 등록 전 BE1·BE2/FE 검토 필요 |
+| 503 AUTH_PROVIDER_UNAVAILABLE | 검증키/provider 사용자 정보 확인 불가 장애를 토큰 무효·미가입과 구분 | 공통 error adapter/FE 재시도 영향. 등록 전 공동 검토 필요, 실제 재시도값은 미정 |
+
+§11.6의 내부 결과를 변경하거나 error DTO/공통 Java port에 필드를 추가하지 않는다. 위 세 code를 필요하다고 판단하면 이 표의 이유·영향으로 공동 검토한 뒤 별도 승인된 변경으로 등록한다. 승인 전 새 문자열을 임의 구현하지 않는다. 다른 영역의 기존 오류 매핑은 수정하지 않는다.
+
+### 토큰 취득·보관·갱신·OTP·로그아웃 범위
+
+- FE는 Privy SDK의 현재 access token 취득/갱신 기능을 사용하고 SDK 관리 refresh token을 앱이 읽거나 자체 Backend로 전달/저장하지 않는다. token은 URL/query·로그·분석·응답 echo에 넣지 않는다. 앱의 별도 토큰 복사 저장을 만들지 않으며 실제 FE SDK 저장 설정은 담당 FE/#30에서 확인한다. 서버는 요청 범위에서만 token을 처리하고 DB/session 저장 구조를 추가하지 않는다.
+- 401에 대한 FE 갱신/한정 재시도는 SDK 결과와 endpoint 의미를 대조해 FE 데이터 계약으로 확인한다. 403 가입/자격 오류와 503 장애를 같은 재로그인 흐름으로 처리하지 않는다. 무제한 재시도·응답 유실된 쓰기의 자동 중복 제출·login 복귀 직후 원 동작 자동 실행은 허용 계약으로 추가하지 않는다. 요청 중복/재시도 횟수의 공통 규칙은 이 문서가 새로 정하지 않는다.
+- 자체 OTP endpoint/고정 코드 길이·만료·재전송 횟수는 변경 전 이력이다. 실제 Privy SDK/앱의 이메일 인증 오류/제한과 FE 대응은 #6에서 확인하고 이번 문서에 추측한 수치를 채우지 않는다.
+- 로그아웃은 기존 MVP 필수 제외를 유지한다. 별도 서버 logout/refresh/전 기기 종료/세션 blacklist를 추가하지 않는다. FE가 provider SDK logout을 사용하는 경우 [공식 동작](https://docs.privy.io/authentication/user-authentication/logout)을 확인해 UI·진행 요청을 정리한다. 직접 JWT 서명 검증만으로 이미 복사된 token의 즉시 서버 거부가 증명되지는 않으며, 그 보장이 필요해지면 공통 규약/범위 변경으로 먼저 제안한다. provider revoke를 검증했다고 기록하지 않는다.
+
+### 착수·완료 검증과 남은 확인
+
+문서/서명/fixture 준비와 실제 adapter 완료를 구분한다. #4 구현은 필요한 인증 계약·공통 port·필수 Schema가 back/develop에 반영된 뒤 별도 Issue/Feature에서 시작한다. 실제 앱 ID/지원 검증키·검증기와 위 wire/오류안의 확정 여부를 작업 시작 시 확인한다. 기존 test-only fixture는 독립 개발에 사용할 수 있으나 운영 bean/allowAll로 등록하지 않는다.
+
+실제 #4/#6~8 검증은 정상/위조·다른 alg·iss/aud·만료·키 장애, 없음/미가입/미완료/완료, 이메일 충돌·subject 중복·가입 rollback/경합, 요청 컨텍스트 격리, 기존 guard의 실 JDBC 잠금/권한과 adapter 연결을 포함한다. 테스트 대체 구현만으로 Privy·DB·FE 연동 완료를 표시하지 않는다. #30/#31은 실제 FE 취득/갱신·상태 분기·환경 연결을 확인한다. CI와 리뷰 1명 조건을 유지하고 CODEOWNERS를 추가하지 않는다.
