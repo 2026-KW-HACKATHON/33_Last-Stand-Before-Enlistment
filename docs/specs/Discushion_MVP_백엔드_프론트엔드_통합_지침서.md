@@ -1,5 +1,13 @@
 # Discushion MVP 백엔드·프론트엔드 통합 지침서
 
+## 2026-10-07 사진 잔여 계약 — FE 전달/확인
+
+PR #85의 DB 보완 이후 BE2 실행 기준을 [API 정본 §13.5~13.7](../api/Discushion_API_SPEC_v2.md#135-재시도재발급시연용-예약-제한)에 정리했다. FE는 §13.7 체크리스트의 네 endpoint·숫자 fileId/photoId·10,000,000 bytes·생성 photoFileIds/수정 photoOrder·오류·삭제 예약/최종 완료 의미를 확인한다. 실제 Storage URL/method/headers는 #13 adapter 검증 후 제공하고 사진 본문은 Storage로 직접 보낸다. Privy/Backend secret을 Storage 요청에 덧붙이지 않는다.
+
+같은 예약의 업로드 권한 재발급은 제공하지 않는다. 전송 응답이 유실되면 complete로 기존 object를 확인하고, 최초 URL 만료/발급 응답 유실은 기존 미연결 예약 취소 후 새 fileId/key로 예약한다. 초기 서버 예약 제한은 회원당 미정리20개·신고 합계100MB·최근60초 새 예약20개다. 제품 사진 한도10장·합계10MB와 별개이며 예약 제한을 FE 표시/추가 업로드 제한으로 혼동하지 않는다. 409 슬롯 부족·429 발급 빈도 제한은 취소/상태 확인·Retry-After를 적용하고 무한 자동 재시도를 하지 않는다.
+
+확인자·날짜·대상 PR/SHA·이견은 #74에 기록한다. 현재는 FE wire 확인 대기이며 실제 FE 승인·사진 API/worker 구현·Storage/사용자 흐름 완료로 표시하지 않는다. 잠재 권한 만료 상한과 진행 중 전송 종료/재생성 방어는 #13 실제 adapter 검증 조건이고 FE timer나 임의 대기시간으로 대신하지 않는다. 인증 관련 공통 계약은 BE1의 별도 #74/#4 범위를 유지한다.
+
 ## 2026-10-07 독립 개발 공통 준비
 
 사용자 위임으로 BE1·BE2 공동 준비까지 진행한다. BE1은 A·C·D, BE2는 B·사진·탐색·AI·환경을 담당하며 각자 자기 API·Migration을 작성한다. Backend 내부 port와 공통 test-only fixture/CI는 [계약 검토표 §11](../api/Discushion_API_CONTRACT_검토표_2026-10-07.md)을 따른다. 실제 wire 승인·adapter·DB 경합·FE 연결은 준비 완료와 구분한다.

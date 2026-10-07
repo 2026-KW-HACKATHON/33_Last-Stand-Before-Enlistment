@@ -1155,15 +1155,15 @@ GET    /users/me/activity
 
 제품 범위·정책은 최신 정본으로 정렬했으며, 기술 초안의 경로/필드/Enum은 FE/BE 합의·실제 구현 대조 전 확정 완료로 표시하지 않는다.
 
-## 13. #74 사진 API BE1 검토안 — FE/BE2 wire 확인 대기
+## 13. #74 사진 API — BE2 실행 기준·FE wire 확인 대기
 
-2026-10-07 사용자 요청으로 BE2 원문 `back/feature/74-photo-contract`의 `4f7bb25` / 검토표 §10.8~10.9를 대조했다. 실행 방향 1~4는 사용자 채택이며 아래 경로·DTO·응답 코드·bytes는 **BE1 검토안**이다. FE/BE2 확인자·날짜·대상 SHA/PR이 기록되기 전 확정 계약이나 #13 구현 완료로 취급하지 않는다. 아래 안이 확인되면 §5.4~5.5의 변경 전 multipart/newImageIndex 예시를 대체한다. 인증 토큰/header/cookie 방식은 #74 인증 계약의 선행 조건을 유지한다.
+BE1 검토안과 병합된 PR #85를 바탕으로, 사용자가 남은 사진 계약 정리를 요청해 BE2 실행 기준을 구체화했다. §13.5~13.7의 같은 주제에 대한 기준은 기존 재발급 허용·제한 수치 미정 표현을 대체한다. API 경로/DTO·숫자 ID·10MB 환산·삭제 대기 의미는 FE wire 확인 대상으로 유지하며 실제 확인자·날짜·PR/SHA는 #74에 기록한다. Backend 실행 방향 정리는 FE 승인·#13 구현·Storage 검증 완료를 뜻하지 않는다. §5.4~5.5의 변경 전 multipart/newImageIndex 예시는 현재 구현 계약으로 사용하지 않는다. 인증은 합의된 Privy Bearer 직접 검증이며 실제 회원/오류 adapter는 해당 인증 계약을 따른다.
 
 ### 13.1 전송·ID·용량
 
 - 모든 앱 경로의 prefix는 `/api/v1`. 가입 완료 회원의 검증된 로컬 회원 ID를 owner로 사용한다. 업로드 준비/완료/조회/취소에 `regionId`는 허용하지 않는다. 최종 게시물 작성·변경에서 대상 지역 자격/소유권/게시물 상태를 재검증한다.
 - `fileId`, `photoId`, `postId`는 기존 전역 계약의 양의 JSON number, 최대 9007199254740991. fileId는 media_files.id, photoId는 post_photos.id이며 서로 대체하지 않는다.
-- **BE1/FE 확인 대기인 환산안: 10MB = 10,000,000 bytes.** 최종 전체 사진 최대 10장, 서버가 검증한 실제 크기 합계로 계산한다. 신고 sizeBytes는 양의 정수이며 개별 파일도 게시물 전체 한도를 초과할 수 없다. 확장자/신고 MIME만으로 통과시키지 않고 실제 JPG/PNG 내용을 검증한다.
+- **BE2 실행 기준: 10MB = 10,000,000 bytes. FE 표시/요청 계약 확인은 대기.** 최종 전체 사진 최대 10장, 서버가 검증한 실제 크기 합계로 계산한다. 신고 sizeBytes는 양의 정수이며 개별 파일도 게시물 전체 한도를 초과할 수 없다. 확장자/신고 MIME만으로 통과시키지 않고 실제 JPG/PNG 내용을 검증한다.
 - 최초 예약 createdAt와 최초 검증 완료 uploadedAt을 유지한다. UPLOADING의 cleanupEligibleAt은 createdAt+24h, UNLINKED는 uploadedAt+24h. 업로드 권한의 upload.expiresAt와 연결 마감 linkExpiresAt은 별개다. LINKED/LEGACY는 자동 만료 대상이 아니다.
 
 ### 13.2 API와 공통 상태 DTO
@@ -1187,7 +1187,7 @@ PhotoUploadView 필드:
 | canAttach, deletionCompleted | boolean. deletionCompleted는 최종 DELETED만 true. 단순 예약/한 번의 Storage 삭제 성공은 false |
 | deleteRequestedAt, deletedAt | nullable 시각. 최초 예약/최종 확인 시각이며 반복 취소로 예약 시각을 갱신하지 않음 |
 
-검증 실패는 파일을 연결 가능 상태로 승격하지 않고 DELETE_PENDING 예약을 영속 저장한 뒤 오류를 반환한다. Storage 일시 장애는 검증 성공으로 처리하지 않는다. signed 권한 재발급은 최초 시각을 유지하고 상태/소유권을 검사하며 기존과 새 권한의 최대 만료를 보존한다. 발급 실패/프로세스 장애 때문에 이미 발급된 권한 추적을 잃지 않도록 #13에서 검증한다. 미완료 예약 수/용량·발급 빈도 제한 수치는 #13 전에 별도 합의하며 이 안은 임의 값을 추가하지 않는다.
+검증 실패는 파일을 연결 가능 상태로 승격하지 않고 DELETE_PENDING 예약을 영속 저장한 뒤 오류를 반환한다. Storage 일시 장애는 검증 성공으로 처리하지 않는다. 이번 MVP는 §13.5에 따라 같은 예약의 권한 재발급을 제공하지 않는다. 발급 실패/프로세스 장애 때문에 이미 발급됐을 수 있는 권한 추적을 잃지 않도록 §13.6을 #13에서 검증한다. 예약/발급 제한은 §13.5의 시연용 실행 기준을 따른다.
 
 ### 13.3 게시물 JSON 사진 참조
 
@@ -1212,6 +1212,39 @@ PhotoUploadView 필드:
 | 503 | PHOTO_STORAGE_UNAVAILABLE | Storage 확인/권한 발급 일시 장애. 성공/삭제 완료로 표시하지 않음 |
 
 FE/BE2 확인 대상은 숫자 ID, endpoint/요청·응답, Storage 전송 method/headers, JSON 최종 순서, 10,000,000 bytes, 오류와 재시도, 202 삭제 대기/200 최종 삭제/게시물 204 의미, 상태 polling 동작이다. #74에 실제 확인자·날짜·문서 SHA/PR·이견을 기록하고 계약과 필요한 DB 보완이 back/develop에 반영된 뒤 #13/#14/#16 의존 코드를 구현한다. FE 확인을 받은 증거가 아직 없으므로 최종 확정/구현 완료 체크를 하지 않는다.
+
+### 13.5 재시도·재발급·시연용 예약 제한
+
+- 같은 fileId에 업로드 권한을 다시 발급하는 endpoint는 이번 MVP에 만들지 않는다. GET/complete/취소도 새 권한을 발급하지 않는다. 최초 발급 URL을 가진 경우 유효기간 안에서 같은 파일의 전송 실패만 재시도할 수 있고 덮어쓰기/upsert는 허용하지 않는다.
+- 전송 성공/응답 유실을 구분할 수 없으면 먼저 기존 fileId의 complete로 실제 object를 확인한다. 이미 object가 있으면 검증 결과를 재사용하고 무조건 새 파일을 만들지 않는다. Storage 503은 object 없음으로 단정하지 않는다.
+- 권한 만료/발급 응답 유실로 기존 권한을 사용할 수 없으면 기존 미연결 fileId를 DELETE로 취소 예약하고 새 POST 예약을 만든다. 이전 파일의 완료/연결은 차단하고 삭제 추적은 유지한다. 새 예약은 새 fileId/key를 사용하며 이전 key를 재사용하지 않는다.
+- 초기 시연 운영 기준은 회원당 미정리 예약 최대 20개, 신고 sizeBytes 합계 최대 100,000,000 bytes, 최근 60초 내 새 예약 최대 20개다. 게시물 사진 한도 10장/10,000,000 bytes와 별개인 서버 예약 보호 기준이다. 환경별 조정은 BE2가 문서와 검증 근거를 함께 갱신한다.
+- 미정리 예약은 POST_PHOTO의 UPLOADING/UNLINKED/DELETE_PENDING을 포함한다. 취소 예약만으로 슬롯을 반환하지 않으며 실제 DELETED 또는 게시물 연결 LINKED 이후 제외한다. LEGACY는 제외한다. 신고 합계는 실제 Storage 사용량/요금의 상한 보장이 아니며 거짓 신고 파일은 실제 검증에서 거부·삭제한다. 개별 업로드/Storage 제한도 10,000,000 bytes 기준으로 구성·검증한다.
+- 분당 제한은 POST 예약이 DB에 생성된 시각으로 계산하고 상태가 바뀌어도 최근 예약은 포함한다. 회원 users 행 잠금 안에서 count/sum/시간 창을 조회하고 새 예약까지 같은 transaction으로 확정해 동시 요청 우회를 막는다. 외부 권한 발급은 commit 후 별도 단계다. 단일 JVM 메모리 카운터로 다중 인스턴스 제한을 구현하지 않는다.
+- 예약 count/bytes 초과는 409 PHOTO_UPLOAD_QUOTA_EXCEEDED, 분당 초과는 429 PHOTO_UPLOAD_RATE_LIMITED와 계산된 Retry-After 초를 반환하는 영역별 오류안이다. 형식은 기존 오류 envelope를 유지한다. 슬롯 부족은 삭제 상태 확인/정리를 안내하고 자동 무한 재시도를 하지 않는다. FE wire 확인 후 오류 registry와 코드에 반영한다.
+
+### 13.6 권한 발급·삭제 안전성과 구현 검증
+
+1. DB transaction에서 소유자/가입 완료·예약 제한을 확인하고 새 예약/key 및 발급 시도를 위한 보수적 만료 상한을 기록한다. 이후 commit하고 단 한 번의 외부 권한 발급을 수행한다. 이미 기록한 상한은 줄이지 않는다.
+2. provider 권한 TTL·서버 시각 오차·발급 요청 timeout을 adapter에서 검증해 상한을 정한다. provider가 실제 반환한 만료가 기록 상한보다 늦다면 상한을 확장·저장하기 전 URL을 FE에 반환하지 않는다. timeout/응답 유실/프로세스 장애에도 잠재 권한 추적이 남아야 한다. 상한의 안전성을 확인할 수 없는 예약은 최종 DELETED로 확정하지 않는다.
+3. 발급 응답 후 fileId/상태·취소 여부를 DB에서 재검사하고 응답한다. 취소된 예약의 새 권한을 응답하지 않는다. provider 자동 재시도가 미추적 추가 권한을 발급하지 않게 한다. token/URL은 로그·DB에 저장하지 않고 FE 임시 전송에만 전달한다.
+4. FE는 upload.url/method/headers/expiresAt에 맞춰 Storage로 직접 전송한다. Privy Bearer나 Backend 관리 키를 Storage에 덧붙이지 않는다. CORS·실제 HTTP method/headers·형식·최대 파일 크기·URL 만료를 #13/#30에서 실제 adapter로 확인한 뒤 해당 endpoint를 제공한다. 사진 본문은 Spring/Vercel 요청을 통과하지 않는다.
+5. 삭제 worker는 같은 파일 행과 실제 참조를 다시 확인하고 현재 claim token으로만 결과를 갱신한다. 최종 부재 확인은 권한 만료와 진행 중 전송 종료/재생성 방어를 모두 만족해야 한다. provider가 안전한 종료/재확인 조건을 보장하지 못하면 DELETE_PENDING을 유지하고 실제 adapter 구현을 보류한다. 단순 대기 시간을 임의로 안전성 증거로 삼지 않는다.
+
+Storage 실제 wire·잠재 권한 상한·전송 종료 보장은 아직 미검증이다. #13의 테스트 대체 구현은 이 검증을 대신하지 않는다. Supabase 표준 업로드와 서명 업로드를 시연용 우선 후보로 삼되, 큰 파일의 안정성은 [표준 업로드 안내](https://supabase.com/docs/guides/storage/uploads/standard-uploads)와 [서명 업로드 안내](https://supabase.com/docs/reference/javascript/storage-from-uploadtosignedurl)에 맞춰 실제 검증한다. TUS로 변경해야 하면 method/headers/취소 의미를 FE와 다시 대조한다.
+
+### 13.7 FE 확인·적용 체크리스트
+
+| 확인할 접점 | 이번 계약안 |
+| --- | --- |
+| 예약/완료/조회/취소 | §13.2의 네 endpoint, 가입 완료 Privy Bearer, 본인 fileId |
+| 파일 전송 | 예약 응답의 URL/method/headers/만료 사용, 바이너리는 Storage 직접 전송 |
+| 형식/용량 | JPG/PNG, 최종 10장·10,000,000 bytes. 실제 값은 BE가 검증 |
+| 생성/수정 참조 | 생성 photoFileIds, 수정 photoOrder의 기존 photoId/신규 fileId. 생략/[]/null 의미는 §13.3 |
+| 오류/재시도 | 기존 상태 먼저 complete/GET 확인, 같은 예약 권한 재발급 없음, 새 예약 제한·409/429/Retry-After |
+| 삭제 완료 | 취소202 대기/최종200, 게시물204는 논리 삭제·예약 완료. 실제 파일 삭제와 구분 |
+
+FE의 실제 확인자·날짜·PR/SHA·이견은 #74에 기록한다. 최신 front/develop의 문서는 아직 직접 업로드 계약 합의 대기를 유지한다. 이번 Backend 문서 정리를 FE 승인으로 기록하지 않는다. 이 확인과 필요한 계약의 back/develop 통합 후 #13 endpoint 의존 구현을 진행하고 실제 사용자 흐름은 #30/#31에서 검증한다.
 
 ## 내부 독립 개발 규약 (2026-10-07)
 
