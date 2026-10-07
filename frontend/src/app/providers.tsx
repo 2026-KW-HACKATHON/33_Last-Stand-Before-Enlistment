@@ -25,22 +25,24 @@ import type { InterestRegionService } from "../features/interest-regions/model";
 import { InterestKeywordsHost } from "../features/interest-keywords/InterestKeywordsHost";
 import type { InterestKeywordService } from "../features/interest-keywords/model";
 import type { NotificationService, NotificationTargetHandler } from "../features/notifications/model";
+import { PushPreferenceHost } from "../features/notification-settings/PushPreferenceHost";
+import type { PushPreferenceService } from "../features/notification-settings/model";
 import { profileSignupEditors } from "../features/profile/editors";
 
 /** Real adapters/client are injected by Integration; no production Mock or guessed base URL. */
-export function AppProviders({ children, session, retrySession, apiClient, loginService, signupService, signupEditors, profileService, neighborService, institutionService, activityService, interestRegionService, interestKeywordService, onMyMenu, onSettingsMenu, notificationService, onNotificationTarget, subjectKey = null }: {
-  children: ReactNode; session?: SessionState; retrySession?: () => void | Promise<void>; apiClient?: ApiClient; loginService?: OtpLoginService; signupService?: SignupService; signupEditors?: SignupEditors; profileService?: ProfileService; neighborService?: NeighborService; institutionService?: InstitutionService; activityService?: ActivityService; interestRegionService?: InterestRegionService; interestKeywordService?: InterestKeywordService; notificationService?: NotificationService; onNotificationTarget?: NotificationTargetHandler; onMyMenu?: MyMenuHandler; onSettingsMenu?: SettingsMenuHandler; subjectKey?: string | null;
+export function AppProviders({ children, session, retrySession, apiClient, loginService, signupService, signupEditors, profileService, neighborService, institutionService, activityService, interestRegionService, interestKeywordService, onMyMenu, onSettingsMenu, notificationService, onNotificationTarget, pushPreferenceService, subjectKey = null }: {
+  children: ReactNode; session?: SessionState; retrySession?: () => void | Promise<void>; apiClient?: ApiClient; loginService?: OtpLoginService; signupService?: SignupService; signupEditors?: SignupEditors; profileService?: ProfileService; neighborService?: NeighborService; institutionService?: InstitutionService; activityService?: ActivityService; interestRegionService?: InterestRegionService; interestKeywordService?: InterestKeywordService; pushPreferenceService?: PushPreferenceService; notificationService?: NotificationService; onNotificationTarget?: NotificationTargetHandler; onMyMenu?: MyMenuHandler; onSettingsMenu?: SettingsMenuHandler; subjectKey?: string | null;
 }) {
   const router = useRouter();
   const pathname = usePathname();
   const currentDestination = useMemo(() => destinationFromPathname(pathname), [pathname]);
   return <SessionProvider session={session} retry={retrySession}>
-    <InterestKeywordsHost subjectKey={subjectKey} service={interestKeywordService}><SettingsNavigation notificationService={notificationService} onNotificationTarget={onNotificationTarget} subjectKey={subjectKey} onMenu={onSettingsMenu} currentDestination={currentDestination} onNavigate={(href, replace) => replace ? router.replace(href) : router.push(href)}>
+    <PushPreferenceHost subjectKey={subjectKey} service={pushPreferenceService}><InterestKeywordsHost subjectKey={subjectKey} service={interestKeywordService}><SettingsNavigation notificationService={notificationService} onNotificationTarget={onNotificationTarget} subjectKey={subjectKey} onMenu={onSettingsMenu} currentDestination={currentDestination} onNavigate={(href, replace) => replace ? router.replace(href) : router.push(href)}>
       <LoginProvider service={loginService} subjectKey={subjectKey}>
         <InterestRegionsHost subjectKey={subjectKey} service={interestRegionService}><MyPageProvider subjectKey={subjectKey} service={activityService} onMenu={onMyMenu}><InstitutionProvider subjectKey={subjectKey} service={institutionService}><NeighborProvider subjectKey={subjectKey} service={neighborService}><ProfileProvider service={profileService}><SignupProvider service={signupService} editors={signupEditors ?? profileSignupEditors}>
           {apiClient ? <ApiClientProvider client={apiClient}>{children}</ApiClientProvider> : children}
         </SignupProvider></ProfileProvider></NeighborProvider></InstitutionProvider></MyPageProvider></InterestRegionsHost>
       </LoginProvider>
-    </SettingsNavigation></InterestKeywordsHost>
+    </SettingsNavigation></InterestKeywordsHost></PushPreferenceHost>
   </SessionProvider>;
 }
