@@ -89,6 +89,18 @@ FE/BE 실제 연동은 실제 FE가 실행 중인 Backend를 호출해야 한다
 
 `src/test/java/com/discushion/support/ContractFixtures.java`에서 고정 Clock, guest/검증된 주체/가입 미완료, 지역·기관 자격, 삭제 게시물, 종료 경계 투표와 선택지를 준비한다. 테스트별 새 `Members`/`Posts` 인스턴스에 필요한 데이터를 등록한다. `member(false, Set.of(), List.of())`는 가입 미완료, 타지역 Set은 자격 불일치, `institution(true)`는 평가 시각에 만료된 기관을 뜻한다. 최종 권한 결정은 소비 기능에서 구현·검증한다.
 
+### #4 실제 identity 기반 사용
+
+`com.discushion.identity`가 기존 identity port를 구현한다. /api/v1 Bearer를 검증한 subject로만 회원을 조회하고 요청별 servlet attribute에 주체를 보관했다가 제거한다. 무효 토큰을 익명으로 바꾸지 않는다. `CurrentActorProvider.current()`의 빈 값/미가입/미완료와 기능별 공개/회원/공유 게스트 접근은 각 기능이 판정한다.
+
+실제 데이터 프로필에서 `JdbcMemberStore`는 `MemberQualificationReader`·`MemberWriteGuard` bean이다. `MemberAuthorization.lockCurrentCompletedMember()`는 **호출자의 같은 DataSource 쓰기 transaction**에서 users를 잠그고 최신 가입 상태를 조회한다. 이후 기능에서 실제 posts → polls → media 순서의 잠금·최종 지역/기관 유효기간/작성자·유형/상태를 확인한다. `requireActiveInstitution`은 호출 시 Clock으로 만료를 재평가한다. `isOwner`가 false이면 기능의 기존 수정/삭제 오류로 거부한다. 인증 시점 스냅샷이나 클라이언트 userId를 쓰기 권한 근거로 사용하지 않는다.
+
+앱 ID는 기존 `PRIVY_APP_ID`에서 읽고, 실제 앱의 신뢰한 공개키는 BE2 #30과 공급/회전 방식을 확인한 `VerificationKeySource` bean으로 제공한다. 공개 SPKI PEM에는 `PemVerificationKeySource`를 사용할 수 있다. token의 jku/x5u로 외부 키를 찾지 않는다. 앱/키 부재는503이며 기본 허용·합성 키 bean을 등록하지 않는다. local Health는 DB/키 없이 기존대로 동작한다. 실제 Privy 설정·키 호환/회전·서버 계정/TLS는 아직 확인 대기다.
+
+미가입과 가입 미완료는 사용자 결정에 따라 모두403 USER_REGISTRATION_REQUIRED로 회원가입 화면을 안내한다. 내부 상태 구분은 유지한다. 키/provider 장애503 AUTH_PROVIDER_UNAVAILABLE, DB/서버 내부 오류500 INTERNAL_ERROR는 기존 `{code,message,details,traceId}`를 유지하고 원문·token·subject를 숨긴다. 실제 소비 계약 확인은 FE·BE2와 별도로 기록한다.
+
+`IdentityHttpIntegrationTests`는 합성 키와 localhost 실제 DB를 사용한 **테스트 전용 route/profile**다. 운영 JAR·API 목록에 포함하지 않는다. 기존 localhost JDBC 환경변수가 설정되면 신규 실제 DB/HTTP 시험이 실행되며 원격Supabase3개는 기존 opt-in을 유지한다. 실제 Privy/FE 연결·실제 서버 역할·#75 계정 검증과 구분한다. 실행 결과/남은 조건은 [계약 검토표 §12.5](../docs/api/Discushion_API_CONTRACT_검토표_2026-10-07.md), 기본 권한표는 [DB 연결 결정 기록](../docs/collaboration/backend-db-connection-decisions.md)을 따른다.
+
 ```java
 var reader = new ContractFixtures.Posts()
         .add(ContractFixtures.post(1, PostStatus.PUBLISHED));
