@@ -162,3 +162,14 @@ CI 비밀번호는 격리된 컨테이너용 합성값이며 운영 비밀값이
 - text/plain과10,000,001 bytes 파일은 각각400으로 거부됐다. localhost:3000 Origin의 PUT preflight는200, allow-origin=* 및 content-type/x-upsert 허용을 확인했다. 이는 직접 REST 검증이며 실제 FE 브라우저 또는 Spring PhotoService/인증/DB와의 전체 연동 시험은 아니다.
 - **유효한 서명 URL로 삭제된 key를 다시 PUT하면200으로 파일이 재생성됐다.** 기존 uploadsDrained=false와 DELETE_PENDING 보존을 유지한다. TTL 만료만으로 진행 중 전송 종료를 입증하거나 PHOTO_STORAGE_WIRE_VERIFIED/PHOTO_UPLOADS_ENABLED/worker를 활성화하지 않는다. 발급 지연·시각 오차 상한, 진행 중 전송 종료/재생성 방어, 실제 서버 DB 계정/RLS·Privy·FE 흐름은 #13/#30에서 남은 조건이다.
 - connection-check/ 아래 이번 시험 파일은 재생성 시험 후에도 Storage API로 정리했고 실제 storage.objects 잔여0개를 확인했다. 보안 advisor WARN/ERROR0, 기존 private Schema27개의 RLS 정책 없음 INFO는 #30 서버 역할 작업으로 유지한다. build/Java 테스트 결과는 앞선01:49 실행이며 이번에는 REST 검증과 문서만 갱신했다. commit/push/PR은 수행하지 않았다.
+
+
+### PR #125 리뷰 보완·최신 기준 재검증 (2026-10-08 04:10 KST)
+
+BE1의 재현 문제2건을 보완했다. PhotoAttachments는 기존 잠금 순서(users→posts→polls→media)를 유지하고 모든 파일 잠금/검사 이후 첫 DB 변경 직전에 서버 Clock으로 투표 종료를 다시 검사한다. 실제 JDBC 파일 잠금 대기 중 Clock을 ends_at으로 이동하는 시험에서 변경이 거부되고 rollback됐다.
+
+SupabasePhotoStorage는 헤더부터 응답 본문 전체에30초 deadline을 적용하며 초과/중단/인터럽트 시 구독과 요청을 취소한다. 성공 object는 수신 중10,000,000 bytes 한도와 기존 PHOTO_SIZE_EXCEEDED, metadata/오류 응답은65,536 bytes 한도와 PHOTO_STORAGE_UNAVAILABLE을 사용한다. 완료 object만 메모리 stream으로 전달하며 PhotoContent의 이미지 검사는 네트워크 수신에서 남은 같은30초 예산을 사용한다. 시간 초과 시 Future 취소·input close를 수행한다. 검사 worker는 최대2개·대기 큐 없음으로 제한해 decoder가 인터럽트를 따르지 않아도 task/thread를 무제한 생성하지 않으며 포화는 기술 실패다. 상품 사진 한도나 공개 API/DTO·Migration 변경은 없다.
+
+최신 back/develop d93cbf5(PR #127)를 충돌 없이 반영한56b4cae에서 Java17 `gradlew.bat --no-daemon test build --rerun-tasks --console=plain`을 실제 localhost PostgreSQL로 새로 실행했다. **133개 중130통과/실패0/오류0/원격Supabase3skip, build 성공**. 사진33개 모두 통과: 기존25개에 종료 잠금1개·실제 HTTP5개·검사 deadline2개 추가. 기본30초 그대로인 중단 본문·오류/metadata 중단·크기 초과·정상 PNG·검사 취소/close를 확인했다. 최초 시험의 데이터 정리/Mockito 설정 오류2건은 수정·재검증했고 잔여 데이터도 정리했다. 시험 사진 회원 잔여0개·운영 JAR 테스트 지원 클래스0개·diff 공백 오류0·이번에 시작한 DB 정상 종료.
+
+실제 원격 Storage/Privy/FE 전체 연결을 이번 시험으로 완료 처리하지 않는다. 업로드 종료 증거·최소 권한 서버 계정·실제 연결 후속과 PHOTO_* 비활성/Draft/#13 미완료 조건은 유지한다. 수정된 최종 PR은 BE1 재리뷰·승인 대상이며 작성자 검증을 BE1 승인으로 사용하지 않는다. CI와 실제 승인 상태는 PR에서 확인한다.
