@@ -1,0 +1,1 @@
+"use client"; import { useParams } from "next/navigation"; import { PostEditorScreen } from "@/features/post-editor/PostEditorScreen"; export default function EditPostPage(){const params=useParams<{postId:string}>();return <PostEditorScreen mode="edit" postId={params.postId} canEdit={false}/>;}
