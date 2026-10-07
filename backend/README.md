@@ -81,4 +81,33 @@ FE/BE 실제 연동은 실제 FE가 실행 중인 Backend를 호출해야 한다
 
 ## 협업
 
-Issue #1은 `back/feature/1-env`에서 작업하며 PR base는 `back/develop`이다. BE1은 API 정본과 DB Schema/Migration, BE2는 실행환경을 관리한다. `back/develop`과 `main`에는 직접 push하지 않는다. 실제 비밀번호·키·토큰·증빙 자료는 저장소에 넣지 않는다.
+일반 Backend Issue는 `back/feature/<번호>-<기능>`에서 작업하며 PR base는 `back/develop`이다. BE1은 A·C·D, BE2는 B·실행환경을 담당한다. 각 담당자는 자기 API/DB 변경을 작성하고 API 정본·DB 전역 정합성은 BE1이 확인한다. `back/develop`과 `main`에는 직접 push하지 않는다. 실제 비밀번호·키·토큰·증빙 자료는 저장소에 넣지 않는다.
+
+## 독립 개발용 테스트 기반
+
+`com.discushion.contracts.identity`와 `.post`의 인터페이스/record는 공통 내부 계약이다. 실제 인증·회원 adapter는 BE1, 게시물 adapter는 BE2가 구현한다. 현재 인터페이스만 제공하며 운영 구현이나 인증 허용 bean은 없다.
+
+`src/test/java/com/discushion/support/ContractFixtures.java`에서 고정 Clock, guest/검증된 주체/가입 미완료, 지역·기관 자격, 삭제 게시물, 종료 경계 투표와 선택지를 준비한다. 테스트별 새 `Members`/`Posts` 인스턴스에 필요한 데이터를 등록한다. `member(false, Set.of(), List.of())`는 가입 미완료, 타지역 Set은 자격 불일치, `institution(true)`는 평가 시각에 만료된 기관을 뜻한다. 최종 권한 결정은 소비 기능에서 구현·검증한다.
+
+```java
+var reader = new ContractFixtures.Posts()
+        .add(ContractFixtures.post(1, PostStatus.PUBLISHED));
+// reader를 서비스 생성자에 주입해 상대 adapter 없이 개별 조회 로직을 검증한다.
+```
+
+읽기 대체 구현의 `findForUpdate`는 예외를 발생시킨다. 쓰기 서비스의 단위 시험에는 해당 테스트에서 명시한 guard 대체 구현을 사용할 수 있지만 실제 DB 잠금 성공으로 보고하지 않는다. 실제 adapter 이후 같은 트랜잭션·자격 변경·게시물 삭제·투표 종료 경합을 JDBC 통합 시험으로 확인한다. 테스트 지원 파일은 JAR에 포함하지 않는다.
+
+## GitHub CI와 CD 상태
+
+추가 batch port는 `ParticipationSnapshotReader`(BE1), `PostSummaryReader`(BE2)다. `SharedReadFixtures`에서 공개 집계/본인 상태 분리와 공개/삭제 요약을 시험한다. `PostDeletionParticipant`는 기존 transaction에서 북마크를 해제하는 BE1 adapter의 규약이며 아직 구현은 없다. 정확한 batch 누락·오류·접근·삭제/보존 의미는 계약 검토표 §11.9를 따른다. guest와 타회원의 개인 상태가 섞이지 않는지, 삭제 요약에 display가 없는지를 회귀 검증한다.
+
+루트 `.github/workflows/backend-ci.yml`은 `back/develop`/`main` 대상 PR, Backend 브랜치 push, 수동 실행에서 다음을 수행한다. 파일 경로 필터를 두지 않아 필수 검사 대기 문제를 피한다.
+
+1. Linux 임시 Docker PostgreSQL 17.11에 현재 Migration을 순서대로 적용한다.
+2. 기존 `schema_integrity.sql`, `api-role-isolation.sql`을 각각 빈 시험 DB에서 실행한다. 컨테이너는 host network/127.0.0.1:55432를 사용해 기존 안전 가드를 유지한다.
+3. Java 17로 `test build --rerun-tasks`를 실행한다. localhost JDBC 4개는 실행 대상으로, 실제 Supabase 검증 3개는 명시적으로 비활성화한다.
+4. 테스트 결과와 성공한 JAR를 artifact로 남기고 시험 컨테이너를 제거한다.
+
+CI 비밀번호는 격리된 컨테이너용 합성값이며 운영 비밀값이 아니다. Schema 시험은 실제 PostgreSQL 제약 검증이지만 모의 역할 검사는 실제 Supabase 서버 역할/GRANT 검증을 대신하지 않는다. SQL 직접 적용 CI는 기존 Windows `run-schema-tests.ps1`의 Supabase CLI Migration history/재실행 검사를 대신하지 않는다. 코드 소유권/리뷰 규칙은 AGENTS.md를 따르며 GitHub 관리자가 `Backend tests and build`를 필수 검사로 설정하고 리뷰 강제 여부를 확인해야 한다.
+
+워크플로 파일은 PR 통합/원격 반영 후 GitHub에서 실행된다. CD는 #30에서 실제 Vercel 대상·배포 방식·리전·환경별 비밀 변수·DB 연결과 health/실패 복구를 확인한 뒤 연결한다. 현재 자동 배포 워크플로는 제공하지 않으며 CI JAR 생성은 배포 성공을 뜻하지 않는다.

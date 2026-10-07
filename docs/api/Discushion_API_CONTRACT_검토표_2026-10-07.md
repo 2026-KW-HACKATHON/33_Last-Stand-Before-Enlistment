@@ -1,5 +1,15 @@
 # Discushion #2 — 공통 API 계약 검토표
 
+## 2026-10-07 합의: 공통 인증·조회와 영역별 작성
+
+사용자가 공통 기반 1~5번대로 팀 합의를 확인했다. 인증은 FE의 Privy Bearer access token을 Spring이 직접 검증하며 자체 세션 교환은 채택하지 않는다. 검증된 Privy 식별자로 로컬 회원을 연결하고 인증 성공·가입 완료를 구분한다. 토큰 보관/갱신·로그아웃 범위·미가입 처리·오류 등 정확한 FE/API 세부는 #74/#4에서 확인한다. 같은 주제의 인증 방식 선택 대기 표현보다 이 합의를 우선하되 구현·FE 검토·실제 연동 완료로 표시하지 않는다.
+
+BE1은 A·C·D와 공통 인증/자격 조회, BE2는 B와 최소 게시물 내부 조회·실행환경을 담당한다. 각 담당자가 자기 API 정본 해당 절·ERD·Migration을 작성하고 BE1은 전체 정합성을 검토한다. 공통/타 영역·기존 합의 계약 변경은 사전 공동 검토하며 이미 적용된 Migration은 보존한다. 공유 DB 적용은 통합된 Migration을 BE2 조율 아래 지정 담당자가 수행한다.
+
+게시물 기본 조회는 ID·유형·지역·작성자·공개/삭제 상태와 투표 선택지/종료 정보를 제공하는 내부 규약으로 먼저 준비한다. 공통 데이터/오류는 기존 API 정본의 규칙을 대조해 고정하고 새 형식을 임의 만들지 않는다. 정확한 내부 DTO/인터페이스는 구현 전에 합의한다. 필수 계약/Schema가 back/develop에 준비되면 합의된 대체 구현으로 독립 개발할 수 있지만 실제 상대 기능 연결과 권한/데이터 검증은 완료 조건으로 유지한다.
+
+전체 규칙은 [AGENTS.md](../../AGENTS.md)의 “2026-10-07 합의: Backend 공통 기반과 독립 개발” 절을 따른다. 이전 BE1 전담 Migration 작성 요청은 담당 영역 작성+BE1 정합성 검토로 읽는다. 사진 공통 제약과 타 용도 영향은 공동 검토하며 사진 정책·한도는 유지한다. 실제 코드·DDL·환경·GitHub 이슈 담당/선행 갱신은 별도 작업이다.
+
 > **#74/#3 DB 부분 후속:** 사용자(BE1)가 Privy subject↔회원 1:1, 가입 완료 시각, 업로드 완료 후 24시간 미연결 POST_PHOTO 정리·연결 보호·삭제 대기/재시도 저장 구조를 승인했다. [상세·검증·후속 경계](../architecture/Discushion_Issue3_MVP_v10.2_반영.md)를 참조한다. 이 승인은 BE2/FE 실제 검토나 토큰·SDK·Endpoint/DTO·파일 전송 계약 합의가 아니다.
 
 ## 2026-10-07 결정 반영
@@ -408,3 +418,164 @@ BE1 검토용 데이터 요구사항은 파일 owner·용도·검증된 MIME/byt
 - 저장 파일 삭제는 계속 완료 조건이다. 삭제 대기 응답만으로 #13/#16 인수를 완료하지 않으며, 실패·재시도·늦은 전송·경합을 실제 Storage에서 검증한다.
 
 다음 검토: BE1은 미검증 파일의 삭제 상태 제약·발급 만료/선점 추적을 추가 Migration으로 검토하고 API 정본을 정리한다. BE2는 #13/#16 실행을 준비하되 DB 보완과 필수 데이터 계약이 back/develop에 반영되기 전 의존 코드를 구현하지 않는다. FE는 요청/응답·삭제 대기 의미를 구현 전에 확인하고 실제 사용자 흐름은 #30/#31에서 검증한다.
+
+## 11. 독립 개발용 내부 인터페이스 상세안 (2026-10-07)
+
+사용자가 “너가 알아서 생각해서 해줘”라고 요청해 합의된 공통 기반을 아래 메서드/반환 타입/실행 책임으로 구체화했다. 내부 규약의 준비 결과이며 BE1의 실제 리뷰나 코드 구현·back/develop 반영·연동 완료를 뜻하지 않는다. 새로운 HTTP endpoint·테이블·인증 provider를 추가하지 않는다. #74에서 공통 규약을 검토·반영하고 BE1 #4/#11/#12, BE2 #14/#15에서 실제 adapter를 구현한다. 기존 사용자 결정은 유지하며 코드 의존 작업은 필수 계약/Schema 통합 후 시작한다.
+
+### 11.1 코드 배치와 공통 타입
+
+단일 Spring Boot/JDBC 구조를 유지한다. 최소 공통 port/불변 반환 타입은 `com.discushion.contracts.identity`, `com.discushion.contracts.post` 패키지에 둔다. 실제 인증/회원 adapter는 BE1, 게시물 adapter는 BE2 영역에 두고 소비자는 상대 Controller/Entity/Repository 대신 port만 사용한다. 공통 타입 변경은 양쪽 공동 검토한다. 아래 Java 선언에 대응하는 source file과 테스트 전용 ContractFixtures를 준비했다. 실제 adapter/Spring bean은 없으며 PR 리뷰·back/develop 통합과 실제 연동 완료를 뜻하지 않는다.
+
+- 내부 ID는 기존 BIGINT에 대응하는 Java long, 유효 범위 1~9007199254740991. 이 결정은 HTTP JSON ID 계약 변경을 뜻하지 않는다.
+- 시간은 Java Instant, UTC 기준으로 비교. 기관 유효 종료시각/투표 종료시각과 같으면 만료/종료다. 서버 Clock을 사용하며 클라이언트 시각을 받지 않는다.
+- 컬렉션은 null 대신 빈 불변 Set/List, 단일 선택 값은 Optional. DB 실패·시간초과는 빈 데이터/권한 없음으로 바꾸지 않고 기술 예외로 전파한다.
+- provider token·이메일·배지·증빙·사진 URL은 이 최소 반환값에 포함하지 않는다. 화면 표시용 프로필/집계는 필요한 기능에서 별도 내부 규약으로 추가한다.
+
+### 11.2 현재 인증 주체 — BE1 제공
+
+```java
+interface CurrentActorProvider {
+    Optional<VerifiedActor> current();
+}
+record VerifiedActor(String privySubject, Optional<LocalMember> member) {}
+record LocalMember(long userId, Optional<Instant> registrationCompletedAt) {}
+```
+
+| 경우 | 반환/처리 |
+| --- | --- |
+| 토큰 없음 | Optional.empty(). 해당 endpoint가 비회원 접근을 허용하는지는 호출 기능이 판정 |
+| 토큰 있음·검증 실패/만료 | 인증 실패. 비회원으로 자동 강등하지 않음. provider 확인 불가 장애는 기술 실패로 구분 |
+| 검증 성공·로컬 회원 없음 | VerifiedActor 존재, member 비어 있음. 최초 가입 흐름만 허용하며 일반 회원 권한을 만들지 않음 |
+| 로컬 회원 존재·가입 미완료 | member 존재, registrationCompletedAt 비어 있음. 기능이 가입 완료 필요 여부를 판정 |
+| 가입 완료 | member와 registrationCompletedAt 존재. 지역/기관 자격을 자동 부여하지 않음 |
+
+인증 계층이 검증한 요청 컨텍스트에서만 주체를 만든다. 인자나 Request userId로 현재 회원을 바꾸지 않는다. 요청 종료 후 컨텍스트를 비우고 임의 비동기 스레드에서 그대로 사용하지 않는다. BE2는 회원 기능에서 주체/가입 완료를 검사하되 JWT를 다시 검증하지 않는다. LocalMember는 최초 인증 결과의 조회 스냅샷이며 중요한 쓰기에서 최신 회원/자격을 재조회한다.
+
+### 11.3 회원 자격 — BE1 제공
+
+```java
+interface MemberQualificationReader {
+    Optional<MemberQualification> find(long userId);
+}
+record MemberQualification(
+    long userId,
+    Optional<Instant> registrationCompletedAt,
+    Set<Long> verifiedRegionIds,
+    List<InstitutionGrant> institutionGrants,
+    Instant evaluatedAt
+) {}
+record InstitutionGrant(
+    long credentialId, long institutionId, long responsibleRegionId,
+    Instant completedAt, Instant validUntil
+) {}
+```
+
+- userId는 내부 인증 주체의 로컬 회원 또는 서버가 조회하는 대상 회원에서 얻는다. 외부 요청 userId/역할을 권한 근거로 전달하지 않는다. 회원이 없으면 Optional.empty(), 자격이 없으면 빈 컬렉션이다.
+- verifiedRegionIds는 neighbor_verified_regions 원본만 사용한다. 기본 활동 지역·프로필 속성·기관 자격은 포함하지 않는다. 신청/접수 테이블은 자격 근거로 조회하지 않는다.
+- 기관 자격은 institution_credentials의 저장 사실을 반환한다. 현재 유효성은 `completedAt <= 평가시각 < validUntil`로 판단하고 담당 지역은 responsibleRegionId로 확인한다. evaluatedAt은 조회 시 서버 Clock 값이며 소비자는 시간 경과 뒤 이 결과를 장기 캐시해 권한으로 사용하지 않는다.
+- 기관 배지/전체 기관 안건 조회와 지역 안건 채택을 구분한다. 기관 자격은 주민 참여의 이웃 완료 지역을 대신하지 않는다. 최종 행동 권한·작성자 소유권·유형/상태 검사는 기능 담당자 책임이다.
+- 초기 규약은 읽기 스냅샷이다. 동시 자격 변경이 가능한 쓰기는 아래 §11.5의 공통 회원 잠금과 재조회를 사용한다. 자격 adapter에 임의 allowAll 또는 테스트 계정을 운영 기본값으로 넣지 않는다.
+
+### 11.4 게시물 기본 조회 — BE2 제공
+
+```java
+interface PostContextReader {
+    Optional<PostContext> find(long postId);
+    Optional<PostContext> findForUpdate(long postId);
+}
+record PostContext(
+    long postId, PostType type, long regionId, long authorUserId,
+    PostStatus status, Optional<PollContext> poll
+) {}
+record PollContext(long pollId, Instant endsAt, List<Long> optionIds) {}
+enum PostType { LOCAL_AGENDA, LOCAL_ACTIVITY, VOTE }
+enum PostStatus { PUBLISHED, DELETED }
+```
+
+- 값은 현재 Migration의 posts/polls/poll_options와 대조했다. 일반 조회는 스냅샷이고 쓰기 권한의 최종 근거로 재사용하지 않는다.
+- 존재하지 않으면 Optional.empty(). 삭제된 행은 DELETED로 반환해 내부에서 구분하되 본문·선택지 등 공개 비노출은 호출 기능이 적용한다. 공개 endpoint의 없는/삭제 응답은 기존 API 계약을 따른다.
+- VOTE만 poll 존재, LOCAL_AGENDA/LOCAL_ACTIVITY는 비어 있음. VOTE인데 poll이 없으면 무결성/기술 실패이며 일반 게시물로 간주하지 않는다. 삭제된 투표 정보는 서버 내부 검사에만 사용하고 공개 응답으로 직렬화하지 않는다.
+- optionIds는 실제 해당 poll의 sort_order 순서, 종료 판단은 저장 단계의 서버 Clock으로 `now >= endsAt`. 선택지가 해당 투표에 속하는지 BE1 참여 서비스가 검사한다.
+- findForUpdate는 호출자가 이미 시작한 같은 JDBC 트랜잭션에서 posts 행을 잠그고 VOTE면 polls 행도 잠근 뒤 반환한다. 트랜잭션이 없으면 실행을 거부한다. 자기 트랜잭션을 새로 열거나 반환 직후 커밋하지 않는다. 이 read port가 작성자/지역 참여 권한을 대신 승인하지 않는다.
+
+### 11.5 공통 쓰기 트랜잭션과 재검사
+
+외부 호출이나 HTTP를 내부 port 경계에 넣지 않는다. Storage/AI 호출은 이미 합의한 별도 실행 방식에 따른다. 내부 adapter는 Spring의 동일 DataSource/트랜잭션을 사용하고 REQUIRES_NEW로 잠금을 분리하지 않는다.
+
+1. 권한 있는 회원 쓰기에서는 같은 transaction 안에서 대상 users 행을 먼저 잠그고 가입 상태·자격을 재조회한다. BE1이 `MemberWriteGuard.lockAndRead(long userId)`라는 내부 규약을 제공하며 transaction이 없으면 거부하고 반환은 위 MemberQualification과 동일한 Optional이다. 이는 별도 네 번째 제품 기능이 아니라 자격 port의 쓰기 보호용 보완이다.
+2. 해당 회원의 자격/가입 상태를 바꾸는 BE1 코드도 같은 users 행을 먼저 잠근다. 여러 회원 행이 필요하면 userId 오름차순으로 잠근다. 자격 데이터만 단독 갱신하는 우회를 허용하지 않는다.
+3. 이후 관련 posts → polls 순으로 findForUpdate를 사용하고 공개/삭제·지역·소유권·선택지·종료를 재검사한 뒤 참여/관계를 저장한다. 여러 게시물은 postId 오름차순. 사진 처리의 media_files 잠금은 필요한 posts/polls 이후 fileId 순으로 취득한다. 실제 신규 생성 등 존재하지 않는 게시물 행에는 존재하는 관련 행만 적용한다.
+4. BE2 게시물 삭제/투표 종료시각 변경/수정 코드도 같은 posts → polls 잠금 규칙을 따른다. 공유 게스트 댓글처럼 회원이 없는 흐름은 합의된 공유 컨텍스트 검사 후 posts 잠금부터 시작한다.
+5. 투표 저장 직전 서버 Clock을 다시 읽어 종료시각을 검사한다. 명시적 종료 상태 컬럼을 새로 만들지 않는다. #25는 제출·선택 변경을 실제 원본에 기록하고 종료 후 쓰기를 거부한다.
+6. 실제 코드가 모두 이 규칙을 지키는지 #4/#14/#16/#22~25에서 통합 검증한다. FK만으로 제품 권한·시간 경합을 보장한다고 주장하지 않는다. 기관 만료 등 시각 조건도 최종 저장 단계에서 재평가하며 장시간 transaction을 피한다.
+
+회원 guard의 코드/DB 잠금 구현은 BE1, posts/polls guard 구현은 BE2다. 메서드 명세만으로 공통 잠금이 구현된 것이 아니며 공통 트랜잭션/권한표·RLS는 양쪽 검토 후 반영한다. 잠금 순서 변경이나 기존 경로의 누락을 발견하면 공동 계약을 먼저 갱신한다.
+
+### 11.6 내부 오류와 외부 매핑
+
+| 내부 결과 | 호출 기능의 처리 책임 |
+| --- | --- |
+| current 비어 있음 | 비회원 허용 또는 인증 필요 처리; 공유 컨텍스트 검사 생략 금지 |
+| 토큰 검증 실패 | 인증 실패로 처리. 토큰/원시 provider 오류를 로그·응답에 노출하지 않음 |
+| actor.member 비어 있음 / 가입 완료시각 없음 | 가입 흐름과 일반 기능 구분. 새 HTTP 오류 코드를 임의로 만들지 않고 #74/#4에서 정본 매핑 |
+| 회원/게시물 조회 Optional.empty | 대상 없음으로 처리. 내부 빈 반환을 권한 허용으로 해석하지 않음 |
+| DELETED / 투표 종료 / 대상 선택지 아님 | 기존 POST_DELETED / VOTE_ENDED / VOTE_OPTION_INVALID 등의 정본 의미에 매핑. 정확한 status/body는 기존 HTTP 계약 검토 유지 |
+| 자격/소유권 부족 | 기능별 권한 거부. 다른 영역 정보를 불필요하게 노출하지 않음 |
+| DB 실패·무결성 실패·transaction 없음 | 기술 실패. 비회원/빈 집계/자격 없음으로 숨기지 않음 |
+
+### 11.7 구현 순서와 검증 기준
+
+- BE1: CurrentActorProvider·MemberQualificationReader·MemberWriteGuard 실제 인증/회원 adapter와 요청 컨텍스트 처리. BE2: PostContextReader 실제 JDBC adapter. 공통 port/record는 계약 반영 PR에서 코드로 준비하고 양쪽 리뷰 후 back/develop에 통합한다.
+- 테스트 대체 구현은 src/test 범위에서만 제공하며 임의 기본 Spring bean/운영 allowAll은 만들지 않는다. 없는 대상·가입 미완료·타지역·유효/만료 기관·공개/삭제 게시물·투표 종류/선택지/종료를 재현한다.
+- 실제 JDBC 검증은 같은 transaction 잠금 유지, 삭제와 댓글/반응 동시 실행, 투표 종료시각 변경과 제출, 자격 변경과 게시, 동일 파일 연결/정리 잠금 순서 등을 포함한다. 필수 서버 역할/GRANT/RLS 준비도 선행한다.
+- 이 문서 상세안만으로 상대 코드/DB 구현이 준비된 것은 아니다. port·필수 Schema·테스트 기반의 통합 후 개별 개발하고 실제 adapter 연결 전에는 연동 대기로 기록한다. FE 연결은 이 내부 검증과 구분해 #30/#31에서 수행한다.
+
+### 11.8 테스트 기반·담당 규칙·CI 준비
+
+사용자 요청으로 §11의 공통 port/record, 테스트 전용 ContractFixtures/회귀 검사와 Backend CI 설정을 준비했다. 테스트 데이터는 합성값·고정 Clock을 사용하고 instance별 읽기 대체 구현을 주입한다. 잠금 조회 대체 구현은 지원하지 않으며 실제 트랜잭션 검증으로 오인하지 않는다. 실제 authentication/qualification/JDBC adapter와 HTTP 오류 매핑은 각 담당자의 후속 작업이다.
+
+BE1은 identity adapter와 A·C·D, BE2는 post adapter와 B·환경/CI를 담당한다. 공통 contracts/support/오류/트랜잭션 변경은 양쪽 리뷰 대상이다. 파일 담당 및 검증 절차는 AGENTS.md와 Backend README를 따른다. 사람/팀 GitHub 핸들이 미확정이므로 CODEOWNERS와 강제 리뷰는 자동 설정하지 않았다.
+
+CI는 격리 PostgreSQL Migration·Schema 시험과 Java 테스트/build를 구성한다. 실제 Supabase/Privy/Storage·FE 연결과 DB 잠금 경합은 별도 검증이며 자동 배포는 #30 대상 확정 후 연결한다. 원격 CI 실행 전에는 CI 통과를 기록하지 않는다.
+
+### 11.9 참여 집계·게시물 요약·삭제 접점 확정 (2026-10-07)
+
+사용자가 남은 BE1·BE2 공동 준비를 본인이 수행하도록 위임했다. 아래 내부 규약을 작업 기준으로 채택한다. 특정 팀원의 실제 리뷰·FE wire 승인·운영 adapter 구현으로 기록하지 않는다. 새로운 HTTP endpoint나 테이블은 추가하지 않는다.
+
+#### 참여 집계 — BE1 제공
+
+`ParticipationSnapshotReader.findAll(Set<Long> postIds, OptionalLong verifiedViewerUserId)`는 `Map<Long, ParticipationSnapshot>`을 반환한다. 호출자가 먼저 공개/회원/특정 공유 컨텍스트의 접근을 검증한다. 본인 ID는 검증된 현재 주체에서만 받으며 임의 Request userId를 사용하지 않는다. guest에는 OptionalLong.empty를 전달하고 viewer 필드를 비운다. 회원은 본인 reactions/bookmarked/selectedOptionId만 조회하고 타인의 선택·회원별 행동을 반환하지 않는다.
+
+- snapshot은 부모 댓글 수·답글 수, EMPATHY/NEEDED/CURIOUS 각 수, 선택적 poll 결과, 선택적 본인 상태, 서버 평가시각을 담는다. 댓글 합계는 부모+답글이며 답글 좋아요를 부모 정렬에 합산하지 않는다. 댓글 평가 수/정렬은 댓글 기능 조회에서 처리한다.
+- 투표는 pollId·participantCount·정렬된 optionId/count 목록을 반환한다. 참가자 수는 실제 현재 표의 수이며 반응과 합산하지 않는다. 본인 선택은 저장된 표로만 판단한다. 득표율의 표시 반올림은 기존 HTTP 계약에서 정하고 내부 port는 원본 정수 count만 제공한다.
+- 이미 접근 확인된 공개 게시물에 참여가 0건이면 0/빈 상태 snapshot을 반환한다. 없는/삭제 게시물은 map에서 제외한다. VOTE인데 원본 poll이 없거나 조회 오류면 기술 실패로 처리하며 0으로 숨기지 않는다. 조회 사이 삭제 경합은 같은 읽기 트랜잭션의 게시물 상태 재확인으로 막는다.
+- batch는 요청 ID만 반환하고 빈 요청은 빈 map. 입력 Set은 중복을 제거하며 순서는 보장하지 않는다. 리스트 소비자는 자신의 기존 페이지 순서로 조합한다. 페이지 ID 집합을 한 번에 조회하고 SQL을 게시물별 반복 실행하지 않는다. 결과/본인 상태를 사용자 간 캐시로 공유하지 않는다.
+
+#### 게시물 요약 — BE2 제공
+
+`PostSummaryReader.findAll(Set<Long> postIds)`는 `Map<Long, PostSummary>`을 반환한다. 최소 값은 ID·유형·지역·작성자·공개/삭제 상태·생성시각이다. 공개 행의 display에는 title/topic만 담고 삭제 행의 display는 비운다. 삭제 요약에 본문·사진·질문·선택지·득표 결과를 넣지 않는다. 없는 ID는 map에 없고 DB 실패는 예외다. 이 내부 조회 자체가 공개 권한을 부여하지 않는다.
+
+기관 안건/일반 탐색/내가 만든·참여한 게시물 목록은 공개 행만 사용한다. 참여한 투표의 기존 삭제 이력은 UNAVAILABLE 표시용 최소 메타데이터만 사용하며 제목/본문/선택/결과를 공개 DTO로 다시 옮기지 않는다. 종료 상태는 poll.endsAt과 서버 Clock으로 평가하고 필요한 투표 메타데이터는 기존 PostContextReader 규약을 함께 사용한다. 사진·기관 배지 등 화면별 추가 정보는 소유 영역에서 별도 조합한다.
+
+#### 삭제·투표 변경과 보존
+
+| 대상 | 이번 내부 처리 기준 |
+| --- | --- |
+| posts/polls/options | posts를 DELETED로 갱신, 원본 행은 FK/이력 보존을 위해 유지. 공개 조회·공유·추가 쓰기 차단 |
+| bookmarks | BE1 PostDeletionParticipant.removeBookmarks(postId)를 같은 호출자 transaction에서 실행해 자동 해제. 실패하면 게시물 삭제도 rollback |
+| post_photos/media | BE2가 참조 제거·DELETE_PENDING을 같은 transaction에 기록, commit 후 실제 Storage 삭제/재시도. 활성 참조 보호·늦은 전송 방어는 기존 사진 계약 유지 |
+| comments/reactions/evaluations/votes | DB 관계는 유지하고 삭제 원본의 콘텐츠/결과·추가 참여를 차단. 참여 투표의 UNAVAILABLE 이력 유지 |
+| activity_events | 누적 행동 이력은 유지. 삭제/표 변경으로 새 활동을 추가하거나 기존 누적 횟수를 빼지 않음 |
+| adoptions | 감사 관계를 보존하고 공개/현재 기관 목록에서는 삭제 원본 제외. 삭제가 기관 취소 행동을 자동 생성하지 않음 |
+| AI summary | 삭제 원본의 결과 비노출. revision/삭제 상태를 검사해 늦은 생성 결과가 다시 노출되지 않게 함 |
+
+DB 보존은 원본/감사 이력 유지를 위한 기술 기준이며 삭제된 내용을 앱에서 계속 열람할 권한이 아니다. 보존기간·계정 탈퇴·운영 purge는 이번 MVP에서 새로 구현하지 않는다. 실제 Migration 변경 필요 시 기존 파일을 수정하지 않고 추가 Migration으로 검증한다.
+
+삭제 호출 순서는 회원 guard → posts → polls → bookmark 처리 → media ID순 잠금/사진 처리이며 모든 DB 변경은 같은 Spring transaction이다. 외부 호출을 transaction에 넣지 않는다. 참여 쓰기도 같은 posts/polls 잠금을 사용하고 status·권한·종료를 재검사한다. PostDeletionParticipant는 인터페이스만 준비했으며 실제 삭제 adapter/transaction 검증은 #16/#26에서 수행한다.
+
+진행 중 투표는 제목·본문·사진·종료시각만 수정 가능하고 질문·선택지·지역·주제는 변경하지 않는다. 기존 표/first_submitted_at은 그대로 보존하고 표 변경은 한 현재 표의 원자 교체다. 종료 후에는 게시물 수정·삭제와 신규/변경 투표를 모두 거부한다. 종료시각 수정과 제출은 같은 posts→polls 잠금으로 직렬화해 최종 저장 전 Clock을 다시 평가한다. 비-MVP 알림/예약 처리는 추가하지 않는다.
+
+#### 준비와 실제 완료 기준
+
+인터페이스·test-only batch 대체 구현 및 guest/타회원 정보 격리·삭제 display 차단 회귀 검사를 준비했다. #15/#17/#18/#19는 집계 adapter 전체 완성을 기다리지 않고 규약/Schema 통합 후 본문·목록을 구현할 수 있다. #21~#29도 PostContext/요약 규약을 사용해 개별 검증한다. 실제 연결·DB 경합·서비스 실패 전파는 해당 기능 완료 조건이고 FE 사용자 흐름은 #30/#31에서 확인한다. CI·CODEOWNERS/필수 검사 설정은 GitHub 실제 실행/관리자 설정 완료와 구분한다.
