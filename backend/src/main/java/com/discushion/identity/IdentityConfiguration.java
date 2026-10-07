@@ -26,11 +26,21 @@ public class IdentityConfiguration {
     @Bean
     @ConditionalOnMissingBean(AccessTokenVerifier.class)
     AccessTokenVerifier accessTokenVerifier(Environment environment, ObjectProvider<VerificationKeySource> keys, Clock clock) {
+        var appKeys = new PrivyJwksVerificationKeySource(environment.getProperty("PRIVY_APP_ID"), clock);
         return new PrivyAccessTokenVerifier(environment.getProperty("PRIVY_APP_ID"), keyId -> {
             var source = keys.getIfAvailable();
-            if (source == null) throw new IdentityFailure(IdentityFailure.Reason.PROVIDER_UNAVAILABLE);
-            return source.find(keyId);
+            return source == null ? appKeys.find(keyId) : source.find(keyId);
         }, clock, Duration.ZERO);
+    }
+
+    @Bean
+    PrivyVerifiedEmailSource privyVerifiedEmailSource(Environment environment, Clock clock) {
+        return new PrivyVerifiedEmailSource(environment.getProperty("PRIVY_APP_ID"), environment.getProperty("PRIVY_APP_SECRET"), clock);
+    }
+
+    @Bean
+    AuthenticatedEmailService authenticatedEmailService(RequestActorContext actors, PrivyVerifiedEmailSource emails) {
+        return new AuthenticatedEmailService(actors, emails);
     }
 
     @Bean
