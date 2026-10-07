@@ -12,11 +12,13 @@ import type { SignupEditors, SignupService } from "../features/signup/contracts"
 
 import { ProfileProvider } from "../features/profile/provider";
 import type { ProfileService } from "../features/profile/contracts";
+import { NeighborProvider } from "../features/neighbor/provider";
+import type { NeighborService } from "../features/neighbor/model";
 import { profileSignupEditors } from "../features/profile/editors";
 
 /** Real adapters/client are injected by Integration; no production Mock or guessed base URL. */
-export function AppProviders({ children, session, retrySession, apiClient, loginService, signupService, signupEditors, profileService }: {
-  children: ReactNode; session?: SessionState; retrySession?: () => void | Promise<void>; apiClient?: ApiClient; loginService?: OtpLoginService; signupService?: SignupService; signupEditors?: SignupEditors; profileService?: ProfileService;
+export function AppProviders({ children, session, retrySession, apiClient, loginService, signupService, signupEditors, profileService, neighborService, subjectKey = null }: {
+  children: ReactNode; session?: SessionState; retrySession?: () => void | Promise<void>; apiClient?: ApiClient; loginService?: OtpLoginService; signupService?: SignupService; signupEditors?: SignupEditors; profileService?: ProfileService; neighborService?: NeighborService; subjectKey?: string | null;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -24,9 +26,9 @@ export function AppProviders({ children, session, retrySession, apiClient, login
   return <SessionProvider session={session} retry={retrySession}>
     <NavigationProvider currentDestination={currentDestination} onNavigate={(href, replace) => replace ? router.replace(href) : router.push(href)}>
       <LoginProvider service={loginService}>
-        <ProfileProvider service={profileService}><SignupProvider service={signupService} editors={signupEditors ?? profileSignupEditors}>
+        <NeighborProvider subjectKey={subjectKey} service={neighborService}><ProfileProvider service={profileService}><SignupProvider service={signupService} editors={signupEditors ?? profileSignupEditors}>
           {apiClient ? <ApiClientProvider client={apiClient}>{children}</ApiClientProvider> : children}
-        </SignupProvider></ProfileProvider>
+        </SignupProvider></ProfileProvider></NeighborProvider>
       </LoginProvider>
     </NavigationProvider>
   </SessionProvider>;
