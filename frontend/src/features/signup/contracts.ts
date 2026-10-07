@@ -2,7 +2,7 @@ import type { ComponentType } from "react";
 import type { NavigationEntry, SessionState, TargetAvailability } from "../../lib/navigation";
 
 /** Client form/props only, not Backend DTOs, region identifiers or role enums. #43 consumes these slots. */
-export type SignupProfile = { nickname: string; bio: string; attributes: string[] };
+export type SignupProfile = { nickname: string; bio: string; attributes: string[]; photo?: { kind: "remove" } | { kind: "replace"; file: File } };
 export type SignupRegion = { reference: string; label: string };
 export type SignupDraft = {
   agreements: { terms: boolean; privacy: boolean; marketing: boolean };
