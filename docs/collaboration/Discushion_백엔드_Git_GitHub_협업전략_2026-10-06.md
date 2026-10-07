@@ -41,9 +41,12 @@ git status
 git fetch origin
 git switch back/develop
 git pull --ff-only origin back/develop
+# 실제 Backend test/build로 기준 상태를 검증한 뒤 다음 단계 진행
 git switch -c back/feature/32-comment
 git push -u origin back/feature/32-comment
 ```
+
+pull 직후 실제 구성된 Backend test/build로 기준 상태를 검증하고 통과한 뒤 Feature를 생성한다. 이력 분기·실패·검증 환경 누락이 있으면 이를 보고하고 임의로 성공 처리하지 않는다.
 
 기존 Feature는 `git switch back/feature/32-comment`로 이동한다. 작업 중 최신 Backend 통합을 반영할 때:
 
@@ -71,12 +74,12 @@ FE Feature를 Backend develop에 직접 merge하지 않는다. FE/BE 연동은 �
 
 | 분류 | 변경 예 | 병합 조건 |
 | --- | --- | --- |
-| 일반 | 확정 계약을 유지하는 자기 영역 구현·테스트, 오탈자·설명 보완 | Codex diff 검토 + 관련 test/build + 필수 CI. 상대 승인 없이 작성자 병합 가능 |
+| 일반 | 확정 계약을 유지하는 자기 영역 구현·테스트, 오탈자·설명 보완 | PR 생성 후 작성자·Codex 최종 diff 재검토 및 결과 기록 + 관련 test/build + 필수 CI. 상대 승인 없이 작성자 병합 가능 |
 | 상대 리뷰 필요 | 공통 port/DTO·오류·트랜잭션 규약, API 계약, DB 구조/Migration·RLS/권한, 인증/제품 권한, 타 영역 영향 | 일반 조건 + 상대 Backend 담당자 1명의 최신 변경 리뷰·승인 |
 
-문서 수정도 계약·정책을 바꾸면 상대 리뷰가 필요하며 이 리뷰 정책 변경 PR 자체도 포함한다. API/DB 정합성은 BE1, 실행환경과 BE2 소비 계약은 BE2가 확인하고 작성자가 해당하면 상대 담당자의 승인을 받는다. 혼합 PR은 상대 리뷰 기준을 적용하고 불명확한 분류는 병합 전 확인한다. PR에는 리뷰 분류·근거·영향 영역·검증 결과를 적는다. 실패한 CI·충돌·미해결 리뷰 지적이 있으면 병합하지 않는다.
+문서 수정도 계약·정책을 바꾸면 상대 리뷰가 필요하며 이 리뷰 정책 변경 PR 자체도 포함한다. API/DB 정합성은 BE1, 실행환경과 BE2 소비 계약은 BE2가 확인하고 작성자가 해당하면 상대 담당자의 승인을 받는다. 혼합 PR은 상대 리뷰 기준을 적용하고 불명확한 분류는 병합 전 확인한다. PR에는 리뷰 분류·근거·영향 영역·검증 결과와 PR 생성 후 재검토 결과를 적는다. 재검토에서는 이슈 완료 조건·불필요한 변경·API/DB/권한 영향·검증 누락을 확인한다. 추가 수정이나 base 갱신이 있으면 최종 diff를 다시 검토하고 영향을 받는 검증을 재실행한다. 실패한 CI·충돌·미해결 리뷰 지적이 있으면 병합하지 않는다.
 
-GitHub `back/develop` 보호 설정의 목표는 일괄 필수 승인 수 0이며, 필수 검사 `Backend tests and build`와 최신 base 검증을 유지한다. PR 필수·대화 해결·관리자 적용·force push/삭제 금지도 유지한다. 보호 설정 변경은 저장소 관리자의 별도 승인·적용과 실제 조회 확인 후 완료로 기록한다. 설정 적용 전에는 기존 GitHub 승인 조건을 따른다. 변경별 상대 승인은 운영 규칙으로 확인하며 CODEOWNERS나 자동 분류 검사는 추가하지 않는다. 이후 작업자의 develop pull·검증 또는 Codex 검사만으로 상대 승인 완료를 기록하지 않는다. Codex 병합은 별도 사용자 요청이 있어야 한다.
+GitHub `back/develop` 보호 설정의 목표는 일괄 필수 승인 수 0이며, 필수 검사 `Backend tests and build`와 최신 base 검증을 유지한다. PR 필수·대화 해결·관리자 적용·force push/삭제 금지도 유지한다. 보호 설정 변경은 저장소 관리자의 별도 승인·적용과 실제 조회 확인 후 완료로 기록한다. 2026-10-07 실제 설정 조회로 일괄 필수 승인 수 0 적용을 확인했다. 필수 CI·최신 base·관리자 적용·대화 해결·force push/삭제 금지는 유지됐다. 변경별 상대 승인은 운영 규칙으로 확인하며 CODEOWNERS나 자동 분류 검사는 추가하지 않는다. 이후 작업자의 develop pull·검증 또는 Codex 검사만으로 상대 승인 완료를 기록하지 않는다. “PR해줘”는 commit·push·PR 생성과 검증 확인까지이며 병합하지 않는다. “PR하고 조건 통과하면 merge까지 해줘”처럼 병합까지 요청받으면 Codex가 최종 재검토·CI·필요한 상대 승인 1명·최신 base·충돌/미해결 지적 없음을 확인한 뒤 GitHub PR에서 병합한다. 부족한 조건은 우회하지 않고 대기로 보고한다.
 
 ## 6. API 및 DB 변경 협의
 
@@ -145,7 +148,7 @@ BE2가 Backend 배포, 실행환경, 서버 설정, Docker, 운영 환경변수,
 
 ## 8. Codex 요청과 main 최종 반영
 
-Codex 요청에는 BE 담당자, Issue, `back/feature/<issue>-<기능명>`, base `back/develop`, 기능명세/API 계약, 허용·금지 범위와 완료 조건을 적는다. 결과 후 사람이 `git status`, `git diff`, `git diff --cached`를 확인한다. Codex는 develop/main에 push하거나 PR을 병합하지 않는다.
+Codex 요청에는 BE 담당자, Issue, `back/feature/<issue>-<기능명>`, base `back/develop`, 기능명세/API 계약, 허용·금지 범위와 완료 조건을 적는다. 결과 후 사람이 `git status`, `git diff`, `git diff --cached`를 확인한다. Codex는 develop/main에 직접 push하지 않는다. PR 생성 요청만으로 병합하지 않으며 병합까지 명시적으로 요청받은 경우 §5.1의 조건을 확인해 GitHub PR에서 병합한다.
 
 Backend 전체 검증과 FE/BE 연동 후 `back/develop → main` PR로 최종 반영한다. `main` 직접 push/merge는 금지한다. Frontend가 먼저 main에 반영됐다면 최신 main과 차이·충돌·누락을 확인하고 필요한 동기화도 PR로 처리한다. main에서 Backend build와 핵심 FE/BE 흐름을 다시 확인한다.
 
