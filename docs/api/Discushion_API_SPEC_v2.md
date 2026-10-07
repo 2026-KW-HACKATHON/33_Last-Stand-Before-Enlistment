@@ -1212,3 +1212,9 @@ PhotoUploadView 필드:
 | 503 | PHOTO_STORAGE_UNAVAILABLE | Storage 확인/권한 발급 일시 장애. 성공/삭제 완료로 표시하지 않음 |
 
 FE/BE2 확인 대상은 숫자 ID, endpoint/요청·응답, Storage 전송 method/headers, JSON 최종 순서, 10,000,000 bytes, 오류와 재시도, 202 삭제 대기/200 최종 삭제/게시물 204 의미, 상태 polling 동작이다. #74에 실제 확인자·날짜·문서 SHA/PR·이견을 기록하고 계약과 필요한 DB 보완이 back/develop에 반영된 뒤 #13/#14/#16 의존 코드를 구현한다. FE 확인을 받은 증거가 아직 없으므로 최종 확정/구현 완료 체크를 하지 않는다.
+
+## 내부 독립 개발 규약 (2026-10-07)
+
+Backend 내부 호출은 [계약 검토표 §11](Discushion_API_CONTRACT_검토표_2026-10-07.md#11-독립-개발용-내부-인터페이스-상세안-2026-10-07)을 따른다. CurrentActor/MemberQualification/MemberWriteGuard/PostContext와 참여 batch 집계·게시물 batch 요약·삭제 시 북마크 해제 port를 준비했다. 이는 HTTP Request/Response 확정이나 실제 adapter 구현을 뜻하지 않는다.
+
+BE1은 A·C·D/참여 집계, BE2는 B/게시물 요약·사진·환경을 맡으며 각자 자기 API/Migration을 작성한다. 삭제 시 공개/공유/추가 참여를 차단하고 북마크 자동 해제·사진 삭제 예약은 같은 DB transaction으로 처리한다. 참여/활동/기관 감사 관계는 보존하되 삭제 콘텐츠·선택지·결과는 비노출한다. 삭제 투표의 개인 이력은 기존 UNAVAILABLE 계약을 유지한다. 진행 중 투표의 질문·선택지·지역·주제 변경 금지, 종료 후 수정/삭제/신규·변경 제출 금지는 유지한다.

@@ -56,18 +56,18 @@ main
 
 | 담당자 | 기능 구현 | 추가 전역 책임 |
 | --- | --- | --- |
-| BE1 | Part A, Part D | API 명세, ERD, DB Schema/Migration |
-| BE2 | Part B, Part C | 배포, 실행환경, Docker, 서버/환경설정 |
+| BE1 | Part A, Part C, Part D | 공통 인증·자격 조회, API/ERD/Schema/Migration 전체 정합성 검토 |
+| BE2 | Part B | 배포, 실행환경, Docker, 서버/환경설정 |
 
 - BE1과 BE2 모두 기능 개발자이며 자신의 Part 기능과 API를 직접 구현한다.
-- BE1은 API 명세·ERD·DB Schema/Migration 전역 Owner다. 각 Part 담당자가 자신의 API를 구현하며 계약·DB 변경은 BE1과 협의한다.
-- BE2는 배포·실행환경 전역 Owner이며 Part B/C 기능도 직접 구현한다. Docker, 서버 설정, 환경변수, CORS, 배포 연동 등은 BE2와 협의한다.
+- 각 담당자가 자기 영역 API 명세·ERD·Migration을 작성하고 BE1은 전체 정합성을 검토한다. 공통·타 영역·합의된 계약 변경은 사전 공동 검토한다.
+- BE2는 배포·실행환경 전역 Owner이며 Part B 기능도 직접 구현한다. Docker, 서버 설정, 환경변수, CORS, 배포 연동 등은 BE2와 협의한다.
 
 ### Part 경계와 선행 작업
 
 - 인증·지역 참여 자격 및 기관 인증: BE1 / Part A.
 - 게시물 원본·탐색: BE2 / Part B.
-- 주민 참여·공유·게스트: BE2 / Part C.
+- 주민 참여·공유·게스트: BE1 / Part C.
 - 개인 기록·기관 안건 목록 및 채택: BE1 / Part D.
 - FE/BE 선행 작업과 API 계약은 Issue와 협업 문서에서 서로 연결한다.
 
@@ -156,7 +156,7 @@ Codex 요청은 Issue 한 개의 작업 범위로 제한한다. Issue 번호, FE
 Backend 예시:
 
 ```text
-담당자: BE2
+담당자: BE1
 현재 Issue: #32 [BE] 댓글/답글 작성 구현
 현재 브랜치: back/feature/32-comment
 Base Branch: back/develop
@@ -209,8 +209,8 @@ PR 충돌·검증 실패가 있으면 병합하지 않는다. develop에서 로�
 
 구현 전에 Method, Endpoint, Request, Response, Status Code, Error Response, 인증 여부, 권한 조건을 합의한다. 각 Part 담당자는 자신의 API/화면을 직접 구현한다.
 
-- API 계약 변경은 제안자가 BE1과 협의하고, BE1이 전체 API 명세 정합성을 확인해 정본을 갱신한다. FE 담당자에게 전달하고 Issue/PR에 기록한다.
-- Entity/Column/Relation 변경은 제안자가 BE1과 협의한다. BE1이 ERD·기존 DB 영향을 확인하고 Schema/Migration을 관리한다.
+- 각 담당자가 자기 영역 API 정본 해당 절을 갱신하고 BE1이 전체 정합성을 검토한다. 공통·타 영역·합의된 계약 변경은 사전 협의한다. FE 담당자에게 전달하고 Issue/PR에 기록한다.
+- 각 담당자가 자기 영역 Entity/Column/Relation·ERD·Migration을 작성하고 BE1이 전체 정합성을 검토한다. 공통·타 영역 변경은 사전 공동 검토하고 적용된 Migration은 보존한다.
 - 배포·실행환경·Docker·환경변수·CORS·CI/CD는 BE2와 협의한다. 운영 DB 연결은 BE2, 데이터 모델은 BE1 책임이다.
 - FE와 BE develop은 서로의 Feature 통합 브랜치가 아니다. FE/BE 연동은 합의한 API 계약과 실행 환경에서 검증한다.
 
@@ -265,3 +265,5 @@ main 전체 검증
 - [ ] GitHub PR을 통해 병합한다. develop/main 직접 push하지 않는다.
 
 **기억할 흐름: Issue → 최신 영역 develop → Feature → 구현/test/build → push → 영역 develop 대상 PR → review/CI → merge. 최종 단계에서 두 develop을 각각 PR로 main에 반영한다.**
+
+2026-10-07 팀 합의: Backend 공통 기반 1~5번과 독립 개발·Migration 영역별 작성은 [AGENTS.md](../../AGENTS.md)의 같은 날짜 합의를 따른다. 이전 담당/전담 작성 예시보다 현재 분담을 우선하며 GitHub 이슈 담당·선행은 후속 동기화 대상이다.
