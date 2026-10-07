@@ -514,7 +514,7 @@ Integration PR은 해당 경계의 Mock/stub을 실제 서비스로 교체하고
 
 **1 Issue → 1 Feature → 1 PR → front/develop**. Mock·Contract·Integration Issue 모두 같은 규칙을 사용한다.
 
-GitHub Issue → 최신 front/develop → front/feature/<issue번호>-<기능명> → 구현 → 관련 test/build → push → PR(base=front/develop) → 상대 리뷰/필수 CI → merge.
+GitHub Issue → 최신 front/develop → front/feature/<issue번호>-<기능명> → 구현 → 관련 test/build → push → PR(base=front/develop) → 필수 CI → 필요 시 상대 리뷰 → merge.
 
 ```bash
 git status
@@ -529,18 +529,28 @@ git switch -c front/feature/<실제번호>-<기능명>
 
 commit은 `<type>(<scope>): <내용>`: type=feat/fix/refactor/test/docs/chore, scope=fe/be/common. 공유 commit amend/rebase·force push·이력을 덮는 reset 금지. 수정은 후속 commit이다. 관련 test/build 명령은 실제 README/package 설정에서 확인하며 미확인 명령을 만들지 않는다.
 
-PR에는 Issue 연결·기능명세 ID·변경 범위·Contract/API/공통 UI 영향·네 완료 상태·검증 근거·후속 Integration Issue를 기록한다. 작성자가 자기 PR을 단독 승인/병합하지 않는다. 리뷰/필수 CI 통과 후 GitHub PR로 병합하고 Issue 종료·Feature 삭제를 확인한다. 충돌은 담당 Feature에서 요구사항을 보존하며 해결·재검증한다. 전부 ours/theirs 선택이나 타인 변경 삭제는 금지다.
+PR에는 Issue 연결·기능명세 ID·변경 범위·Contract/API/공통 UI 영향·네 완료 상태·검증 근거·후속 Integration Issue를 기록한다. 필수 CI와 아래 PR 병합 규칙을 충족한 뒤 GitHub PR로 병합하고 Issue 종료·Feature 삭제를 확인한다. 충돌은 담당 Feature에서 요구사항을 보존하며 해결·재검증한다. 전부 ours/theirs 선택이나 타인 변경 삭제는 금지다.
 
-금지: front/develop/main/back/develop 직접 push 또는 로컬 merge 결과 직접 반영, Part/개인 장기 브랜치·release·단일 develop, Issue 없는 개발, 상대 Feature 직접 merge, 미검증/미승인 PR 병합, 무관한 전역 수정, 무통보 계약 변경, secret commit.
+### PR 병합 규칙
+
+- 공통 환경 설정, 문서, CI/빌드 설정, 단순 설정 변경처럼 제품 동작에 직접 영향을 주지 않는 작업은 필수 CI가 통과하면 작성자가 직접 `front/develop`로 병합할 수 있다.
+- 제품 기능, 화면, 공통 UI, API/DTO Contract, 권한·상태·라우팅, 공유 컴포넌트처럼 다른 개발자 작업이나 제품 동작에 영향을 줄 수 있는 변경은 상대 FE 리뷰 후 병합한다.
+- 리뷰를 생략하는 경우 PR 본문에 `리뷰 생략 사유`를 기록한다.
+- 리뷰 여부와 관계없이 필수 CI 실패 상태에서는 병합하지 않는다. 필수 CI 통과를 확인하지 못한 상태에서도 병합하지 않는다.
+- `front/develop` 직접 push는 계속 금지하며 모든 변경은 Feature → PR → `front/develop` 흐름을 유지한다.
+- **1 Issue → 1 Feature → 1 PR → front/develop** 구조를 유지한다.
+
+금지: front/develop/main/back/develop 직접 push 또는 로컬 merge 결과 직접 반영, Part/개인 장기 브랜치·release·단일 develop, Issue 없는 개발, 상대 Feature 직접 merge, 미검증 PR 또는 위 PR 병합 규칙에서 요구하는 상대 FE 리뷰를 받지 않은 PR 병합, 무관한 전역 수정, 무통보 계약 변경, secret commit.
 
 FE/BE 코드는 서로의 Feature/develop을 merge해서 연결하지 않는다. 기능 API는 FE 1↔BE1(A/D), FE 2↔BE2(B/C)와 협의하고 API 정본/DTO 정합성은 BE1, 실행환경·환경변수·CORS는 BE2와 확인한다. 최종 main 반영은 검증한 front/develop/back/develop 각각의 PR이다. 두 번째 PR은 첫 병합 후 최신 main을 다시 확인하며 필요한 main→develop 동기화도 PR로 처리한다.
 
-Codex 요청은 Issue 하나의 범위로 제한한다. Issue·담당·현재 Feature·base·허용/금지 파일·Contract·Data Source·인수 상태를 지정한다. Codex가 보호 브랜치에 push하거나 PR을 병합하지 않는다. 작업 후 사람이 status/diff/staged diff를 검토한다.
+Codex 요청은 Issue 하나의 범위로 제한한다. Issue·담당·현재 Feature·base·허용/금지 파일·Contract·Data Source·인수 상태를 지정한다. Codex가 보호 브랜치에 직접 push하지 않는다. Codex의 PR 병합은 사용자가 명시적으로 요청하고 위 PR 병합 규칙을 충족한 경우에만 수행한다. 작업 후 사람이 status/diff/staged diff를 검토한다.
 
 ### Issue/PR 공통 기록 양식
 
 ```markdown
 - 목표/담당자/리뷰어:
+- 리뷰 생략 사유: 생략한 경우 기록
 - Domain/Part/기능명세 ID:
 - 실제 Page Owner/수정 파일/공유 파일 Owner:
 - Contract: 합의 Issue·버전 또는 미합의 항목
