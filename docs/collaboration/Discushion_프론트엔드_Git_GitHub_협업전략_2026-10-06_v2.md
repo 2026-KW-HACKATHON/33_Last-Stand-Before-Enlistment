@@ -11,9 +11,10 @@
 
 | 판단 대상 | 기준 문서 |
 | --- | --- |
+| 화면 흐름 참고 | `Discushion_유저플로우_와이어프레임기반_2026-10-06.md` |
 | 브랜치·Issue·commit·PR·병합 | `Discushion_Git_GitHub_통합협업전략_2026-10-06.md` |
-| 제품 동작·MVP 범위·권한 | `Discushion_PRD_2026-10-06_MVP반영_v10.md`, `Discushion_기능명세서_2026-10-06_MVP반영_v10.md` — 내부 버전 v10.1 |
-| FE/BE 책임·상태·연동 인수 | `Discushion_MVP_백엔드_프론트엔드_통합_지침서 (1).md` |
+| 제품 동작·MVP 범위·권한 | `Discushion_PRD_2026-10-07_MVP반영_정리본_v10.2.md`, `Discushion_기능명세서_2026-10-07_MVP반영_정리본_v10.2.md` — 내부 버전 v10.2 (2026-10-07) |
+| FE/BE 책임·상태·연동 인수 | `Discushion_MVP_백엔드_프론트엔드_통합_지침서.md` |
 | API 계약 초안 | `Discushion_API_SPEC_v2.md` — 본문 제목/내부 버전 v1.1 |
 
 제품 해석은 두 정본의 확정 정책 보완·최신 MVP 범위 → 기능 ID별 본문 → PRD 사용자 흐름 순으로 적용한다. API 명세의 경로·DTO·Enum·인증 전달 방식은 설계 제안이므로 FE/BE 합의 후 고정한다.

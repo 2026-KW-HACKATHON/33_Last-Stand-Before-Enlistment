@@ -7,8 +7,9 @@
 
 | 판단 대상 | 기준 문서 |
 | --- | --- |
-| 제품 정책·MVP·기능 ID | `Discushion_PRD_2026-10-06_MVP반영_v10.md`, `Discushion_기능명세서_2026-10-06_MVP반영_v10.md` (내부 v10.1) |
-| FE/BE 책임·인수 | `Discushion_MVP_백엔드_프론트엔드_통합_지침서 (1).md` |
+| 화면 흐름 참고 | `Discushion_유저플로우_와이어프레임기반_2026-10-06.md` |
+| 제품 정책·MVP·기능 ID | `Discushion_PRD_2026-10-07_MVP반영_정리본_v10.2.md`, `Discushion_기능명세서_2026-10-07_MVP반영_정리본_v10.2.md` (내부 v10.2) |
+| FE/BE 책임·인수 | `Discushion_MVP_백엔드_프론트엔드_통합_지침서.md` |
 | API 계약안 | `Discushion_API_SPEC_v2.md` (내부 v1.1): 경로·DTO·Enum·인증 전달은 설계 제안 |
 | Git 운영 정본 | `Discushion_Git_GitHub_통합협업전략_2026-10-06.md` |
 | FE 협업 | `Discushion_프론트엔드_Git_GitHub_협업전략_2026-10-06_v2.md`: Git 규칙 유지, 본 문서의 병렬 접점 배분 적용 |

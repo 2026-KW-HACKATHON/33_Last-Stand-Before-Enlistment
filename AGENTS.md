@@ -11,7 +11,7 @@
 3. [Git/GitHub 통합협업전략](docs/collaboration/Discushion_Git_GitHub_통합협업전략_2026-10-06.md)
 4. Backend 작업이면 아래 [Backend 협업전략](docs/collaboration/Discushion_백엔드_Git_GitHub_협업전략_2026-10-06.md)을 공통 Git 전략과 함께 적용한다.
 
-제품 기준 문서는 [PRD v10.1](docs/specs/Discushion_PRD_2026-10-06_MVP반영_정리본_v10.1.md)과 [기능명세서 v10.1](docs/specs/Discushion_기능명세서_2026-10-06_MVP반영_정리본_v10.1.md)이다. 문서 간 정책 충돌이나 모호함을 발견하면 임의로 결정하지 말고 영향을 받는 작업을 보류해 확인한다. 기술 권장안과 확인 필요 항목을 확정 제품 정책으로 취급하지 않는다.
+제품 기준 문서는 [PRD v10.2](docs/specs/Discushion_PRD_2026-10-07_MVP반영_정리본_v10.2.md)과 [기능명세서 v10.2](docs/specs/Discushion_기능명세서_2026-10-07_MVP반영_정리본_v10.2.md)이다. 문서 간 정책 충돌이나 모호함을 발견하면 임의로 결정하지 말고 영향을 받는 작업을 보류해 확인한다. 기술 권장안과 확인 필요 항목을 확정 제품 정책으로 취급하지 않는다.
 
 ## 작업 범위
 
@@ -99,8 +99,9 @@ Frontend 작업을 시작하기 전에 현재 Issue와 관련된 다음 문서�
 
 ### 제품 정책 / MVP / 기능
 
-- `docs/specs/Discushion_PRD_2026-10-06_MVP반영_정리본_v10.1.md`
-- `docs/specs/Discushion_기능명세서_2026-10-06_MVP반영_정리본_v10.1.md`
+- `docs/specs/Discushion_PRD_2026-10-07_MVP반영_정리본_v10.2.md`
+- `docs/specs/Discushion_기능명세서_2026-10-07_MVP반영_정리본_v10.2.md`
+- `docs/specs/Discushion_유저플로우_와이어프레임기반_2026-10-06.md`
 
 
 ### FE/BE 통합

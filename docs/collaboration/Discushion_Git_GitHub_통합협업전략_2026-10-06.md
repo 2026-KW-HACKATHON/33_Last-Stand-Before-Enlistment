@@ -1,7 +1,7 @@
 # Discushion Git & GitHub 협업 전략
 
 > 작성일: 2026-10-06 · 팀 개발 실무 가이드
-> 제품 기준: Discushion PRD 및 기능명세서 v10.1 — 2026-10-06 MVP 반영 정리본
+> 제품 기준: Discushion PRD 및 기능명세서 v10.2 — 2026-10-07 MVP 결정 반영 정리본 (협업전략의 Git 절차 개정 아님)
 > 운영 방식: GitHub Issue → 영역별 Feature 브랜치 → Pull Request → 영역별 develop
 
 ## 1. 목적
