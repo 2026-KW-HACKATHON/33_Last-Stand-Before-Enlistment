@@ -1,5 +1,7 @@
 # Discushion MVP 백엔드·프론트엔드 통합 지침서
 
+2026-10-08 FE 계약 확인 기록: FE 담당 sungjin0616은 [PR #107 코멘트](https://github.com/2026-KW-HACKATHON/33_Last-Stand-Before-Enlistment/pull/107#issuecomment-6041114660)에서 상세 사진 DTO·PUT/RAW 전송·응답 유실 재시도·meta 보존을 구현 가능한 계약으로 확인했다. 사용자는 같은 날 FE에게 계약 자체에 문제가 없고 구현 가능하다는 확인을 전달받았다고 명시했다. 아래 과거 FE 확인 대기 표시는 이 기록으로 갱신한다. FE 코드 구현·실제 연동 완료나 GitHub Approve를 뜻하지 않는다. 최신 사진 계약에 대한 BE1 승인 1명과 back/develop 통합은 아직 필요하며, 실제 Storage/서버 계정 검증과 사용자 흐름은 #13/#30/#31에서 수행한다.
+
 ## 2026-10-07 사진 잔여 계약 — FE 전달/확인
 
 PR #85의 DB 보완 이후 BE2 실행 기준을 [API 정본 §13.5~13.7](../api/Discushion_API_SPEC_v2.md#135-재시도재발급시연용-예약-제한)에 정리했다. FE는 §13.7 체크리스트의 네 endpoint·숫자 fileId/photoId·10,000,000 bytes·생성 photoFileIds/수정 photoOrder·오류·삭제 예약/최종 완료 의미를 확인한다. 실제 Storage URL/method/headers는 #13 adapter 검증 후 제공하고 사진 본문은 Storage로 직접 보낸다. Privy/Backend secret을 Storage 요청에 덧붙이지 않는다.

@@ -1159,7 +1159,9 @@ GET    /users/me/activity
 
 제품 범위·정책은 최신 정본으로 정렬했으며, 기술 초안의 경로/필드/Enum은 FE/BE 합의·실제 구현 대조 전 확정 완료로 표시하지 않는다.
 
-## 13. #74 사진 API — BE2 실행 기준·FE wire 확인 대기
+## 13. #74 사진 API — FE 계약 확인·BE1 최종 승인 대기
+
+2026-10-08 FE 계약 확인 기록: FE 담당 sungjin0616은 [PR #107 코멘트](https://github.com/2026-KW-HACKATHON/33_Last-Stand-Before-Enlistment/pull/107#issuecomment-6041114660)에서 상세 사진 DTO·PUT/RAW 전송·응답 유실 재시도·meta 보존을 구현 가능한 계약으로 확인했다. 사용자는 같은 날 FE에게 계약 자체에 문제가 없고 구현 가능하다는 확인을 전달받았다고 명시했다. 아래 과거 FE 확인 대기 표시는 이 기록으로 갱신한다. FE 코드 구현·실제 연동 완료나 GitHub Approve를 뜻하지 않는다. 최신 사진 계약에 대한 BE1 승인 1명과 back/develop 통합은 아직 필요하며, 실제 Storage/서버 계정 검증과 사용자 흐름은 #13/#30/#31에서 수행한다.
 
 BE1 검토안과 병합된 PR #85를 바탕으로, 사용자가 남은 사진 계약 정리를 요청해 BE2 실행 기준을 구체화했다. §13.5~13.7의 같은 주제에 대한 기준은 기존 재발급 허용·제한 수치 미정 표현을 대체한다. API 경로/DTO·숫자 ID·10MB 환산·삭제 대기 의미는 FE wire 확인 대상으로 유지하며 실제 확인자·날짜·PR/SHA는 #74에 기록한다. Backend 실행 방향 정리는 FE 승인·#13 구현·Storage 검증 완료를 뜻하지 않는다. §5.4~5.5의 변경 전 multipart/newImageIndex 예시는 현재 구현 계약으로 사용하지 않는다. 인증은 합의된 Privy Bearer 직접 검증이며 실제 회원/오류 adapter는 해당 인증 계약을 따른다.
 
@@ -1208,7 +1210,7 @@ PhotoUploadView 필드:
 
 | HTTP | code 제안 | 의미 |
 | --- | --- | --- |
-| 401 / 403 | 기존 인증 오류 / REGISTRATION_INCOMPLETE 또는 기존 권한 오류 | 인증 실패 / 미가입 완료 및 최종 게시물 권한 거부. 정확한 인증 오류명은 #74 인증 계약을 따름 |
+| 401 / 403 | UNAUTHORIZED / USER_REGISTRATION_REQUIRED 또는 기존 권한 오류 | 인증 실패 / 미가입·가입 미완료 및 최종 게시물 권한 거부. PR #113에서 반영한 #74 인증 계약을 따름 |
 | 404 | PHOTO_UPLOAD_NOT_FOUND | 없음·타인·다른 용도 파일을 동일하게 처리 |
 | 409 | PHOTO_UPLOAD_NOT_READY / PHOTO_UPLOAD_EXPIRED / PHOTO_ALREADY_LINKED / PHOTO_DELETION_PENDING | object 미확인·만료·중복 연결·취소/정리 경합. 재시도 전 GET 상태 확인 |
 | 400 | VALIDATION_ERROR | 참조 중복/배열 구조/regionId 등 허용하지 않은 요청 필드 |

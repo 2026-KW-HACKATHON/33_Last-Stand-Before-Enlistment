@@ -483,6 +483,8 @@ DB 검토: uploaded_at 없는 삭제 상태 추적, 발급 만료 최댓값 저�
 
 ### 10.13 PR #107 Codex 리뷰 보완안 (2026-10-07)
 
+2026-10-08 FE 계약 확인 기록: FE 담당 sungjin0616은 [PR #107 코멘트](https://github.com/2026-KW-HACKATHON/33_Last-Stand-Before-Enlistment/pull/107#issuecomment-6041114660)에서 상세 사진 DTO·PUT/RAW 전송·응답 유실 재시도·meta 보존을 구현 가능한 계약으로 확인했다. 사용자는 같은 날 FE에게 계약 자체에 문제가 없고 구현 가능하다는 확인을 전달받았다고 명시했다. 아래 과거 FE 확인 대기 표시는 이 기록으로 갱신한다. FE 코드 구현·실제 연동 완료나 GitHub Approve를 뜻하지 않는다. 최신 사진 계약에 대한 BE1 승인 1명과 back/develop 통합은 아직 필요하며, 실제 Storage/서버 계정 검증과 사용자 흐름은 #13/#30/#31에서 수행한다.
+
 사용자가 리뷰에서 발견한 세 누락의 보완안 작성을 요청했다. API §13.8이 이번 세부 계약의 정본이며 이전의 본문 형식 미정·fileId를 모르는 응답 유실도 취소 가능하다는 설명을 보완한다.
 
 - 상세 data.images 항목은 photoId/url/contentType/sizeBytes이며 첨부 순서 배열. fileId는 검증된 게시물 작성자의 상세/생성/수정 응답에만 포함하고 다른 회원/공유 게스트에는 생략한다. 삭제 전 ID 보존·PATCH meta.photoDeletion용 domain decoder를 명시한다.
