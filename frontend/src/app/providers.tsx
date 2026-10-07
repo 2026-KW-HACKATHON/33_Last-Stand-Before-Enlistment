@@ -16,11 +16,13 @@ import { NeighborProvider } from "../features/neighbor/provider";
 import type { NeighborService } from "../features/neighbor/model";
 import { InstitutionProvider } from "../features/institution/provider";
 import type { InstitutionService } from "../features/institution/model";
+import { MyPageProvider } from "../features/my-page/provider";
+import type { ActivityService,MyMenuHandler } from "../features/my-page/model";
 import { profileSignupEditors } from "../features/profile/editors";
 
 /** Real adapters/client are injected by Integration; no production Mock or guessed base URL. */
-export function AppProviders({ children, session, retrySession, apiClient, loginService, signupService, signupEditors, profileService, neighborService, institutionService, subjectKey = null }: {
-  children: ReactNode; session?: SessionState; retrySession?: () => void | Promise<void>; apiClient?: ApiClient; loginService?: OtpLoginService; signupService?: SignupService; signupEditors?: SignupEditors; profileService?: ProfileService; neighborService?: NeighborService; institutionService?: InstitutionService; subjectKey?: string | null;
+export function AppProviders({ children, session, retrySession, apiClient, loginService, signupService, signupEditors, profileService, neighborService, institutionService, activityService, onMyMenu, subjectKey = null }: {
+  children: ReactNode; session?: SessionState; retrySession?: () => void | Promise<void>; apiClient?: ApiClient; loginService?: OtpLoginService; signupService?: SignupService; signupEditors?: SignupEditors; profileService?: ProfileService; neighborService?: NeighborService; institutionService?: InstitutionService; activityService?: ActivityService; onMyMenu?: MyMenuHandler; subjectKey?: string | null;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -28,9 +30,9 @@ export function AppProviders({ children, session, retrySession, apiClient, login
   return <SessionProvider session={session} retry={retrySession}>
     <NavigationProvider currentDestination={currentDestination} onNavigate={(href, replace) => replace ? router.replace(href) : router.push(href)}>
       <LoginProvider service={loginService}>
-        <InstitutionProvider subjectKey={subjectKey} service={institutionService}><NeighborProvider subjectKey={subjectKey} service={neighborService}><ProfileProvider service={profileService}><SignupProvider service={signupService} editors={signupEditors ?? profileSignupEditors}>
+        <MyPageProvider subjectKey={subjectKey} service={activityService} onMenu={onMyMenu}><InstitutionProvider subjectKey={subjectKey} service={institutionService}><NeighborProvider subjectKey={subjectKey} service={neighborService}><ProfileProvider service={profileService}><SignupProvider service={signupService} editors={signupEditors ?? profileSignupEditors}>
           {apiClient ? <ApiClientProvider client={apiClient}>{children}</ApiClientProvider> : children}
-        </SignupProvider></ProfileProvider></NeighborProvider></InstitutionProvider>
+        </SignupProvider></ProfileProvider></NeighborProvider></InstitutionProvider></MyPageProvider>
       </LoginProvider>
     </NavigationProvider>
   </SessionProvider>;
