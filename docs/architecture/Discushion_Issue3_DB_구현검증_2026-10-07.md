@@ -120,3 +120,34 @@ MG01 최초 적용·MG02 재실행·MG04 실패 재시도와 제약 검사는 na
 실제 6543 transaction pooler의 SELECT 1/PostgreSQL 17, Schema 27/166/55/RLS 27·이력 두 개, 공개 역할 접근 차단을 읽기 전용으로 확인했다. 원격 fixture나 쓰기/DDL은 실행하지 않았으며 비밀번호를 출력/커밋하지 않았다. 로컬 실행 프로필은 supabase로 전환했다. 자세한 인증서 출처·지문·파일 경로·재현은 [결정 기록](../collaboration/backend-db-connection-decisions.md)을 참조한다. 실제 API/동시성/FE 통합과 서버 최소 권한 역할/BE2 검토까지 완료한 것은 아니다.
 
 10:52 KST 전체 test/build 재실행 성공: Health 3 + 로컬 JDBC 4 + 설정 1 + 원격 JDBC 3 = 총 11개, skip/실패/오류 0. 실제 로컬 85개 SQL/9개 역할 시험과는 별도 Java 결과다. JAR 생성과 비밀 설정 Git 제외도 확인했다.
+
+## 11. 현재 Feature 재검증 — 2026-10-07 13:46~13:48 KST
+
+사용자 요청으로 현재 프로젝트의 Issue #3 변경을 다시 검증했다. 대상 SHA는 `2d3f87a912dc290c20e62f05ac20e3991c5969eb`, 브랜치는 `back/feature/3-schema`다. GitHub PR #78의 head SHA와 일치하며 PR은 open/Draft/미병합이다. 이전 절의 commit/PR 미생성 표현은 당시 기록이다.
+
+| 실행한 검사 | 현재 실행 결과 |
+| --- | --- |
+| `supabase/tests/run-schema-tests.ps1` | DB 무결성 113개 통과. Migration 재실행 전후 Schema·이력·합성 표식 데이터 불변 |
+| `node supabase/tests/check-erd-schema.mjs` | 27테이블·176컬럼·단일 FK 47·복합 FK 8·Privy UNIQUE 대조, 오류 0 |
+| `psql ... -d discushion_roles_test -f supabase/tests/api-role-isolation.sql` | 공개 API 역할 이름 3개 × Schema/테이블/시퀀스 접근 차단 9개 통과. 트랜잭션 ROLLBACK |
+| Java 17 `gradlew.bat --no-daemon test build --console=plain --rerun-tasks` | BUILD SUCCESSFUL. Health 3 + 로컬 JDBC 4 + 설정 1 + 실제 Supabase JDBC 3 = 총 11개, 실패/오류/skip 모두 0 |
+| 실제 원격 SELECT-only smoke 검사 | 지정 개발 Supabase의 PostgreSQL 17·verify-full 연결, 27테이블·176컬럼·FK 55·RLS 27·정확한 Migration 이력 4개, 공개 API 역할 접근 차단 확인 |
+| 변경/비밀 파일 검사 | `git diff --check`, `git diff --cached --check` 오류 없음. `.env`·시험 비밀번호·CA 파일의 Git 제외 확인 |
+
+Java 결과 XML의 이번 실행 시각은 13:47:12~13:47:20 KST이며 JAR도 이번 실행으로 생성했다. 기존 결과를 재사용하지 않았다. 보고서는 `backend/build/reports/tests/test/index.html`, JAR는 `backend/build/libs/discushion.jar`다.
+
+실행 환경: Temurin `jdk-17.0.20.101-hotspot`, 기존 native PostgreSQL 17.11 시험 cluster, 기존 Supabase CLI 2.120.0 캐시. 로컬 DB가 꺼져 있어 `pg_ctl`로 기존 시험 cluster를 `-h 127.0.0.1 -p 55432`로 시작하고 모든 검사 뒤 정상 종료했다. 로컬 첫 접속은 CLI의 TLS 기본값 때문에 실패했고, localhost 시험 URI에 `sslmode=disable`을 명시한 후 통과했다. 원격 JDBC는 기존 `sslmode=verify-full`을 유지했다. 비밀번호는 Git 제외 파일에서 환경변수로 읽고 출력하지 않았다.
+
+이번 Migration up 두 실행은 이미 적용된 로컬 이력에 대한 재실행으로 `applied: []`였다. 빈 DB에 대한 최초 CLI 적용·실패 복구·백업/복원은 이번에 다시 실행하지 않았다. 역할 모의 시험은 localhost 전용 DB에서 네 Migration의 DDL을 트랜잭션 내 실행하고 ROLLBACK했다. 원격에는 SELECT-only smoke 검사만 실행했으며 Migration push·fixture·seed·역할 변경·advisor 재실행은 하지 않았다.
+
+기존 미추적 `docs/specs/Discushion_MVP_ERD.mmd`는 보존했다. 카탈로그 대조는 저장소에 구성된 검사의 입력인 `Discushion_MVP_ERD_상세명세.md`와 승인된 v10.2 overlay를 대상으로 했다. 구현 파일과 Migration 변경은 없으며 이번 변경은 이 검증 기록뿐이다.
+
+판정: 현재 로컬 Feature와 지정 원격 DB의 Schema 기반 검사는 통과했다. Issue #3 전체 완료는 아니다. PR의 BE2 공동 검토, 최소 권한 서버 계정/RLS 접근 모델 협의, #74 토큰/파일 API·FE 경계 확인, PR #35와 문서 병합 순서, 필수 CI/리뷰는 별도 확인이 필요하다. 실제 Privy OTP·Storage worker·제품 API·FE/BE 사용자 흐름은 후속 기능 이슈의 검증 대상이며 이번 검사로 완료 처리하지 않는다.
+
+## 12. 사용자 RLS 결정과 후속 이관
+
+§11 검증 이후 사용자가 Spring 사용자 권한 검사 + 서버 전용 역할의 제한된 DB 접근 방식을 채택했다. RLS 유지, 비소유자·BYPASSRLS 없는 서버 역할과 필요한 테이블/작업에 한정된 허용 정책, 공개 역할 차단을 원칙으로 정했다. §11의 접근 모델 협의 대기는 사용자 결정으로 갱신하되 BE2 실제 검토 기록과 구분한다.
+
+1번 권한표는 BE1/#4에서 실제 권한 부여 전에, 3번 계정·연결은 BE2/#30과 #4 협업으로 서버 역할 기능 검증 전에 준비한다. 4번은 실제 서버 계정의 DB 권한 시험과 각 API 권한 거부 시험으로 수행하고 #31 전에 해소한다. 상세 담당·시점·완료 조건은 [DB 연결 결정 기록](../collaboration/backend-db-connection-decisions.md)의 마지막 절에 명시했다. 실제 계정/RLS 정책 구성은 아직 미완료이며 위 113/9/11개 검사는 새 서버 역할 검증 결과가 아니다.
+
+이번 후속 변경은 결정·검증 문서만 수정하며 코드·Migration·DB 권한은 변경하지 않는다. §11의 실제 test/build 결과는 코드 SHA `2d3f87a912dc290c20e62f05ac20e3991c5969eb`에 대한 결과로 유지한다. BE2 공동 검토·후속 배정 확인과 필수 리뷰·CI 후에만 병합 여부를 판단한다.
