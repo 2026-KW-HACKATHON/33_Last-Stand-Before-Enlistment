@@ -687,3 +687,49 @@ DB 보존은 원본/감사 이력 유지를 위한 기술 기준이며 삭제된
 | 실제 인증·연동 | Privy OTP/실제 토큰·검증키·회원 연결/가입 API·요청 컨텍스트 격리·실제 서버 역할·FE 연결은 미검증이며 기능 미구현. #4/#6~8/#30/#31의 완료 조건을 유지한다. |
 
 결론: 충돌 없는 로컬 통합과 기존 기반의 회귀 검증을 완료했다. #104는 남은 인증 계약 문서 PR이며 인증 기능 구현 완료가 아니다. Auth wire/오류 code 공동 검토·실제 앱 검증 경로 확인·필수 리뷰1명은 계속 미완료다. 필요한 계약을 back/develop에 반영한 뒤 #4를 별도 Feature에서 구현한다. §12.3의 미완료 항목을 근거 없이 완료로 표시하지 않는다.
+
+### 12.5 #4 인증·자격 기반 구현과 사용자 오류 결정 (2026-10-07)
+
+착수 기준: Backend 협업전략 §6.1의 BE1 두 번째 업무, 열린 #4(F-TSOXGG/F-ATWJDJ/F-OPNIXL), 최신 back/develop `6a84ffc`의 #104/#85/#101 통합. 미커밋 변경 없는 상태에서 `back/feature/4-auth`를 새로 만들었다. #74 전체 종료나 상대 기능 전체 구현을 일괄 착수 조건으로 두지 않는다. 확정된 identity port·회원 Schema를 구현하며 일반 가입/로그인 endpoint wire는 #7/#8의 미확정 계약을 임의 확정하지 않는다.
+
+**사용자(BE1) 결정:** 403 USER_REGISTRATION_REQUIRED 추가, 가입 미완료도 같은 회원가입 화면 안내/같은 code 사용, 503 AUTH_PROVIDER_UNAVAILABLE 추가. 후속 질문에 500 INTERNAL_ERROR의 공통 형식/일반 안내·원문 비노출도 승인했다. 내부 미가입/미완료 상태는 구분하고 REGISTRATION_INCOMPLETE는 별도 HTTP code로 등록하지 않는다. 실제 FE·BE2 확인과 구분한다.
+
+구현은 `com.discushion.identity`에 둔다. 기존 contracts/support 인터페이스/fixture·Migration·사진/게시물/집계/삭제 보존·실행환경/CI 파일은 수정하지 않는다.
+
+| 구성 | 실행 책임·경계 |
+| --- | --- |
+| PrivyAccessTokenVerifier / PemVerificationKeySource | 신뢰한 앱 공개 SPKI P-256 키로 ES256/JWT 서명·iss/aud/sub/sid/iat/exp/nbf를 검사. Clock 사용, 기본 허용오차0. 토큰의 jku/x5u를 키 원천으로 쓰지 않고 linked_accounts가 있는 identity payload를 Bearer access token으로 받지 않는다. 서명/키 파싱은 실제 암호 연산이며 실제 Privy 발급 검증은 별도. |
+| VerificationKeySource / IdentityConfiguration | 실제 키는 BE2와 확인한 앱 설정에서 서버 bean으로 공급. 앱 ID는 기존 PRIVY_APP_ID를 읽는다. 현재 실제 앱 ID/키 설정이 없으며 임의 JWKS URL·키를 만들지 않는다. key source 부재/키 오류는503, 허용으로 우회하지 않음. 실제 키 공급/회전/Clock 설정·외부 앱 대조는 #30과 협의 후 연결. |
+| BearerIdentityFilter / RequestActorContext | /api/v1의 요청별 Bearer 검증 후 서버 subject로 회원 조회. 토큰 없음은 내부 Optional.empty이며 endpoint가 공개/회원/게스트 접근을 판정. 무효 토큰은401로 종료하고 익명으로 강등하지 않음. 중복/빈/다른 scheme 헤더 거부, OPTIONS/Health 유지. servlet attribute를 요청 종료·오류 때 제거하고 임의 비동기 스레드로 상속하지 않음. |
+| JdbcMemberStore | subject로만 로컬 회원 연결 조회. 이메일 연결/회원 자동 생성 없음. 자격 원본은 neighbor_verified_regions와 institution_credentials. 만료 포함 저장 사실을 제공하고 쓰기 전에 현재 Clock으로 판정. users FOR UPDATE는 호출자의 동일 DataSource·쓰기 transaction에서만 유지. 임의 REQUIRES_NEW 없음. |
+| MemberAuthorization | 현재 회원을 공통 guard로 잠그고 최신 가입 상태·이웃 완료 지역·기관 유효기간/담당 지역을 검사. 소유권 비교는 실제 대상 작성자 ID를 사용하고 기능 담당자가 기존 소유권 오류로 거부. 게시물/투표/파일 잠금 순서·최종 유형/상태·저장 직전 재검사는 기존 §11.5와 기능 담당자의 완료 조건 유지. |
+| IdentityErrorResponse / IdentityExceptionHandler | 승인된 Auth/내부 오류와 기존 권한 오류의 envelope·HTTP 매핑. DB/기술 장애를 미가입·빈 결과로 처리하지 않고500. token·subject·provider/DB 원문 미반환, traceId는 서버 생성. 일반 Framework 4xx의 HTTP 상태는 유지. |
+
+공식 자료 대조: [Privy 공식 Node SDK 배포 소스 auth.mjs, 0.20.0](https://unpkg.com/@privy-io/node@0.20.0/lib/auth.mjs)에서 ES256·typ JWT·issuer/app 검증과 importSPKI/필수 sid 반환을 확인했다. 기존 문서의 ES256/Ed25519 설명 혼재는 역사로 보존하되 ES256 시험에는 P-256 공개키를 사용한다. 이를 실제 앱 키 호환/회전 검증으로 표시하지 않는다. Java 라이브러리는 Spring Boot가 관리하는 spring-security-oauth2-jose/Nimbus를 사용한다.
+
+테스트는 생성한 합성 서명키·test-only endpoint와 localhost 전용 JDBC를 사용한다. 실제 Privy·FE·공유 개발 DB·최소 권한 서버 역할의 검증은 아니며, #75 실제 시연 계정 검증도 별도로 유지한다. 기본 DB 권한표는 [DB 연결 결정 기록의 #4 절](../collaboration/backend-db-connection-decisions.md)에 준비하고 BE2 공동 검토/#30 실제 적용 전 확정한다. 최종 테스트 결과는 아래에 실행 후 기록한다.
+
+#### #4 로컬 실행 결과와 미완료 조건
+
+2026-10-07 23:09 KST, Codex(BE1), `back/feature/4-auth`의 `6a84ffc` 기준 미커밋 작업 트리. Java17 `gradlew.bat --no-daemon test build --console=plain --rerun-tasks` 성공. JUnit45개 중42통과/실패0/오류0/원격Supabase3skip. 기존13개 통과에 신규29개(ES2566·권한5·filter7·실제JDBC6·실제HTTP+JDBC5)가 추가됐다. 시험 서버와 이번 실행에서 시작한 PostgreSQL은 정상 종료했다.
+
+- JWT: 실제 합성 P-256 서명 성공, 타 서명키/HS256/잘못된 iss·aud/만료 경계/누락 exp/미래 iat·nbf/identity payload/없는 subject·sid 거부, 키 공급 장애 구분. 실제 Privy 발급 token 시험은 아님.
+- 실제 JDBC: subject 연결과 미가입/미완료/완료, 완료 지역 원본과 프로필 활동 지역 분리, 만료 기관 저장 사실, 트랜잭션/동일 DataSource/쓰기 조건, 없는 회원/rollback, 별도 연결의 UPDATE lock_timeout(55P03) 및 호출자 rollback 후 잠금 해제 확인.
+- 합성 NOLOGIN 역할: localhost transaction 안에 권한·RLS 정책을 준비했다가 모두 rollback. SUPERUSER/BYPASSRLS 없이 users의 IDENTITY INSERT/RETURNING과 회원 guard 동작, 시퀀스 USAGE 없음·users DELETE 없음 확인. 실제 Supabase 서버 로그인 계정 시험과 구분한다.
+- 실제 HTTP: test-only 프로필의 route에서 실제 filter/ES256/PEM·JDBC·users 잠금·오류 handler 연결. 무토큰 회원 요청401, 무효 token401, 미가입/미완료403 USER_REGISTRATION_REQUIRED, 실제 합성 회원200·클라이언트 userId 무시, 다음 무토큰 요청에 주체 유출 없음, 내부 오류500/원문 비노출 확인. test-only Controller/키는 운영 JAR에 넣지 않는다. /auth/login·/auth/sign-up wire를 임의 구현하지 않음.
+- 기본 권한표27테이블 작성, 기존 Migration5개와 공통 contracts/support·BE2 담당 사진/게시물 문단·환경/CI 구성 보존. Schema 보완이 필요하지 않아 추가 Migration 없음. 원격 DB·역할·Privy 앱 설정·FE 변경 없음.
+- 최종 문서 검사: 변경 문서의 상대 링크26개, API 정본 JSON33개 파싱, 기본 권한표와 실제27테이블 이름 대조 통과. 기존 §11과 BE2 사진 API 문단 보존, diff 공백 검사 통과. 운영 JAR의 identity class14개/테스트 fixture·Controller0개 확인. 실제 운영 JAR localhost GET /health=200, 무효 Bearer POST /api/v1/auth/login=401; 무토큰 login/signup 후보는404로 #7/#8 미구현 경계를 확인. 추가 시험 서버도 종료.
+
+현재 상태는 **구현 및 로컬 개별 검증 완료 / 실제 연결·공동 검토 대기**다. 다음을 #4 완료 조건으로 유지한다.
+
+- [ ] BE2 #30: 실제 Privy 앱 ID·공개 검증키/공급·회전·Clock 설정을 준비. BE1 #4가 신뢰한 VerificationKeySource bean에 연결하고 실제 provider 정상/위조/만료·환경 장애를 검증. #30 전체 종료를 일괄 선행으로 두지 않음.
+- [ ] BE1·BE2: 기본 권한표·RLS 작업 정책 공동 확인, 실제 서버/Migration 계정 분리 및 서버 역할의 정상/금지 DB 작업·TLS 검증. 관리자/local 합성 역할 결과로 대신하지 않음.
+- [ ] 영향 있는 FE·BE2: 승인한 가입 화면 안내/오류 code 소비 동작, 남은 login/signup wire 확인. 실제 FE 인증/권한·#75 시연 계정은 각 기능/#30/#31에서 확인.
+- [ ] 기능 담당자: 실제 posts/polls/media adapter와 같은 transaction/잠금 순서·최종 소유권/지역/유형·시간 경합 검증. test-only 상대 adapter 성공을 실제 연동 완료로 기록하지 않음.
+- [ ] Feature diff 검토·최신 기준/필수 CI·리뷰1명 확인 후 별도 사용자 요청으로 commit·push·PR. #4 종료/PR 병합·배포는 수행하지 않음.
+
+### 12.6 최신 back/develop pull·조건부 PR 병합 준비 (2026-10-07)
+
+사용자가 back/develop pull·AGENTS.md 확인·PR 생성과 조건 충족 시 병합을 요청했다. #4 미커밋 변경을 untracked 포함 stash로 보존한 뒤 로컬 back/develop을 `git pull --ff-only origin back/develop`으로 `c768080`까지 갱신했다. 기준 상태를 실제 localhost JDBC/Java17 test/build로 먼저 검증했고16개 중13통과/원격3skip, 실패0/오류0/build 성공이다. #4 Feature를 최신 기준으로 fast-forward한 뒤 원래 변경을 복원했으며 충돌 없음. 복원된 최종 Feature도 2026-10-07 23:29 KST에45개 중42통과/원격3skip, 실패0/오류0/build 성공을 확인했다. 기존 §12.5 검증 범위와 실제 연동 미완료 조건은 유지한다.
+
+최신 AGENTS.md의 Backend PR 리뷰 기준과 Backend 협업전략 §5.1을 적용한다. **리뷰 분류: 상대 리뷰 필요.** 인증/가입 상태·제품 권한·공통 오류/API 계약과 기본 DB 권한표를 포함하므로 일반 PR의 상대 승인 생략 대상이 아니다. BE2의 최신 변경 리뷰·승인, 필수 CI, 최신 base·충돌/미해결 지적 없음과 PR 생성 후 최종 diff 재검토를 확인한다. GitHub의 일괄 승인 수0이나 Codex 검증을 BE2 승인으로 대신하지 않는다. 실제 권한표 공동 확정·Privy/서버 역할/FE 검증 전 #4 전체 완료·Issue 종료로 표시하지 않으며 PR에는 Refs #4와 남은 조건을 명시한다. 조건을 만족하지 않으면 Draft/병합 대기로 보고한다.

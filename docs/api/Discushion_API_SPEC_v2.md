@@ -208,7 +208,7 @@ X-Post-Share-Token: <server-issued-post-bound-token>
 
 | 그룹 | 코드 |
 | --- | --- |
-| 공통/Auth | VALIDATION_ERROR, UNAUTHORIZED, LOGIN_FAILED, EMAIL_ALREADY_IN_USE, EMAIL_VERIFICATION_INVALID, EMAIL_VERIFICATION_EXPIRED, EMAIL_VERIFICATION_LIMIT_EXCEEDED, EMAIL_DELIVERY_FAILED, PASSWORD_POLICY_VIOLATION, REQUIRED_AGREEMENT_MISSING |
+| 공통/Auth | VALIDATION_ERROR, UNAUTHORIZED, USER_REGISTRATION_REQUIRED, AUTH_PROVIDER_UNAVAILABLE, INTERNAL_ERROR, LOGIN_FAILED, EMAIL_ALREADY_IN_USE, EMAIL_VERIFICATION_INVALID, EMAIL_VERIFICATION_EXPIRED, EMAIL_VERIFICATION_LIMIT_EXCEEDED, EMAIL_DELIVERY_FAILED, PASSWORD_POLICY_VIOLATION, REQUIRED_AGREEMENT_MISSING |
 | User/Region | USER_NOT_FOUND, NICKNAME_ALREADY_IN_USE, REGION_NOT_FOUND, NEIGHBOR_VERIFICATION_REQUIRED, NEIGHBOR_VERIFICATION_LIMIT_EXCEEDED |
 | 공유 | SHARE_CONTEXT_REQUIRED, SHARE_CONTEXT_INVALID, SHARE_SCOPE_MISMATCH |
 | Post/Media | POST_NOT_FOUND, POST_DELETED, POST_NOT_EDITABLE, POST_NOT_DELETABLE, POST_TYPE_INVALID, POST_TOPIC_INVALID, ACTIVITY_INFO_REQUIRED, ACTIVITY_STATUS_REQUIRED, VOTE_OPTIONS_INVALID, MEDIA_LIMIT_EXCEEDED, UNSUPPORTED_MEDIA_TYPE |
@@ -1281,11 +1281,12 @@ BE1은 A·C·D/참여 집계, BE2는 B/게시물 요약·사진·환경을 맡�
 
 | 제안 | 이유 | 영향·확인 상태 |
 | --- | --- | --- |
-| 403 USER_REGISTRATION_REQUIRED | token은 유효하지만 로컬 회원 없음. 401로 보내 FE의 불필요한 재인증 루프를 만들지 않고 가입 진입을 구분 | 회원 endpoint/FE API client 영향. A 담당 BE1의 새 Auth 매핑 제안이며 공통 오류표에 아직 등록하지 않음 |
-| 403 REGISTRATION_INCOMPLETE | 로컬 회원은 있으나 가입 미완료. 지역/기관 자격 오류와 가입 재개를 구분 | 회원 endpoint/FE 가입 재개 영향. 공통 오류표 등록 전 BE1·BE2/FE 검토 필요 |
-| 503 AUTH_PROVIDER_UNAVAILABLE | 검증키/provider 사용자 정보 확인 불가 장애를 토큰 무효·미가입과 구분 | 공통 error adapter/FE 재시도 영향. 등록 전 공동 검토 필요, 실제 재시도값은 미정 |
+| 403 USER_REGISTRATION_REQUIRED | token은 유효하지만 로컬 회원 없음 또는 가입 미완료. 두 경우 모두 회원가입 화면으로 안내 | 2026-10-07 사용자(BE1) 채택, #4 구현. 내부 회원 상태 구분은 유지. FE·BE2의 소비 동작 확인은 별도 기록 |
+| 403 REGISTRATION_INCOMPLETE | 변경 전 제안. 별도 code를 등록하지 않고 USER_REGISTRATION_REQUIRED로 통일 | 2026-10-07 사용자 결정으로 대체. 기존 사진 검토안 등에서 이 이름을 참조한 문단은 담당자가 같은 의미의 최신 인증 매핑을 대조 |
+| 503 AUTH_PROVIDER_UNAVAILABLE | 검증키/provider 확인 불가 장애를 토큰 무효·미가입과 구분 | 2026-10-07 사용자(BE1) 채택, #4 구현. 키 미구성 시 허용으로 우회하지 않음. 실제 키 공급/회전·재시도 설정은 BE2와 확인 |
+| 500 INTERNAL_ERROR | DB 장애/서버 내부 오류. 비회원/미가입/빈 자격으로 숨기지 않음 | 2026-10-07 사용자(BE1) 추가 채택, #4 구현. 일반 안내·빈 details·서버 traceId만 반환하고 token·DB 주소/비밀번호·오류 원문을 숨김 |
 
-§11.6의 내부 결과를 변경하거나 error DTO/공통 Java port에 필드를 추가하지 않는다. 위 세 code를 필요하다고 판단하면 이 표의 이유·영향으로 공동 검토한 뒤 별도 승인된 변경으로 등록한다. 승인 전 새 문자열을 임의 구현하지 않는다. 다른 영역의 기존 오류 매핑은 수정하지 않는다.
+§11.6의 내부 결과와 공통 Java port/DTO는 유지한다. 사용자(BE1)는 미가입과 인증 장애 구분을 채택하고, 가입 미완료도 회원가입 화면으로 안내하도록 결정했다. 내부 오류 응답도 별도 채택했다. 이에 USER_REGISTRATION_REQUIRED/AUTH_PROVIDER_UNAVAILABLE/INTERNAL_ERROR를 등록하며 기존 envelope `{code,message,details,traceId}`는 유지한다. 이 결정은 실제 FE·BE2 리뷰나 Privy/서버 계정 연결 완료를 대신하지 않는다. 다른 영역의 기능별 소유권 오류는 해당 담당자가 기존 code로 매핑한다.
 
 ### 토큰 취득·보관·갱신·OTP·로그아웃 범위
 

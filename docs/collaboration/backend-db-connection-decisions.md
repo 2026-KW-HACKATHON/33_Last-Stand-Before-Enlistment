@@ -119,3 +119,47 @@ PR #78 병합 전에는 현재 구현된 Schema의 BE2 공동 검토와 필수 �
 | #74 | #3의 회원 연결/가입 완료·사진 lifecycle Schema와 토큰/파일 상세 계약의 정합성 및 BE1·BE2 검토 기록 | BE1·BE2, 영향 있는 FE 계약 확인. 각 의존 기능 코드 구현 전 back/develop에 반영 |
 
 #30의 개발 계정 준비는 #4와 협업 가능한 독립 환경 준비로 먼저 수행한다. #30 전체 완료를 기다려 #4 또는 각 기능의 실제 서버 역할 검증을 지연하지 않는다. 후속 작업의 팀 확인은 해당 이슈에서 기록하며, 현재 #3 구현에 대한 공동 Schema 리뷰와 PR 자체의 필수 리뷰·CI는 PR #78에 남긴다.
+
+## #4 기본 서버 권한표 준비 — BE1, BE2 공동 검토 대기 (2026-10-07)
+
+기준: back/develop `6a84ffc`의 현재27테이블/180컬럼, 적용 이력을 보존한 Migration5개. #4 인증 adapter는 users·neighbor_verified_regions·institution_credentials를 사용하며 users의 SELECT FOR UPDATE에는 SELECT 외 UPDATE 권한도 필요하다. 아래는 기능별 서버 작업을 위한 **검토안**이며 실제 서버 역할/GRANT/공유 DB 적용 완료가 아니다. 기본 표는 #4 완료/병합 전과 #30 계정 생성/GRANT 전 중 더 이른 시점에 BE1·BE2가 확정한다. 기능의 필수 API가 미정이면 해당 기능 권한도 구현 대조 후 확정한다.
+
+S/I/U/D는 SELECT/INSERT/UPDATE/DELETE다. `—`는 부여하지 않음을 뜻한다. 단일 서버 계정의 표이므로 표의 S 허용은 다른 회원/지역/기관 조회 허용을 뜻하지 않는다. 모든 제품 권한·조회 조건은 Spring에서 판정한다.
+
+| 테이블 | S | I | U | D | 근거·확인 Issue |
+| --- | --- | --- | --- | --- | --- |
+| regions | S | — | — | — | #9 공통 원본 조회. 원본/seed 준비는 별도 지정 계정 |
+| institutions | S | — | — | — | #12/#29 기관 원본 조회. 원본/seed 준비는 별도 지정 계정 |
+| users | S | I | U | — | #4 회원 연결/공통 잠금, #7 가입. 탈퇴/계정 물리 삭제 제외 |
+| profiles | S | I | U | — | #7/#10 동의된 프로필 입력/변경 |
+| profile_attributes | S | I | — | D | #7/#10 본인 프로필 속성 관계 교체. 회원/활동 이력 삭제와 구분 |
+| user_agreements | S | I | U | — | #7 동의 저장. 정책 버전·기록 보존 |
+| neighbor_verified_regions | S | — | — | — | #4/#11 완료 지역만 조회. #75 시연 자격는 지정 준비 계정으로 생성 |
+| institution_credentials | S | — | — | — | #4/#12/#29 저장된 유효기간/담당 지역 조회. #75 준비 계정 분리 |
+| email_verifications | — | — | — | — | legacy. 자체 OTP 미구현 |
+| neighbor_verification_requests | — | — | — | — | legacy. 신청/접수 제외 |
+| neighbor_verification_evidences | — | — | — | — | legacy. 증빙 제출 제외 |
+| institution_verification_requests | — | — | — | — | legacy. 신청/접수 제외 |
+| institution_verification_evidences | — | — | — | — | legacy. 증빙 제출 제외 |
+| media_files | S | I | U | — | BE2 #13/#16 lifecycle·잠금·삭제 예약/재시도. 상태 이력은 보존. 프로필 용도 #7/#10은 별도 파일 계약 확인 |
+| posts | S | I | U | — | BE2 #14/#16 생성·수정·소프트 삭제·잠금 |
+| activity_post_details | S | I | U | — | BE2 #14/#16 활동 상세 원본. 게시물 소프트 삭제 정책 유지 |
+| polls | S | I | U | — | BE2 투표 원본/공통 잠금. 변경 가능 필드는 #16/#25 계약대로 제한 |
+| poll_options | S | I | — | — | BE2 투표 생성. 진행/종료 투표 선택지 변경·물리 삭제 제외 |
+| post_photos | S | I | U | D | BE2 #13/#14/#16 순서·참조 제거. 동일 transaction에서 파일 삭제 예약을 기록 |
+| comments | S | I | — | — | BE1 #22 댓글/답글 작성·조회. 게시물 삭제로 참여 이력 물리 삭제하지 않음 |
+| post_reactions | S | I | — | D | BE1 #23 본인 반응 등록/취소. 활동 이벤트는 보존 |
+| comment_evaluations | S | I | U | D | BE1 #24 본인 평가 등록/전환/취소. 실제 저장 방식에서 필요한 작업만 확정 |
+| vote_selections | S | I | U | — | BE1 #25 선택 제출/변경. 표·종료·개인 투표 이력 보존 |
+| bookmarks | S | I | — | D | BE1 #26 본인 해제·게시물 삭제 시 관계 자동 해제 |
+| activity_events | S | I | — | — | BE1 #5 누적 등록 행동. 취소/전환/삭제로 이력 수정·삭제하지 않음 |
+| institution_agenda_adoptions | S | I | U | — | BE1 #29 채택·취소시각/행위자 기록. 감사 관계 보존 |
+| ai_agenda_summaries | S | I | U | — | BE2 #20 생성·재생성·상태 갱신. 삭제 원문 비노출 계약 유지 |
+
+### Schema·시퀀스·RLS·계정 경계
+
+- 서버에는 discushion Schema USAGE만 허용하고 CREATE/테이블 소유권·DDL·TRUNCATE·TRIGGER·권한 위임·관리자 역할·SUPERUSER/BYPASSRLS를 부여하지 않는다. Schema/테이블 적용 계정은 서버와 분리한다. 상속/PUBLIC에서 받은 유효 권한도 #30 실제 역할로 확인한다.
+- 현재 PK는 GENERATED ALWAYS AS IDENTITY이며 서버는 기본값으로 INSERT/RETURNING한다. 그 내부 자동 생성은 serial/직접 nextval와 구분해 실제 PostgreSQL 역할 시험으로 확인한다. 직접 nextval/currval/setval·재시작/번호 덮어쓰기는 서버 요구 범위에 없으므로 ALL SEQUENCES 일괄 권한을 부여하지 않는다. 직접 nextval가 필요한 SQL을 도입할 경우 해당 기능에서 실제 시퀀스와 USAGE 필요성을 다시 검토하고, SELECT/UPDATE/setval 권한을 자동 확대하지 않는다.
+- 식별자 생성 대상은 users/institutions/media_files/각 legacy 신청·OTP/posts/polls/poll_options/post_photos/comments/activity_events/institution_agenda_adoptions다. 위 표에서 서버 INSERT가 없는 원본/legacy에는 ID 생성 권한도 없다. 복합/기존 FK PK 테이블은 별도 시퀀스가 없다. #30은 pg_get_serial_sequence와 카탈로그로 실제 이름·권한을 대조한다.
+- RLS는 현재 모든 테이블에서 유지한다. 위 허용 작업만 실제 서버 역할 TO 정책으로 제공한다. SELECT/DELETE는 USING, INSERT는 WITH CHECK, UPDATE는 USING+WITH CHECK가 필요하며 UPDATE/잠금 경로는 SELECT 정책도 함께 확인한다. legacy와 미허용 작업에는 서버 허용 정책을 만들지 않는다. 서버 역할의 작업 허용 정책이 사용자별 행 격리를 대신하지 않으며 PUBLIC/anon/authenticated 역할 차단을 유지한다.
+- BE2의 B 영역 권한, 공통 파일/트랜잭션 제약, 실제 계정 이름·JDBC/TLS·pooler는 공동 검토 대기다. #30이 실제 역할을 구성한 뒤 허용 조회/저장·금지 DDL/삭제·RLS를 시험한다. localhost의 합성 NOLOGIN 역할/RLS 시험을 실제 Supabase 서버 로그인 계정 검증으로 표시하지 않는다.
