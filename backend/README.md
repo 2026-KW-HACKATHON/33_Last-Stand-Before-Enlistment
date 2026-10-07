@@ -132,3 +132,33 @@ var reader = new ContractFixtures.Posts()
 CI 비밀번호는 격리된 컨테이너용 합성값이며 운영 비밀값이 아니다. Schema 시험은 실제 PostgreSQL 제약 검증이지만 모의 역할 검사는 실제 Supabase 서버 역할/GRANT 검증을 대신하지 않는다. SQL 직접 적용 CI는 기존 Windows `run-schema-tests.ps1`의 Supabase CLI Migration history/재실행 검사를 대신하지 않는다. 코드 소유권/리뷰 규칙은 AGENTS.md를 따르며 GitHub 관리자가 `Backend tests and build`를 필수 검사로 설정하고 리뷰 강제 여부를 확인해야 한다.
 
 워크플로 파일은 PR 통합/원격 반영 후 GitHub에서 실행된다. CD는 #30에서 실제 Vercel 대상·배포 방식·리전·환경별 비밀 변수·DB 연결과 health/실패 복구를 확인한 뒤 연결한다. 현재 자동 배포 워크플로는 제공하지 않으며 CI JAR 생성은 배포 성공을 뜻하지 않는다.
+
+## #13 사진 처리 구현 준비 (2026-10-08)
+
+`com.discushion.photos`에 예약 POST, 완료 POST, 본인 상태 GET, 취소 DELETE를 구현했다. 가입 완료는 실제 identity adapter로 매 요청 재검증하며 users→media 순서로 잠근다. 예약/key·잠재 권한 만료 상한은 외부 발급 전에 commit하고, URL/token을 DB에 저장하지 않는다. 실제 JPG/PNG 내용을 제한된 크기로 읽어 검사하고 최초 uploadedAt·24시간 만료를 반복 완료로 연장하지 않는다.
+
+`PhotoAttachments.replace`는 #14/#16의 같은 쓰기 transaction에서 호출하는 연결 도우미다. users→posts→polls→media_files ID 오름차순으로 잠그고 최종 참조·10장/10,000,000 bytes·소유권·지역·종료 투표를 확인한다. null은 유지, []는 전부 제거이며 기존 photoId를 보존해 재정렬한다. 제거된 본인 fileId 목록을 반환해 향후 PATCH meta.photoDeletion에 사용한다. rollback 전에 Storage를 삭제하지 않는다. 게시물 API와 상세 DTO 조립은 #14~16의 후속이며 아직 제공하지 않는다.
+
+`PhotoCleanup`은 UPLOADING createdAt+24h / UNLINKED uploadedAt+24h 후보와 삭제 재시도를 처리한다. 실제 참조와 파일 잠금을 재확인하고 token/lease로 stale worker 결과를 차단한다. 2분 lease, 기본 60초 간격/20개 batch, 60초부터 최대 1시간의 재시도 지연을 사용한다. 외부 Storage 호출은 transaction 밖에서 수행한다. lease가 만료되면 결과를 기록하지 않고 다음 작업자가 회수한다.
+
+### 활성화와 검증 경계
+
+- 기본 PHOTO_UPLOADS_ENABLED=false이므로 현재 local Health 서버에 사진 API/worker를 노출하지 않는다.
+- 실제 DB 프로필과 #4 Privy 공개키·가입 회원 기반이 필요하다. 테스트용 인증/Storage는 src/test에만 있으며 운영 빈에 등록하지 않는다.
+- SupabasePhotoStorage는 공식 REST 요청 형식의 준비 코드다. 실제 public bucket·PUT/RAW·CORS·MIME/10MB·토큰 TTL/발급 지연/시각 오차 상한을 #13/#30에서 검증한 뒤에만 PHOTO_STORAGE_WIRE_VERIFIED=true 및 검증된 PHOTO_VERIFIED_ISSUANCE_ALLOWANCE_SECONDS를 설정한다. client timeout을 provider 발급 종료의 증거로 사용하지 않는다.
+- 실제 provider의 진행 중 업로드 종료/재생성 방어는 아직 입증되지 않았다. 현재 Supabase adapter의 uploadsDrained는 항상 false이며, 단순 권한 만료·DELETE 성공·부재 조회만으로 DELETED를 기록하지 않는다. 파일을 제거해도 DELETE_PENDING과 quota 슬롯을 유지한다. #30에서 실제 증거를 갖춘 종료 확인 구현이 필요하며 시연 중 예약 누적을 관측해야 한다.
+- PHOTO_CLEANUP_ENABLED=true는 위 환경을 검증한 뒤 선택한다. batch 결과와 정제된 실패 분류를 로그로 보고, media_files의 deletion_attempts/next_delete_attempt_at/last_delete_error_code/claim을 확인한다. signed URL·secret·raw provider 오류를 로그에 남기지 않는다.
+- 초기 구현 시 Supabase 플러그인의 조회 가능한 프로젝트는0개였고 원격 DB/Storage/계정/버킷을 변경하지 않았다. 이후 실제 Storage 준비 결과는 아래 02:20 KST 기록을 따른다. 로컬 합성 Storage의 성공은 실제 원격 연결이나 FE 사용자 흐름 검증이 아니다. #13 완료와 Issue 종료는 대기다.
+
+로컬 시험은 DISCUSHION_TEST_JDBC_URL=jdbc:postgresql://127.0.0.1:55432/discushion_migration_test 및 저장소 밖의 DISCUSHION_TEST_DB_PASSWORD를 사용해 `gradlew.bat --no-daemon test build --rerun-tasks --console=plain`로 실행한다. 임시 PostgreSQL 17.11의 새 시험 DB에 기존 Migration5개를 적용하며 실제 DB 잠금/권한/rollback/정리와 HTTP 호출을 검증한다. 원격 Supabase 시험은 명시적으로 제외한다. 2026-10-08 01:30 KST 최종 test/build 새 실행 성공: JUnit70개 중67통과/원격Supabase3제외/실패0/오류0. 신규25개는 이미지4·실제JDBC14·실제HTTP4·Supabase HTTP 요청 대체 검증3이며 실제 Storage 시험은 아니다. 기존 Schema 무결성128개 통과, 운영 JAR의 test fixture0개, 시험 후 사진/합성 회원 잔여0개를 확인했다.
+
+2026-10-08 01:49 KST 기준 갱신 후 재검증: #13 미커밋·미추적 파일을 stash로 보존하고 `back/develop`을 `git pull --ff-only origin back/develop`으로 PR #121 병합 기준 `91fa30d`까지 갱신했다. `back/feature/13-photos`를 같은 기준으로 fast-forward한 뒤 변경을 복원했다. 충돌0, README의 지역/사진 문단 모두 유지, 사진 코드·기존 변경 내용은 Git 줄바꿈 정규화 후 동일하다. 위 test/build를 실제 localhost DB로 새로 실행해 지역 조회24개를 포함한 **94개 중91통과/원격Supabase3제외/실패0/오류0, build 성공**을 확인했다. 원격 Storage·Privy·FE 연결은 이번 검증 범위가 아니며 활성화/완료 대기 조건을 유지한다. 백업 stash는 보존했고 commit/push/PR은 수행하지 않았다.
+
+### 실제 Supabase Storage 준비·직접 전송 검증 (2026-10-08 02:20 KST)
+
+사용자의 연결 요청과 로컬 키 저장 후 지정 프로젝트 `pmhmgqpyvrbbseqelpze`에서 Storage REST API로 `discushion-post-photos` 공개 버킷을 생성했다. 파일당 10,000,000 bytes, image/jpeg·image/png만 허용한다. 게시물 전체10장/합계10,000,000 bytes 검증은 별도 서버 로직이며 버킷 설정만으로 보장하지 않는다. 기존 Schema/Migration·DB 역할/RLS·타 버킷/파일은 변경하지 않았다. ignored backend/.env에 실제 URL·버킷을 준비했고 비밀 키·서명 URL은 출력/문서/commit에 포함하지 않았다.
+
+- 작은 합성 PNG의 서버 서명 발급 → 인증 헤더 없는 PUT/RAW200 → 인증 없는 공개 GET200 및 원본 bytes 일치 → 서버 DELETE200 → authenticated GET 부재400을 실제 서비스에서 확인했다. 동일 key의 중복 PUT은400이다.
+- text/plain과10,000,001 bytes 파일은 각각400으로 거부됐다. localhost:3000 Origin의 PUT preflight는200, allow-origin=* 및 content-type/x-upsert 허용을 확인했다. 이는 직접 REST 검증이며 실제 FE 브라우저 또는 Spring PhotoService/인증/DB와의 전체 연동 시험은 아니다.
+- **유효한 서명 URL로 삭제된 key를 다시 PUT하면200으로 파일이 재생성됐다.** 기존 uploadsDrained=false와 DELETE_PENDING 보존을 유지한다. TTL 만료만으로 진행 중 전송 종료를 입증하거나 PHOTO_STORAGE_WIRE_VERIFIED/PHOTO_UPLOADS_ENABLED/worker를 활성화하지 않는다. 발급 지연·시각 오차 상한, 진행 중 전송 종료/재생성 방어, 실제 서버 DB 계정/RLS·Privy·FE 흐름은 #13/#30에서 남은 조건이다.
+- connection-check/ 아래 이번 시험 파일은 재생성 시험 후에도 Storage API로 정리했고 실제 storage.objects 잔여0개를 확인했다. 보안 advisor WARN/ERROR0, 기존 private Schema27개의 RLS 정책 없음 INFO는 #30 서버 역할 작업으로 유지한다. build/Java 테스트 결과는 앞선01:49 실행이며 이번에는 REST 검증과 문서만 갱신했다. commit/push/PR은 수행하지 않았다.

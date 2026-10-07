@@ -1,4 +1,15 @@
 # Discushion MVP 백엔드·프론트엔드 통합 지침서
+## 2026-10-08 #13 구현 준비 — 실제 연결 대기
+
+사용자 요청으로 이번 구현을 back/develop 대상 **Draft PR**로 공유한다. `Refs #13`이며 이슈 전체 완료/자동 종료·배포·사진 API 활성화를 뜻하지 않는다. 공유 파일/트랜잭션·인증/권한 영향은 BE1 정합성 리뷰 대상이다. 삭제 후 재생성 방어·권한 발급 상한·실제 서버 DB/Privy 및 FE 연결 조건은 아래 기록대로 유지한다.
+
+2026-10-08 02:20 KST Storage 준비 갱신: 지정 Supabase 프로젝트에 공개 `discushion-post-photos` 버킷(image/jpeg·image/png, 파일당10,000,000 bytes)을 생성하고 서명 PUT/RAW·익명 공개 열람·삭제, MIME/용량 거부와 localhost:3000 PUT preflight를 실제 REST로 확인했다. FE 전체 흐름/Spring 사진 API 연결 완료는 아니다. 삭제 후에도 유효한 서명 URL로 재생성되는 것을 확인했으므로 서버의 DELETE_PENDING 방어와 사진 API/worker 비활성화를 유지한다. 실제 DB 계정·Privy·발급 상한·진행 중 전송 종료 및 FE 연결 조건은 남아 있다. 시험 파일 잔여0개, 상세 기록은 Backend README의 실제 Storage 준비 절을 따른다.
+
+사진 계약 PR #107은 BE1 yuyichan의 최신 변경 승인 후 back/develop 42dfb14에 병합됐다. FE sungjin0616의 코멘트와 사용자가 전달한 계약 구현 가능성 확인을 따르며 구현/실제 연결 완료와 구분한다.
+
+BE2의 back/feature/13-photos에서 `/api/v1/photo-uploads` 예약 POST, `/{fileId}/complete` POST, 본인 상태 GET, 미연결 취소 DELETE와 서버 검증·정리 코드를 준비했다. 기존 §13의 JSON/PUT·RAW·202/200·상태 계약을 유지한다. 신규 API와 worker는 기본 비활성이고 실제 Supabase bucket/PUT·RAW/CORS·MIME/크기·발급 상한 검증 후 활성화한다. 현재 Supabase adapter는 업로드 종료 증거가 없어 삭제 후에도 DELETE_PENDING을 유지한다. FE는 사진 서비스의 연결/완료를 아직 주장하지 않고 #30/#31에서 실제 서버와 상태/재시도/삭제 흐름을 확인한다.
+
+게시물 생성/상세/수정/삭제 endpoint, 작성자 전용 상세 fileId와 PATCH meta 조립은 #14~16에서 구현하며 #13의 연결 도우미만 준비했다. FE 브랜치/공통 Client는 변경하지 않았다. 2026-10-08 01:49 KST, PR #121 병합 기준 back/develop `91fa30d`를 반영하고 #13 변경을 보존한 뒤 로컬 실제 DB·HTTP를 포함한94개 테스트 중91통과/원격3제외, 실패0/오류0/빌드 성공을 확인했다. 이는 실제 Supabase·Privy·FE 연결 성공을 뜻하지 않는다. 현재 Feature는 아직 commit/PR/통합 전이며 자세한 실행·활성화·남은 조건은 [Backend README](../../backend/README.md)를 따른다.
 
 2026-10-08 FE 계약 확인 기록: FE 담당 sungjin0616은 [PR #107 코멘트](https://github.com/2026-KW-HACKATHON/33_Last-Stand-Before-Enlistment/pull/107#issuecomment-6041114660)에서 상세 사진 DTO·PUT/RAW 전송·응답 유실 재시도·meta 보존을 구현 가능한 계약으로 확인했다. 사용자는 같은 날 FE에게 계약 자체에 문제가 없고 구현 가능하다는 확인을 전달받았다고 명시했다. 아래 과거 FE 확인 대기 표시는 이 기록으로 갱신한다. FE 코드 구현·실제 연동 완료나 GitHub Approve를 뜻하지 않는다. 최신 사진 계약에 대한 BE1 승인 1명과 back/develop 통합은 아직 필요하며, 실제 Storage/서버 계정 검증과 사용자 흐름은 #13/#30/#31에서 수행한다.
 
