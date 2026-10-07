@@ -5,30 +5,44 @@ import { Button } from "@/components/ui/Button";
 import { PostCard } from "@/features/post/PostCard";
 import { PostDetailScreen } from "@/features/post/PostDetail";
 import { postFixtures } from "@/features/post/mock";
-import type { PostDetailState } from "@/features/post/model";
+import type { PostDetailState, PostDisplayModel } from "@/features/post/model";
+import { createSummaryMockService, type SummaryMockMode } from "@/features/summary/mock";
+import { SummaryPanel } from "@/features/summary/SummaryPanel";
 
 const choices = ["agenda-photo", "agenda-anonymous", "activity", "activity-ended", "vote", "vote-ended"] as const;
+const choiceLabels: Record<(typeof choices)[number], string> = { "agenda-photo": "사진 있는 지역 안건", "agenda-anonymous": "익명 지역 안건", activity: "지역 활동 정보", "activity-ended": "종료된 활동", vote: "진행 중 투표", "vote-ended": "종료된 투표" };
+const detailStateLabels = { success: "정상", restricted: "참여 제한", loading: "불러오는 중", error: "오류", unavailable: "삭제·미공개" } as const;
+const summaryModeLabels: Record<SummaryMockMode, string> = { success: "요약 성공", "provider-error": "제공자 오류", timeout: "시간 초과", quota: "요청 한도", "source-too-short": "짧은 원문" };
 
 /** Development-only FE2 fixture harness. It is not a product route or a real Bookmark Service. */
 export function PostPreview() {
   const [selected, setSelected] = useState<(typeof choices)[number]>("agenda-photo");
   const [bookmarked, setBookmarked] = useState(false);
   const [stateKind, setStateKind] = useState<"success" | "restricted" | "loading" | "error" | "unavailable">("success");
+  const [summaryMode, setSummaryMode] = useState<SummaryMockMode>("success");
+  const [viewer, setViewer] = useState<"member" | "guest">("member");
   const post = postFixtures[selected];
+  const visiblePost = useMemo<PostDisplayModel>(() => viewer === "guest" ? { ...post, viewer: { ...post.viewer, mode: "guest" } } : post, [post, viewer]);
+  const summaryService = useMemo(() => createSummaryMockService(summaryMode), [summaryMode]);
   const state = useMemo<PostDetailState>(() => {
     if (stateKind === "loading") return { kind: "loading" };
     if (stateKind === "error") return { kind: "error", message: "Mock 조회 오류입니다.", onRetry: () => setStateKind("success") };
     if (stateKind === "unavailable") return { kind: "unavailable" };
-    if (stateKind === "restricted") return { kind: "restricted", post: { ...post, viewer: { ...post.viewer, participationRestriction: "현재 탐색 지역에서는 열람만 가능합니다." } }, message: "현재 탐색 지역에서는 참여 기능이 제한됩니다." };
-    return { kind: "success", post };
-  }, [post, stateKind]);
+    if (stateKind === "restricted") return { kind: "restricted", post: { ...visiblePost, viewer: { ...visiblePost.viewer, participationRestriction: "현재 탐색 지역에서는 열람만 가능합니다." } }, message: "현재 탐색 지역에서는 참여 기능이 제한됩니다." };
+    return { kind: "success", post: visiblePost };
+  }, [stateKind, visiblePost]);
+  const summary = (state.kind === "success" || state.kind === "restricted") && visiblePost.type === "LOCAL_AGENDA"
+    ? <SummaryPanel key={`${visiblePost.id}-${summaryMode}`} post={visiblePost} service={summaryService} />
+    : undefined;
   return <div className="min-h-dvh bg-background p-4">
     <div className="mx-auto mb-4 max-w-mobile rounded-card border border-border bg-surface p-3">
-      <p className="text-caption text-secondary">#53 개발 전용 Post Preview</p>
-      <div className="mt-2 flex flex-wrap gap-2">{choices.map((choice) => <Button key={choice} variant={selected === choice ? "primary" : "secondary"} className="min-h-0 px-3 py-1 text-caption" onClick={() => { setSelected(choice); setBookmarked(false); setStateKind("success"); }}>{choice}</Button>)}</div>
-      <div className="mt-2 flex flex-wrap gap-2">{(["success", "restricted", "loading", "error", "unavailable"] as const).map((kind) => <button key={kind} type="button" onClick={() => setStateKind(kind)} className="text-caption text-primary underline">{kind}</button>)}</div>
-      <div className="mt-3"><PostCard post={post} onOpen={() => setStateKind("success")} /></div>
+      <p className="text-caption text-secondary">#53 게시물 상세 · #55 AI 요약 Preview</p>
+      <div className="mt-2 flex flex-wrap gap-2">{choices.map((choice) => <Button key={choice} variant={selected === choice ? "primary" : "secondary"} className="min-h-0 px-3 py-1 text-caption" onClick={() => { setSelected(choice); setBookmarked(false); setStateKind("success"); }}>{choiceLabels[choice]}</Button>)}</div>
+      <div className="mt-2 flex flex-wrap gap-2">{(["success", "restricted", "loading", "error", "unavailable"] as const).map((kind) => <button key={kind} type="button" onClick={() => setStateKind(kind)} className="text-caption text-primary underline">{detailStateLabels[kind]}</button>)}</div>
+      <div className="mt-2 flex flex-wrap gap-2"><Button variant={viewer === "member" ? "primary" : "secondary"} className="min-h-0 px-3 py-1 text-caption" onClick={() => setViewer("member")}>회원</Button><Button variant={viewer === "guest" ? "primary" : "secondary"} className="min-h-0 px-3 py-1 text-caption" onClick={() => setViewer("guest")}>공유 게스트</Button></div>
+      {visiblePost.type === "LOCAL_AGENDA" && <div className="mt-2 flex flex-wrap gap-2">{(["success", "provider-error", "timeout", "quota", "source-too-short"] as const).map((mode) => <Button key={mode} variant={summaryMode === mode ? "primary" : "secondary"} className="min-h-0 px-3 py-1 text-caption" onClick={() => setSummaryMode(mode)}>{summaryModeLabels[mode]}</Button>)}</div>}
+      <div className="mt-3"><PostCard post={visiblePost} onOpen={() => setStateKind("success")} /></div>
     </div>
-    <PostDetailScreen state={state} bookmark={{ isBookmarked: bookmarked, feedback: bookmarked ? "북마크 상태는 FE1 Service가 연결되면 저장됩니다." : undefined, onToggle: () => setBookmarked((current) => !current) }} onReport={() => window.alert("신고 입력·제출은 #100에서 연결합니다.")} />
+    <PostDetailScreen state={state} slots={{ summary }} bookmark={{ isBookmarked: bookmarked, feedback: bookmarked ? "북마크 상태는 FE1 Service가 연결되면 저장됩니다." : undefined, onToggle: () => setBookmarked((current) => !current) }} onReport={() => window.alert("신고 입력·제출은 #100에서 연결합니다.")} />
   </div>;
 }
