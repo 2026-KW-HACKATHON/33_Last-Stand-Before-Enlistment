@@ -101,19 +101,23 @@ const statuses: [number, ApiErrorKind][] = [
   [422, "domain-validation"], [429, "rate-limit"], [500, "server"], [503, "server"], [418, "http"],
 ];
 for (const [status, kind] of statuses) {
-  test(`HTTP ${status} is ${kind}; preserves unconfirmed wire body`, async () => {
+  test(`API and Mock HTTP ${status} are ${kind}; preserve unconfirmed wire body`, async () => {
     const body = { arbitraryServerShape: ["reason", "region", "institution"] };
-    const client = createApiClient({ baseUrl, transport: async () =>
-      Response.json(body, { status, headers: { "Retry-After": "7" } }),
-    });
-    await assert.rejects(client.request("fixture", { decode: identity }), (error) => {
-      hasKind(kind, status)(error);
-      assert.ok(error instanceof ApiError);
-      assert.deepEqual(error.body, body);
-      assert.equal(error.headers?.get("Retry-After"), "7");
-      assert.equal(error.code, undefined);
-      return true;
-    });
+    const respond = () => Response.json(body, { status, headers: { "Retry-After": "7" } });
+    const clients: ApiClient[] = [
+      createApiClient({ baseUrl, transport: async () => respond() }),
+      createMockApiClient({ routes: [{ method: "GET", path: "/fixture", respond }] }),
+    ];
+    for (const client of clients) {
+      await assert.rejects(client.request("fixture", { decode: identity }), (error) => {
+        hasKind(kind, status)(error);
+        assert.ok(error instanceof ApiError);
+        assert.deepEqual(error.body, body);
+        assert.equal(error.headers?.get("Retry-After"), "7");
+        assert.equal(error.code, undefined);
+        return true;
+      });
+    }
   });
 }
 
@@ -152,8 +156,13 @@ test("HTML/malformed HTTP error and failing error mapper retain HTTP classificat
 
 test("malformed successful JSON and invalid DTOs fail at the shared response boundary", async () => {
   for (const raw of ["not JSON", "{}", '{"data":{}}', '{"data":{"value":null,"optional":null}}']) {
-    const client = createApiClient({ baseUrl, transport: async () => new Response(raw) });
-    await assert.rejects(client.request("fixture", { decode: decodeFixture }), hasKind("invalid-response", 200));
+    const clients: ApiClient[] = [
+      createApiClient({ baseUrl, transport: async () => new Response(raw) }),
+      createMockApiClient({ routes: [{ method: "GET", path: "/fixture", respond: () => new Response(raw) }] }),
+    ];
+    for (const client of clients) {
+      await assert.rejects(client.request("fixture", { decode: decodeFixture }), hasKind("invalid-response", 200));
+    }
   }
 });
 
@@ -162,6 +171,7 @@ test("JSON null, required nullable, omitted optional and no-content remain disti
     { method: "GET", path: "/null", respond: () => Response.json(null) },
     { method: "GET", path: "/nullable", respond: () => Response.json({ data: { value: null } }) },
     { method: "DELETE", path: "/empty", respond: () => new Response(null, { status: 204 }) },
+    { method: "POST", path: "/reset", respond: () => new Response(null, { status: 205 }) },
     { method: "HEAD", path: "/head", respond: () => new Response(null) },
   ] });
   assert.equal(await client.request("null", { decode: identity }), null);
@@ -169,6 +179,7 @@ test("JSON null, required nullable, omitted optional and no-content remain disti
   assert.deepEqual(nullable, { data: { value: null } });
   assert.equal("optional" in nullable.data, false);
   assert.equal(await client.request("empty", { method: "DELETE", decode: decodeNoContent }), undefined);
+  assert.equal(await client.request("reset", { method: "POST", decode: decodeNoContent }), undefined);
   assert.equal(await client.request("head", { method: "HEAD", decode: decodeNoContent }), undefined);
   await assert.rejects(client.request("null", { decode: decodeNoContent }), hasKind("invalid-response", 200));
 });
@@ -205,6 +216,67 @@ test("network failures are normalized without retrying a mutation", async () => 
     return true;
   });
   assert.equal(calls, 1);
+});
+
+test("API and Mock stay pending until the injected response resolves", async () => {
+  for (const source of ["api", "mock"]) {
+    const started = Promise.withResolvers<void>();
+    const reply = Promise.withResolvers<Response>();
+    const respond = () => { started.resolve(); return reply.promise; };
+    const client = source === "api"
+      ? createApiClient({ baseUrl, transport: respond })
+      : createMockApiClient({ routes: [{ method: "GET", path: "/fixture", respond }] });
+    let settled = false;
+    const pending = client.request("fixture", { decode: decodeFixture }).then((result) => {
+      settled = true;
+      return result;
+    });
+    await started.promise;
+    assert.equal(settled, false);
+    reply.resolve(Response.json({ data: { value: "ready" } }));
+    assert.deepEqual(await pending, { data: { value: "ready" } });
+    assert.equal(settled, true);
+  }
+});
+
+test("API and Mock retry only when the same service explicitly calls again", async () => {
+  for (const source of ["api", "mock"]) {
+    let calls = 0;
+    const respond = async () => {
+      if (++calls === 1) throw new TypeError("Test network failure");
+      return Response.json({ data: { value: "recovered" } });
+    };
+    const client = source === "api"
+      ? createApiClient({ baseUrl, transport: respond })
+      : createMockApiClient({ routes: [{ method: "POST", path: "/fixture", respond }] });
+    const service = (api: ApiClient) => () => api.request("fixture", {
+      method: "POST", json: {}, decode: decodeFixture,
+    });
+    const submit = service(client);
+    await assert.rejects(submit(), hasKind("network"));
+    assert.equal(calls, 1);
+    assert.deepEqual(await submit(), { data: { value: "recovered" } });
+    assert.equal(calls, 2);
+  }
+});
+
+test("cancellation during transport rejects without decoding a late response", async () => {
+  const controller = new AbortController();
+  const started = Promise.withResolvers<void>();
+  const reply = Promise.withResolvers<Response>();
+  const client = createApiClient({ baseUrl, transport: async (request) => {
+    assert.equal(request.signal.aborted, false);
+    started.resolve();
+    return reply.promise;
+  } });
+  const pending = client.request("fixture", {
+    signal: controller.signal, decode: () => assert.fail("Cancelled response decoded"),
+  });
+  const assertion = assert.rejects(pending, hasKind("cancelled"));
+  await started.promise;
+  controller.abort("custom reason");
+  reply.resolve(Response.json({ data: "late result" }));
+  await assertion;
 });
 
 test("body stream failures are network errors", async () => {
