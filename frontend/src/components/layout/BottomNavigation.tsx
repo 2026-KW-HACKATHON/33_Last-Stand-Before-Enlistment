@@ -7,7 +7,8 @@ import type { ComponentPropsWithoutRef } from "react";
 const items = [
   { id: "main", label: "메인", icon: "/icons/home.svg" },
   { id: "map", label: "지도", icon: "/icons/map.svg" },
-  { id: "write", label: "작성", icon: "/icons/write.svg" },
+  { id: "write", label: "글쓰기", icon: "/icons/write.svg" },
+  { id: "notification", label: "알림", icon: "/icons/notification.svg" },
   { id: "my", label: "마이", icon: "/icons/my.svg" },
 ] as const;
 
@@ -24,7 +25,7 @@ export function BottomNavigation({ activeItem, destinations = {}, onNavigate, cl
     <nav
       aria-label="하단 메뉴"
       {...props}
-      className={`flex min-h-navigation shrink-0 items-center border border-border bg-surface px-page py-internal shadow-navigation ${className}`}
+      className={`relative flex min-h-navigation shrink-0 items-center bg-surface px-page py-internal shadow-navigation before:pointer-events-none before:absolute before:inset-0 before:border before:border-border ${className}`}
     >
       {items.map(({ id, label, icon }) => {
         const selected = activeItem === id;
@@ -32,7 +33,7 @@ export function BottomNavigation({ activeItem, destinations = {}, onNavigate, cl
         const itemClass = `flex min-h-[53px] min-w-0 flex-1 flex-col items-center justify-center gap-1 px-0.5 py-1 text-navigation ${selected ? "text-primary" : "text-secondary"}`;
         const content = id === "write" ? (
           <>
-            <Image src={icon} alt="" width={40} height={40} unoptimized className={`shrink-0 rounded-chip ${selected ? "ring-2 ring-primary ring-offset-2 ring-offset-surface" : ""}`} />
+            <Image src={icon} alt="" width={40} height={40} unoptimized className={`-translate-y-[2.5px] shrink-0 rounded-chip ${selected ? "ring-2 ring-primary ring-offset-2 ring-offset-surface" : ""}`} />
             <span className="sr-only">{label}</span>
           </>
         ) : (
