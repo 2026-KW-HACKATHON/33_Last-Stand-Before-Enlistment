@@ -1,0 +1,75 @@
+[1mdiff --git a/frontend/README.md b/frontend/README.md[m
+[1mindex 76902da..ed34042 100644[m
+[1m--- a/frontend/README.md[m
+[1m+++ b/frontend/README.md[m
+[36m@@ -1,6 +1,6 @@[m
+ # Discushion Frontend[m
+ [m
+[31m-Issue #37 initializes the execution environment only. The root route is deliberately empty. Product screens, design tokens, providers and permission guards belong to later issues.[m
+[32m+[m[32mIssue #37 owns the execution environment only (SH-14 / Phase 0). The root route is deliberately empty. The current repository also contains common UI/design tokens from #38 and API Client/Mock/Provider foundations from #39; reuse those in their owning issues. Product screens and Router/permission guards are outside #37.[m
+ [m
+ ## Fixed Toolchain[m
+ [m
+[36m@@ -37,6 +37,8 @@[m [mnpm run dev[m
+ [m
+ Open http://localhost:3000. The empty document is intentional, not a completed product UI. If that port is occupied, use `npm run dev -- --port 3001`. Use `npm ci` for a clean lockfile-based installation.[m
+ [m
+[32m+[m[32mOn Windows PowerShell, if execution policy blocks `npm.ps1`, use `npm.cmd` for these commands without changing the policy.[m
+[32m+[m
+ ```sh[m
+ npm run lint[m
+ npm run typecheck[m
+[36m@@ -44,17 +46,19 @@[m [mnpm run build[m
+ npm run start[m
+ ```[m
+ [m
+[31m-`typecheck` generates route types before TypeScript, including on a clean checkout. Next.js 16 build does not run ESLint; lint is a separate check. No test runner/script or product tests exist yet; report test as not configured, not passed.[m
+[32m+[m[32m`typecheck` generates route types before TypeScript, including on a clean checkout. Next.js 16 build does not run ESLint; lint is a separate check. There is no npm `test` script or additional test framework dependency. API regression tests exist in `src/lib/api/__tests__/client.test.ts`; run the existing TypeScript compiler + Node built-in test runner command in [the API README](src/lib/api/README.md#검증). These tests use injected transport/Mock and do not verify actual Backend integration or product UI flows.[m
+ [m
+ ## Environment Variables[m
+ [m
+[31m-No variables or backend connection are required. `.env.example` documents this baseline. Future agreed variables go in ignored `frontend/.env.local`; restart the server after changes. Never commit secrets. `NEXT_PUBLIC_` variables are browser-visible and must not contain secrets. API URLs, authentication and Mock contracts remain in their owning issues.[m
+[32m+[m[32mThe empty root route needs no variables or Backend connection. The current `.env.example` includes optional `NEXT_PUBLIC_API_BASE_URL` for #39's API Client; an explicitly supplied `baseUrl` takes precedence. Configure the full agreed API prefix only when using the real Client. The actual API address/CORS remain #30 and related Integration work; do not guess a URL or prefix. Agreed local values go in ignored `frontend/.env.local`; restart the server after changes. Never commit secrets. `NEXT_PUBLIC_` variables are browser-visible and must not contain secrets. Authentication and domain Mock contracts remain in their owning issues.[m
+ [m
+[31m-## Initial Structure[m
+[32m+[m[32m## Current Structure[m
+ [m
+ - `src/app/layout.tsx`: mandatory HTML shell and stylesheet import.[m
+ - `src/app/page.tsx`: empty root route for execution verification only.[m
+[31m-- `src/app/globals.css`: Tailwind import without product tokens.[m
+[32m+[m[32m- `src/app/globals.css`: Tailwind import, design tokens and Pretendard font setup owned by #38; font/license assets are in `public/fonts/`.[m
+[32m+[m[32m- `src/components/ui/` and `src/components/layout/`: existing #38 common UI/layout foundations; see [the component README](src/components/README.md). Product screen integration and remaining UI changes belong to #38 and feature issues.[m
+[32m+[m[32m- `src/lib/api/`: existing #39 Client, error/decoder/types, Mock, Provider and regression tests; see [the API README](src/lib/api/README.md). The empty root route does not mount the Provider or connect to an API.[m
+ - Next.js, TypeScript, PostCSS and ESLint configs: toolchain configuration.[m
+ - `next-env.d.ts`, `.next/`, `*.tsbuildinfo`: generated and ignored.[m
+ [m
+[36m@@ -64,11 +68,27 @@[m [mDo not pre-create future feature directories or implement later issues here.[m
+ [m
+ Known tooling limitations: ESLint 9 is deprecated upstream, but the React/import/accessibility plugins bundled by eslint-config-next 16.3.8 do not yet declare ESLint 10 compatibility. Keep 9.39.5 until that combination supports 10. npm audit currently reports five high-severity entries from one braces stack-exhaustion advisory in the development-only Next.js lint dependency chain. No compatible fixed braces release is available; do not force-downgrade Next.js lint configuration to 14 or hide the advisory. Recheck before dependency upgrades. Production dependencies are audited separately.[m
+ [m
+[31m-`.github/workflows/frontend.yml` runs `npm ci`, lint, typecheck and build for frontend PRs targeting `front/develop` or manual dispatch, with the same Node/npm versions. No deployment is configured. Remote workflow execution and required branch checks must be verified on GitHub separately; local success is not remote CI success.[m
+[32m+[m[32m`.github/workflows/frontend.yml` runs `npm ci`, lint, typecheck and build for frontend PRs targeting `front/develop` or manual dispatch, with the same Node/npm versions. It does not run the API regression tests. No deployment is configured. Remote workflow execution and required branch checks must be verified on GitHub separately; local success is not remote CI success.[m
+ [m
+ Use latest `origin/front/develop` and `front/feature/<issue-number>-<short-name>`. Do not directly commit/push protected branches. FE1 owns this environment; coordinate dependency/lockfile/CI changes with FE2 and execution impacts with BE2. Their feature code is outside this issue.[m
+ [m
+[31m-## Issue #37 Revalidation[m
+[32m+[m[32m## Current Issue #37 Revalidation[m
+[32m+[m
+[32m+[m[32mRevalidated on Windows on 2026-10-07 using Node.js 24.21.0/npm 11.19.0, after fast-forwarding the existing `front/feature/37-project-environment` branch to the fetched `origin/front/develop` (`53aee05` at validation time). Only this README required updates; #38/#39 code, environment example, dependencies, lockfile and CI configuration were preserved.[m
+[32m+[m
+[32m+[m[32m| Check | Result |[m
+[32m+[m[32m| --- | --- |[m
+[32m+[m[32m| `npm.cmd ci` | Passed; existing ESLint deprecation, five High development-dependency audit entries and unrs-resolver install-script approval warning reported |[m
+[32m+[m[32m| `npm.cmd run lint` / `npm.cmd run typecheck` / `npm.cmd run build` | Passed |[m
+[32m+[m[32m| API README's TypeScript compiler + `node --test` command | Passed, 30 tests; output generated outside the repository |[m
+[32m+[m[32m| `npm.cmd run dev -- --hostname 127.0.0.1 --port 3001` | Ready; root HTML and stylesheet returned HTTP 200; server stopped after verification |[m
+[32m+[m[32m| Toolchain declarations vs lockfile | Matched; no dependency or version changes |[m
+[32m+[m
+[32m+[m[32mThere is still no npm `test` script. Product UI/Figma checks are N/A for this environment issue. Actual Backend/API/Provider integration and remote CI were not executed. No new commit, push, PR, Issue close or deployment was performed.[m
+[32m+[m
+[32m+[m[32m## Previous Issue #37 Revalidation Record[m
+[32m+[m
+[32m+[m[32mThe following record describes the earlier environment-only validation, before the #38/#39 foundations were integrated. Its machine path, checks and exclusions are historical, not instructions for the current checkout; use the current sections above for execution and test guidance.[m
+ [m
+ Rechecked on Windows on 2026-10-07 from `front/feature/37-project-environment`, after rereading the root AGENTS.md and the entire issue. Existing files were reviewed and preserved. The branch starts at the fetched `origin/front/develop` commit. The repository is in `C:\Users\허예은\Documents\New project`, not the empty `discushion` project directory.[m
+ [m
