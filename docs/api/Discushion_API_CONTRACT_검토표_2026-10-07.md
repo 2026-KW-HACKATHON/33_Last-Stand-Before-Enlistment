@@ -419,6 +419,56 @@ BE1 검토용 데이터 요구사항은 파일 owner·용도·검증된 MIME/byt
 
 다음 검토: BE1은 미검증 파일의 삭제 상태 제약·발급 만료/선점 추적을 추가 Migration으로 검토하고 API 정본을 정리한다. BE2는 #13/#16 실행을 준비하되 DB 보완과 필수 데이터 계약이 back/develop에 반영되기 전 의존 코드를 구현하지 않는다. FE는 요청/응답·삭제 대기 의미를 구현 전에 확인하고 실제 사용자 흐름은 #30/#31에서 검증한다.
 
+### 10.10 BE1 DB·API 대조와 보완안 (2026-10-07)
+
+검토 입력은 BE2 `4f7bb25`의 §10.8~10.9, 구현 기준은 병합된 back/develop `452debd`다. 확인자 Codex(BE1 작업 준비), 사용자 요청 근거는 BE2 검토 요청 전달 및 진행 지시다. BE2/FE의 최종 확인을 대신하지 않는다.
+
+- CLI 생성 추가 Migration `20261007104543_support_photo_cleanup_leases.sql`로 미검증 파일도 uploaded_at=NULL을 유지한 채 DELETE_PENDING/DELETED로 추적한다. UNLINKED/LINKED의 검증 완료 요구는 유지하며 삭제 예약시각은 created_at 및 존재하는 uploaded_at/linked_at 이후다.
+- media_files에 upload_authorization_expires_at, deletion_claim_token(UUID), deletion_claimed_at, deletion_claim_expires_at을 추가한다. 서명 URL/토큰 원문은 저장하지 않는다. 신규 발급의 만료 최댓값을 응답 전에 보존하며 최초 created_at/uploaded_at을 덮어쓰지 않는다. 기존 행에 임의 만료/선점 값을 backfill하지 않는다.
+- 선점 세 필드는 함께 NULL 또는 DELETE_PENDING에서 함께 존재해야 하고 선점시각은 예약 이후, 만료는 선점 이후다. 실제 worker는 FOR UPDATE SKIP LOCKED로 원자 선점하고 결과 갱신에 현재 token을 조건으로 사용한다. 만료 claim은 새 token으로 회수한다. lease/backoff/정리 간격은 #13/#30 설정이며 임의 수치를 Migration에 넣지 않는다.
+- DELETED는 마지막 발급 권한이 만료되기 전 기록할 수 없게 제한한다. 단, 이 CHECK만으로 진행 중 업로드 종료·재생성 방어를 증명할 수 없다. #13/#30은 signed 권한 만료 후 늦은 전송까지 정리됐음을 실제 Storage에서 확인해야 한다. 그 전에는 DELETE_PENDING을 유지한다.
+- UPLOADING created_at 정리 후보와 DELETE_PENDING claim 만료용 부분 인덱스를 추가한다. 검증된 미연결 파일은 uploaded_at+24h, 완료시각 없는 파일은 created_at+24h이며 LEGACY/LINKED는 후보가 아니다. 공통 파일 잠금·실제 참조 재검사·연결/예약 원자성은 서비스 책임이다.
+- post_photos에 UNIQUE(file_id)를 추가해 서로 다른 게시물의 중복 연결도 차단한다. 기존 중복이 있으면 적용 전 중단하며 데이터 자동 삭제·보정은 하지 않는다. 본인 파일·purpose·검증 상태·참조·만료는 서비스에서도 검사한다. region_id는 추가하지 않는다.
+- 현재 mime_type/size_bytes는 UPLOADING 때 신고값, 최초 서버 검증 성공 후 실제 값이다. uploaded_at 없는 값은 게시물 합계/연결 판단에 사용하지 않는다. 별도 신고값 감사 이력은 이번 범위에 추가하지 않는다.
+- API 정본 §13에 준비/완료/상태/취소 경로·DTO·숫자 ID·사진 최종 배열·오류·삭제 예약/최종 완료를 구체화했다. **BE1 검토안이며 FE/BE2 wire 확인 대기**다. 10MB=10,000,000 bytes도 제안 상태를 유지하고 구현에서 확정값으로 쓰지 않는다. §5.4~5.5의 multipart/newImageIndex는 변경 전 예시다.
+
+검증 및 확인 기록은 이 절 아래에 실행 후 추가한다. 새 Migration은 localhost 시험에만 적용하며 지정 원격 DB에는 적용하지 않는다. 기본 권한표·서버 역할 구성은 #4/#30 후속 조건을 유지한다. 실제 worker·Storage·FE 호출은 #13/#16/#30/#31에서 검증한다.
+
+#### BE1 실행 결과·확인 상태
+
+2026-10-07 19:49~19:50 KST, Codex(BE1 검토 준비). 기준 `452debd` + 이번 미커밋 변경, 입력 문서 `4f7bb25`. 사용자 채택된 1~4 실행 방향의 DB 보완을 구현했으나 BE2/FE wire 승인·원격 적용·#74 전체 완료는 아니다.
+
+| 검사/확인 | 실제 결과 |
+| --- | --- |
+| localhost CLI Migration 적용 및 재실행 | 신규 1개 적용 후 재실행 대상 없음. Schema/이력/표식 데이터 불변 |
+| DB 무결성 | 128개 통과(기존 113 + 신규 15). 미완료 삭제·권한 만료 이전 최종 완료 거부·claim 형태/시각·다른 게시물 중복 연결 등을 확인 |
+| 카탈로그/ERD | 27테이블·180컬럼·단일 FK47/복합FK8·Privy UNIQUE·post_photos.file_id UNIQUE 대조 오류 0 |
+| API 역할 이름 모의 | 기존 격리 DB에서 9개 접근 차단 통과. 실제 서버 최소 권한 시험은 아님 |
+| Java 17 test/build | 실제 작업 6개 재실행 성공. Health3/local JDBC4/설정1/원격 JDBC3 = 11, 실패/오류/skip0, JAR 생성 |
+| 원격 Schema | 기존 27테이블·176컬럼·이력4개의 SELECT-only 회귀 확인. 새 Migration은 미적용이며 180컬럼 원격 검증이라고 기록하지 않음 |
+| worker·경합·Storage·FE | 미실행. claim token CAS/장애 회수/진행 중 업로드 종료·재생성 방어 및 실제 공개 URL/삭제는 #13/#16/#30에서 검증 |
+| wire 계약 최종 확인 | API 정본 §13의 endpoint/DTO/숫자 ID/10,000,000 bytes/순서/202·200·204/오류를 FE·BE2가 확인한 기록 없음. 확인자·날짜·PR/SHA·이견을 #74에 기록한 후 고정 |
+
+현재 원격 smoke 검사는 #3의 4개 Migration 상태를 고정 확인한다. 새 Migration 원격 적용 시에는 해당 smoke의 기대 컬럼/이력도 이 rollout에 맞춰 갱신·검증해야 하며 기존 검사를 새 Schema 검증으로 대체하지 않는다. 이미 적용된 Migration 파일은 변경하지 않았다. Supabase changelog Markdown은 웹 도구 content-type 오류로 읽지 못했으며 확인 완료로 기록하지 않는다. CLI는 캐시된 2.120.0 help를 확인해 새 파일을 생성했다.
+
+기술 근거: [signed upload 권한](https://supabase.com/docs/reference/javascript/file-buckets-createsigneduploadurl), [standard upload와 대용량 전송 권장](https://supabase.com/docs/guides/storage/uploads/standard-uploads), [PostgreSQL 행 잠금/SKIP LOCKED](https://www.postgresql.org/docs/17/sql-select.html). provider 권한은 2시간 유효하며 전송 중 종료·늦은 재생성 안전성을 이 수치만으로 보장하지 않는다. 일반 업로드의 6MB 초과 TUS 권장은 제품 10MB 한도 변경이 아니다.
+
+### 10.11 BE2 PR #85 검토와 최신 기준 동기화 (2026-10-07)
+
+사용자 진행 지시로 Codex(BE2 검토)가 PR #85의 0e75e94와 최신 back/develop 95dddd8을 대조했다. 동일 위치의 추가 문단 충돌은 사진 검토 §10.10/API §13과 공통 내부 규약 §11을 모두 보존해 해결했다. 기존 적용 Migration 4개·공통 Java port·FE 파일·외부 프로젝트 설정은 수정하지 않았다.
+
+DB 검토: uploaded_at 없는 삭제 상태 추적, 발급 만료 최댓값 저장, 삭제 claim의 완전한 형태/시각 제약, 권한 만료 이전 최종 완료 거부, post_photos UNIQUE(file_id), 후보/claim 부분 인덱스는 채택된 실행 방향과 일치한다. 기존 중복 참조는 자동 보정하지 않고 preflight에서 중단한다. 이 구조만으로 실제 Storage 삭제·늦은 업로드·worker fencing/경합이 완료된 것은 아니며 #13/#16/#30에서 검증한다.
+
+남은 구현 선행 계약:
+
+- API §13은 계속 검토안이다. 최신 front/develop의 API 문서는 직접 업로드 합의 대기를 유지하며 FE가 숫자 ID·bytes·JSON 최종 배열·202/200/204 의미를 확인한 근거가 없다. BE2 코드 검토를 FE 승인으로 대신하지 않는다.
+- UPLOADING 권한 재발급의 소유권/기한/최대 만료 보존 규칙은 있으나 재발급 endpoint·요청/응답 또는 재발급 없음 중 결정이 필요하다. 새 예약 POST를 기존 예약 재발급으로 임의 해석하지 않는다.
+- 미완료 예약 수/용량·권한 발급 빈도 제한은 §13에서 #13 전 합의 대상으로 남아 있다. 시연 규모라도 무제한을 확정한 것으로 해석하지 않는다.
+- 발급 요청 전에 잠재 권한의 만료 상한을 기록하고 외부 요청 중 장애/응답 유실에도 추적하는 단계, 실제 signed/TUS method·headers와 진행 중 전송 종료/안전 재확인 조건을 #13 adapter 계약에서 구체화한다. 외부 호출을 DB 잠금 transaction 안에 넣지 않는다. 확인 불가 파일은 DELETE_PENDING을 유지한다.
+- 실제 서버 역할/기본 권한표는 #4/#30에서 준비하고 원격 Migration 적용/새 Schema smoke 검증은 별도 rollout이다. 이번 검토는 원격 DB 변경을 허용하거나 수행한 것이 아니다.
+
+최신 기준의 Backend test/build 및 격리 PostgreSQL CI 결과는 PR #85와 #74에 실행 후 기록한다. 기존 시험 결과는 그대로 보존하며 새 CI로 검증한 범위와 실제 FE/Storage 미실행을 구분한다. 필수 리뷰·wire/필수 계약 확인 전에는 PR 병합이나 #13 의존 구현 완료로 기록하지 않는다.
+
 ## 11. 독립 개발용 내부 인터페이스 상세안 (2026-10-07)
 
 사용자가 “너가 알아서 생각해서 해줘”라고 요청해 합의된 공통 기반을 아래 메서드/반환 타입/실행 책임으로 구체화했다. 내부 규약의 준비 결과이며 BE1의 실제 리뷰나 코드 구현·back/develop 반영·연동 완료를 뜻하지 않는다. 새로운 HTTP endpoint·테이블·인증 provider를 추가하지 않는다. #74에서 공통 규약을 검토·반영하고 BE1 #4/#11/#12, BE2 #14/#15에서 실제 adapter를 구현한다. 기존 사용자 결정은 유지하며 코드 의존 작업은 필수 계약/Schema 통합 후 시작한다.
@@ -622,3 +672,18 @@ DB 보존은 원본/감사 이력 유지를 위한 기술 기준이며 삭제된
 작성/대조: Codex(BE1 계약 준비), 사용자 이번 역할/범위 지시. 실제 FE/BE2 리뷰나 코드/DB/Privy 연동 완료를 대신하지 않는다. #74 전체 완료/Issue 종료로 표시하지 않는다. 문서 검사 결과와 Feature PR 링크는 실제 실행/준비 후 연결한다.
 
 문서 검증(2026-10-07): 상대 파일 링크 16개와 새 JSON 예시 3개 검사 통과, 기존 검토표 전체(§11 포함) 보존 확인, API 공통 형식/상태·공유·사진/수정·내부 독립 개발 규약 보존 확인, diff 공백 검사 통과. 변경 파일은 API 정본과 이 검토표 2개뿐이며 코드·Dependency·Migration·공통 Java 규약·담당 분담·CI/리뷰 정책 변경은 없다. Backend test/build·실제 Privy token/DB/FE 검증은 이번에 재실행하지 않았다. PR의 자동 CI 결과는 별도로 확인하며 문서 검사 결과로 대체하지 않는다.
+
+### 12.4 PR #104 최신 기준·구현 여부 재검증 (2026-10-07)
+
+사용자 요청으로 Codex(BE1)가 인증 Feature `back/feature/74-auth-contract`의 `17a0a41`과 최신 `origin/back/develop 1366fabba218cd345be4d23376823cf2ea1998f0`을 대조했다. 기준에는 업무표 PR #105와 사진 DB 검토 PR #85가 병합되어 있다. 작업 시작 시 미커밋 변경은 없었으며 최신 기준을 `git merge --no-commit --no-ff`로 로컬 반영했다. 자동 병합 성공, 미해결 충돌 없음. 기준에서 가져온 사진·Migration·담당 규칙은 유지하고 이번 인증 변경은 API 정본과 이 검토표 두 파일로 제한한다. 커밋·push·PR 병합·배포는 수행하지 않았다.
+
+| 검증 | 실제 결과·범위 |
+| --- | --- |
+| 소스·PR 범위 | 원격 PR 변경은 API 문서 두 개뿐. 실제 소스에는 Health Controller와 공통 port/record가 있으며 인증 Filter/Interceptor·JWT 검증기·Auth Controller·identity 실제 adapter는 없다. test-only fixture를 실제 구현으로 세지 않는다. |
+| Java 17 test/build | 2026-10-07 22:15 KST, 최신 기준을 포함한 로컬 작업 트리에서 `gradlew.bat --no-daemon test build --console=plain --rerun-tasks` 성공. 총16개 중13통과/실패0/오류0/원격3skip. Health3·localhost JDBC4·설정1·공통 fixture5 통과. |
+| 실제 로컬 HTTP | 생성한 JAR를 DB 연결이 없는 local profile로 실행. GET /health=200, POST /api/v1/auth/login은 토큰 없음/합성 무효 토큰 모두404, POST /api/v1/auth/sign-up=404. 후보 인증 경로가 아직 제공되지 않는 것을 확인했으며 토큰 거부·가입 성공 시험 통과를 뜻하지 않는다. 시험 서버와 이번에 시작한 localhost DB는 종료했다. |
+| 문서·범위 보존 | 최신 기준의 공통/사진/내부 규약 등 API9개 절과 인증 추가 전 검토표 전체(§11 포함) 보존, JSON 예시3개·상대 파일 링크16개 확인. 최신 기준 대비 인증 변경은 문서2개뿐이며 working/staged diff 공백 검사·미해결 충돌 검사 통과. |
+| 원격 CI | 기존 원격 head `17a0a41`의 Backend tests and build 성공 기록은 확인했다. 이번 로컬 병합/문서 갱신은 아직 push하지 않았으므로 새 조합의 GitHub CI 통과로 표시하지 않는다. |
+| 실제 인증·연동 | Privy OTP/실제 토큰·검증키·회원 연결/가입 API·요청 컨텍스트 격리·실제 서버 역할·FE 연결은 미검증이며 기능 미구현. #4/#6~8/#30/#31의 완료 조건을 유지한다. |
+
+결론: 충돌 없는 로컬 통합과 기존 기반의 회귀 검증을 완료했다. #104는 남은 인증 계약 문서 PR이며 인증 기능 구현 완료가 아니다. Auth wire/오류 code 공동 검토·실제 앱 검증 경로 확인·필수 리뷰1명은 계속 미완료다. 필요한 계약을 back/develop에 반영한 뒤 #4를 별도 Feature에서 구현한다. §12.3의 미완료 항목을 근거 없이 완료로 표시하지 않는다.

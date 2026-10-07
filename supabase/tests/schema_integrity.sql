@@ -247,6 +247,51 @@ select pg_temp.assert_ok('MEDIA10_deleted',(select deleted_at is not null and ne
 select pg_temp.assert_error('MEDIA11_unknown_state',$q$update media_files set lifecycle_status='UNKNOWN' where storage_key='synthetic/lifecycle'$q$,'23514');
 select pg_temp.assert_error('MEDIA12_backdated_upload',$q$update media_files set uploaded_at=created_at-interval '1 second' where storage_key='synthetic/lifecycle'$q$,'23514');
 select pg_temp.assert_error('MEDIA13_deleted_no_retry',$q$update media_files set next_delete_attempt_at=now()+interval '1 hour' where storage_key='synthetic/lifecycle'$q$,'23514');
+-- #74: incomplete/invalid uploads remain traceable; durable worker leases and one-post reference.
+insert into media_files(owner_user_id,storage_key,original_name,mime_type,size_bytes,purpose,created_at,lifecycle_status,
+  upload_authorization_expires_at)
+ values(3,'synthetic/photo74-incomplete','a.png','image/png',100,'POST_PHOTO',now()-interval '25 hours','UPLOADING',now()-interval '23 hours');
+select pg_temp.assert_ok('PHOTO74_01_incomplete_expiry',(select created_at <= now()-interval '24 hours'
+  and uploaded_at is null from media_files where storage_key='synthetic/photo74-incomplete'));
+update media_files set lifecycle_status='DELETE_PENDING',delete_requested_at=now(),deletion_attempts=1,
+ next_delete_attempt_at=now()+interval '5 minutes',last_delete_error_code='INVALID_IMAGE'
+ where storage_key='synthetic/photo74-incomplete';
+select pg_temp.assert_ok('PHOTO74_02_incomplete_pending',(select uploaded_at is null and lifecycle_status='DELETE_PENDING'
+  and deletion_attempts=1 from media_files where storage_key='synthetic/photo74-incomplete'));
+select pg_temp.assert_error('PHOTO74_03_delete_before_reservation',$q$update media_files set delete_requested_at=created_at-interval '1 second'
+ where storage_key='synthetic/photo74-incomplete'$q$,'23514','media_lifecycle_times');
+select pg_temp.assert_error('PHOTO74_04_authorization_before_reservation',$q$update media_files set upload_authorization_expires_at=created_at-interval '1 second'
+ where storage_key='synthetic/photo74-incomplete'$q$,'23514','media_upload_authorization_time');
+update media_files set deletion_claim_token='00000000-0000-0000-0000-000000000074',deletion_claimed_at=now(),
+ deletion_claim_expires_at=now()+interval '5 minutes' where storage_key='synthetic/photo74-incomplete';
+select pg_temp.assert_ok('PHOTO74_05_claim',(select deletion_claim_token is not null from media_files where storage_key='synthetic/photo74-incomplete'));
+select pg_temp.assert_error('PHOTO74_06_partial_claim',$q$update media_files set deletion_claim_token=null
+ where storage_key='synthetic/photo74-incomplete'$q$,'23514','media_deletion_claim_shape');
+select pg_temp.assert_error('PHOTO74_07_invalid_lease',$q$update media_files set deletion_claim_expires_at=deletion_claimed_at
+ where storage_key='synthetic/photo74-incomplete'$q$,'23514','media_deletion_claim_shape');
+select pg_temp.assert_error('PHOTO74_08_claim_before_delete',$q$update media_files set deletion_claimed_at=delete_requested_at-interval '1 second'
+ where storage_key='synthetic/photo74-incomplete'$q$,'23514','media_deletion_claim_shape');
+select pg_temp.assert_error('PHOTO74_09_completion_needs_release',$q$update media_files set lifecycle_status='DELETED',deleted_at=now(),
+ next_delete_attempt_at=null,last_delete_error_code=null where storage_key='synthetic/photo74-incomplete'$q$,'23514','media_deletion_claim_shape');
+update media_files set lifecycle_status='DELETED',deleted_at=now(),next_delete_attempt_at=null,last_delete_error_code=null,
+ deletion_claim_token=null,deletion_claimed_at=null,deletion_claim_expires_at=null where storage_key='synthetic/photo74-incomplete';
+select pg_temp.assert_ok('PHOTO74_10_deleted_without_upload',(select uploaded_at is null and lifecycle_status='DELETED'
+ from media_files where storage_key='synthetic/photo74-incomplete'));
+insert into media_files(owner_user_id,storage_key,original_name,mime_type,size_bytes,purpose,created_at,lifecycle_status,
+ upload_authorization_expires_at) values(3,'synthetic/photo74-live-grant','a.png','image/png',100,'POST_PHOTO',now()-interval '1 hour','UPLOADING',now()+interval '1 hour');
+update media_files set lifecycle_status='DELETE_PENDING',delete_requested_at=now() where storage_key='synthetic/photo74-live-grant';
+select pg_temp.assert_error('PHOTO74_11_live_grant_not_final',$q$update media_files set lifecycle_status='DELETED',deleted_at=now()
+ where storage_key='synthetic/photo74-live-grant'$q$,'23514','media_deleted_after_upload_authorization');
+update media_files set lifecycle_status='DELETED',deleted_at=upload_authorization_expires_at where storage_key='synthetic/photo74-live-grant';
+select pg_temp.assert_ok('PHOTO74_12_expired_grant_final_shape',(select deleted_at >= upload_authorization_expires_at
+ from media_files where storage_key='synthetic/photo74-live-grant'));
+select pg_temp.assert_error('PHOTO74_13_cross_post_file',$q$insert into post_photos(post_id,file_id,sort_order) values(2,1,0)$q$,'23505','post_photos_file_id_key');
+insert into media_files(owner_user_id,storage_key,original_name,mime_type,size_bytes,purpose,created_at,lifecycle_status,uploaded_at)
+ values(3,'synthetic/photo74-newly-verified','a.png','image/png',100,'POST_PHOTO',now()-interval '25 hours','UNLINKED',now()-interval '1 hour');
+select pg_temp.assert_ok('PHOTO74_14_verified_uses_uploaded_clock',(select created_at < now()-interval '24 hours'
+ and uploaded_at > now()-interval '24 hours' from media_files where storage_key='synthetic/photo74-newly-verified'));
+select pg_temp.assert_error('PHOTO74_15_claim_only_pending',$q$update media_files set deletion_claim_token='00000000-0000-0000-0000-000000000075',
+ deletion_claimed_at=now(),deletion_claim_expires_at=now()+interval '1 hour' where storage_key='synthetic/photo74-newly-verified'$q$,'23514','media_deletion_claim_shape');
 select count(*) as passed_assertions from schema_test_results;
 select case_id from schema_test_results order by case_id;
 rollback;
