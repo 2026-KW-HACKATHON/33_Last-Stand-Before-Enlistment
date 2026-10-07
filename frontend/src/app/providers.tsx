@@ -22,22 +22,24 @@ import { SettingsNavigation } from "../features/settings/SettingsNavigation";
 import type { SettingsMenuHandler } from "../features/settings/model";
 import { InterestRegionsHost } from "../features/interest-regions/InterestRegionsHost";
 import type { InterestRegionService } from "../features/interest-regions/model";
+import { InterestKeywordsHost } from "../features/interest-keywords/InterestKeywordsHost";
+import type { InterestKeywordService } from "../features/interest-keywords/model";
 import { profileSignupEditors } from "../features/profile/editors";
 
 /** Real adapters/client are injected by Integration; no production Mock or guessed base URL. */
-export function AppProviders({ children, session, retrySession, apiClient, loginService, signupService, signupEditors, profileService, neighborService, institutionService, activityService, interestRegionService, onMyMenu, onSettingsMenu, subjectKey = null }: {
-  children: ReactNode; session?: SessionState; retrySession?: () => void | Promise<void>; apiClient?: ApiClient; loginService?: OtpLoginService; signupService?: SignupService; signupEditors?: SignupEditors; profileService?: ProfileService; neighborService?: NeighborService; institutionService?: InstitutionService; activityService?: ActivityService; interestRegionService?: InterestRegionService; onMyMenu?: MyMenuHandler; onSettingsMenu?: SettingsMenuHandler; subjectKey?: string | null;
+export function AppProviders({ children, session, retrySession, apiClient, loginService, signupService, signupEditors, profileService, neighborService, institutionService, activityService, interestRegionService, interestKeywordService, onMyMenu, onSettingsMenu, subjectKey = null }: {
+  children: ReactNode; session?: SessionState; retrySession?: () => void | Promise<void>; apiClient?: ApiClient; loginService?: OtpLoginService; signupService?: SignupService; signupEditors?: SignupEditors; profileService?: ProfileService; neighborService?: NeighborService; institutionService?: InstitutionService; activityService?: ActivityService; interestRegionService?: InterestRegionService; interestKeywordService?: InterestKeywordService; onMyMenu?: MyMenuHandler; onSettingsMenu?: SettingsMenuHandler; subjectKey?: string | null;
 }) {
   const router = useRouter();
   const pathname = usePathname();
   const currentDestination = useMemo(() => destinationFromPathname(pathname), [pathname]);
   return <SessionProvider session={session} retry={retrySession}>
-    <SettingsNavigation subjectKey={subjectKey} onMenu={onSettingsMenu} currentDestination={currentDestination} onNavigate={(href, replace) => replace ? router.replace(href) : router.push(href)}>
+    <InterestKeywordsHost subjectKey={subjectKey} service={interestKeywordService}><SettingsNavigation subjectKey={subjectKey} onMenu={onSettingsMenu} currentDestination={currentDestination} onNavigate={(href, replace) => replace ? router.replace(href) : router.push(href)}>
       <LoginProvider service={loginService} subjectKey={subjectKey}>
         <InterestRegionsHost subjectKey={subjectKey} service={interestRegionService}><MyPageProvider subjectKey={subjectKey} service={activityService} onMenu={onMyMenu}><InstitutionProvider subjectKey={subjectKey} service={institutionService}><NeighborProvider subjectKey={subjectKey} service={neighborService}><ProfileProvider service={profileService}><SignupProvider service={signupService} editors={signupEditors ?? profileSignupEditors}>
           {apiClient ? <ApiClientProvider client={apiClient}>{children}</ApiClientProvider> : children}
         </SignupProvider></ProfileProvider></NeighborProvider></InstitutionProvider></MyPageProvider></InterestRegionsHost>
       </LoginProvider>
-    </SettingsNavigation>
+    </SettingsNavigation></InterestKeywordsHost>
   </SessionProvider>;
 }
