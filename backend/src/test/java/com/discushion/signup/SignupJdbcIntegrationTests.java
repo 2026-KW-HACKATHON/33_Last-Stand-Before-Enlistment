@@ -151,25 +151,6 @@ class SignupJdbcIntegrationTests {
             assertThat(users()).isEqualTo(1);
         } finally {release.countDown();pool.shutdownNow();pool.awaitTermination(5,TimeUnit.SECONDS);}
     }
-    @Test void sameSubjectEmailIndexRaceReturnsCommittedWinnerAfterRollback() throws Exception {
-        var racing=spy(new JdbcSignupStore(source));
-        var winner=new AtomicReference<SignupService.Outcome>();
-        var pool=Executors.newSingleThreadExecutor();
-        try {
-            doAnswer(call->{
-                winner.set(pool.submit(()->service.complete(input())).get(10,TimeUnit.SECONDS));
-                throw new org.springframework.dao.DataIntegrityViolationException("synthetic-index-race",
-                    new java.sql.SQLException("users_email_key","23505"));
-            }).when(racing).insertIfAbsent(any(),any());
-            var retry=new SignupService(()->Optional.of(actor.get()),()->email.get(),racing,tx,clock);
-            var recovered=retry.complete(input());
-            assertThat(recovered.completedNow()).isFalse();
-            assertThat(recovered.result()).isEqualTo(winner.get().result());
-            assertThat(users()).isEqualTo(1);
-            assertThat(store.jdbc.queryForObject("select count(*) from discushion.user_agreements where user_id=?",
-                Integer.class,recovered.result().member().id())).isEqualTo(3);
-        } finally {pool.shutdownNow();pool.awaitTermination(5,TimeUnit.SECONDS);}
-    }
     @Test void simultaneousDifferentSubjectsSharingEmailDoNotMergeAccounts() throws Exception {
         var pool=Executors.newFixedThreadPool(2);var start=new CountDownLatch(1);
         try {

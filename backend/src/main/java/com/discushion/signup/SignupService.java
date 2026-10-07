@@ -49,15 +49,7 @@ final class SignupService {
                 if(cause instanceof java.sql.SQLException sql) {
                     String detail=sql.getMessage();
                     if("23505".equals(sql.getSQLState()) && detail!=null) {
-                        if(detail.contains("users_email_key")) {
-                            // Concurrent inserts can hit the email index before the subject conflict target.
-                            // The failed transaction has rolled back: recover only a completed, verified subject.
-                            var winner=transactions.execute(status->store.lock(actor.privySubject())
-                                .filter(member->member.completed()!=null));
-                            if(winner.isPresent()) return new Outcome(false,
-                                SignupResult.completed(winner.get().id(),winner.get().completed()));
-                            throw new SignupFailure(EMAIL_ALREADY_IN_USE,"email");
-                        }
+                        if(detail.contains("users_email_key")) throw new SignupFailure(EMAIL_ALREADY_IN_USE,"email");
                         if(detail.contains("profiles_nickname_key")) throw new SignupFailure(NICKNAME_ALREADY_IN_USE,"profile.nickname");
                     }
                     if("23503".equals(sql.getSQLState()) && detail!=null && detail.contains("profiles_activity_region_id_fkey"))
