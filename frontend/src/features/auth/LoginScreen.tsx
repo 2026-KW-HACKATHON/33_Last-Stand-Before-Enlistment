@@ -8,7 +8,7 @@ import { Input } from "../../components/ui/Input";
 import { Notice } from "../../components/ui/Notice";
 import { useNavigation } from "../../lib/navigation";
 import { useLogin } from "./provider";
-import { busy } from "./state";
+import { busy, type LoginState } from "./state";
 
 const messages = {
   failed: "로그인에 실패했습니다. 입력을 확인하고 다시 시도해 주세요.",
@@ -21,15 +21,18 @@ const messages = {
 export function LoginScreen() {
   const { state, store, source } = useLogin();
   const navigation = useNavigation();
-  const [code, setCode] = useState("");
-  const delivered = useRef(false);
+  const [input, setInput] = useState({ store, code: "" });
+  if (input.store !== store) setInput({ store, code: "" });
+  const code = input.store === store ? input.code : "";
+  const setCode = (value: string) => setInput({ store, code: value });
+  const delivered = useRef<LoginState["resolution"]>(null);
   const pending = busy(state);
   const canRetry = !state.failure || state.failure.retryable;
   const codeStep = state.phase !== "email" && state.phase !== "sending";
   const target = navigation.state.returnTo?.target ?? null;
   useEffect(() => {
-    if (state.resolution && !delivered.current) {
-      delivered.current = true;
+    if (state.resolution && delivered.current !== state.resolution) {
+      delivered.current = state.resolution;
       navigation.completeAuthentication(state.resolution.session, state.resolution.availability);
     }
   }, [state.resolution, navigation]);

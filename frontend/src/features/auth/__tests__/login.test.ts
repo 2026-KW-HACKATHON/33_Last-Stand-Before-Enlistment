@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { createNavigationStore } from "../../../lib/navigation/state";
 import { createMockLoginService } from "../mock";
-import { createLoginStore } from "../state";
+import { createLoginLifecycle, createLoginStore } from "../state";
 import type { OtpLoginService } from "../contracts";
 
 const shared = { destination: { id: "sharedPost" as const, params: { postId: "mock-post" } }, sharedContextRef: "test-context" };
@@ -123,4 +123,63 @@ test("unknown service exceptions cannot expose account-existence or credential d
   const login = createLoginStore(service); login.setEmail("example@example.test"); await login.send();
   assert.equal(login.getState().failure?.reason, "failed"); assert.ok(!JSON.stringify(login.getState()).includes("SECRET_ACCOUNT_DETAILS"));
   assert.ok(!Object.hasOwn(login.getState(), "code")); assert.ok(!Object.hasOwn(login.getState(), "token"));
+});
+
+
+test("account switch, guest transition and new attempt discard successful login results", async () => {
+  for (const next of [{ guest: true, subjectKey: null, attempt: 1 }, { guest: false, subjectKey: "B", attempt: 1 }, { guest: false, subjectKey: "A", attempt: 2 }]) {
+    const lifecycle = createLoginLifecycle(createMockLoginService("member"));
+    const scope = { guest: false, subjectKey: "A", attempt: 1 };
+    const old = lifecycle.getStore(scope);
+    old.setEmail("a@example.test"); await old.send(); await old.verify("code", null);
+    assert.ok(old.getState().resolution);
+    assert.equal(lifecycle.getStore(scope), old);
+    const current = lifecycle.getStore(next);
+    assert.equal(current.getState().resolution, null);
+    assert.equal(current.getState().providerVerified, false);
+    assert.equal(current.getState().email, "");
+    current.setEmail("b@example.test"); await current.send(); await current.verify("new-code", null);
+    assert.equal(current.getState().resolution?.session.status, "member");
+    lifecycle.dispose();
+  }
+});
+test("cancel then reentry requires fresh verification", async () => {
+  const lifecycle = createLoginLifecycle(createMockLoginService("member"));
+  const login = lifecycle.getStore({ guest: true, subjectKey: null, attempt: 1 });
+  login.setEmail("a@example.test"); await login.send(); await login.verify("code", null);
+  login.cancel();
+  const current = lifecycle.getStore({ guest: true, subjectKey: null, attempt: 2 });
+  assert.equal(current.getState().resolution, null);
+  await current.retrySession(null);
+  assert.equal(current.getState().resolution, null);
+  current.setEmail("a@example.test"); await current.send(); await current.verify("code", null);
+  assert.ok(current.getState().resolution);
+  lifecycle.dispose();
+});
+test("account switch aborts pending verification and ignores its late result", async () => {
+  let complete!: (value: { kind: "verified" }) => void;
+  let signal!: AbortSignal;
+  let resolved = 0;
+  const mock = createMockLoginService("member");
+  const lifecycle = createLoginLifecycle({ ...mock, verifyCode: async (_email, _code, nextSignal) => { signal = nextSignal; return new Promise(resolve => { complete = resolve; }); }, resolveSession: async (...args) => { resolved++; return mock.resolveSession(...args); } });
+  const old = lifecycle.getStore({ guest: false, subjectKey: "A", attempt: 1 });
+  old.setEmail("a@example.test"); await old.send();
+  const pending = old.verify("code", null);
+  const current = lifecycle.getStore({ guest: false, subjectKey: "B", attempt: 1 });
+  assert.ok(signal.aborted); complete({ kind: "verified" }); await pending;
+  assert.equal(resolved, 0); assert.equal(current.getState().resolution, null);
+  lifecycle.dispose();
+});
+
+
+test("first authenticated identity preserves the current signup handoff", async () => {
+  const lifecycle = createLoginLifecycle(createMockLoginService("newcomer"));
+  const login = lifecycle.getStore({ guest: true, subjectKey: null, attempt: 1 });
+  login.setEmail("new@example.test"); await login.send(); await login.verify("code", null);
+  const resolution = login.getState().resolution;
+  assert.equal(resolution?.session.status, "signup-incomplete");
+  const current = lifecycle.getStore({ guest: false, subjectKey: "first-member", attempt: 1 });
+  assert.equal(current, login);
+  assert.equal(current.getState().resolution, resolution);
+  lifecycle.dispose();
 });

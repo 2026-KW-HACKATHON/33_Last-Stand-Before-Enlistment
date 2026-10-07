@@ -19,7 +19,7 @@ export function InstitutionStatusView({subjectId,targetRegionId,onBack,onEnterWo
  const active=value&&isCurrentInstitution(state,subjectId);const details=value&&"institution" in value ? value : null;
  const busy=access.status==="loading";
  return <section aria-label="기관 자격 상태" aria-busy={busy} className="flex flex-col gap-section">
-  <h2 className="text-section-title">기관 자격 상태</h2>
+  <h2 className="text-section">기관 자격 상태</h2>
   <div role="status" aria-live="polite"><Notice tone={access.status==="error" ? "error" : "info"}>
    {busy ? "기관 자격을 확인하고 있습니다." : access.status==="error" ? "기관 자격을 확인하지 못했습니다. 다시 조회해 주세요." : access.status==="login-required" ? "로그인 후 본인의 기관 자격을 확인해 주세요." : access.status==="signup-required" ? "가입 완료 후 본인의 기관 자격을 확인해 주세요." : value?.status==="none" ? "기관 자격이 없습니다. 일반 회원 기능은 계속 이용할 수 있습니다." : active ? "현재 유효한 기관 자격입니다." : "기관 자격이 만료되었거나 유효하지 않습니다. 기관 배지와 업무 접근이 제한됩니다."}
   </Notice></div>

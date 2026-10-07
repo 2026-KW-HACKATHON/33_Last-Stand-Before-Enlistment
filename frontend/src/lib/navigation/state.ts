@@ -10,6 +10,7 @@ export type NavigationEntry = {
 export type SnapshotKind = "list" | "search" | "map" | "form";
 export type SnapshotReference = { destination: Destination; kind: SnapshotKind; ref: string };
 export type NavigationState = {
+  authenticationAttempt: number;
   current: NavigationEntry | null;
   history: readonly NavigationEntry[];
   returnTo: { target: NavigationEntry; cancelTo: NavigationEntry } | null;
@@ -40,7 +41,7 @@ export function snapshotReference(state: NavigationState, destination: Destinati
 /** Per-provider memory only. A feature owns the values addressed by snapshot references. */
 export function createNavigationStore(initialEntry?: NavigationEntry) {
   let state: NavigationState = {
-    current: initialEntry ? cleanEntry(initialEntry) : null, history: [], returnTo: null, snapshots: [],
+    authenticationAttempt: 0, current: initialEntry ? cleanEntry(initialEntry) : null, history: [], returnTo: null, snapshots: [],
   };
   const listeners = new Set<() => void>();
   function update(next: NavigationState) {
@@ -53,12 +54,14 @@ export function createNavigationStore(initialEntry?: NavigationEntry) {
     // Unconfirmed URLs are an explicit intent for consumers, never a fabricated navigation.
     if (!cleaned || result.status !== "ready") return result;
     const history = replace || !state.current ? state.history : [...state.history, state.current];
-    update({ ...state, current: cleaned, history });
+    const startsAuthentication = ["login", "signup"].includes(cleaned.destination.id) && !["login", "signup"].includes(state.current?.destination.id ?? "");
+    update({ ...state, current: cleaned, history, authenticationAttempt: state.authenticationAttempt + Number(startsAuthentication) });
     return result;
   }
-  function finish(entry: NavigationEntry, notice?: "unavailable"): NavigationResult {
+  function finish(entry: NavigationEntry, notice?: "unavailable", onIntent?: (entry: NavigationEntry) => void): NavigationResult {
     const result = resolveDestination(entry.destination);
-    if (result.status !== "ready") return result;
+    if (result.status === "unresolved" && onIntent) onIntent(entry);
+    else if (result.status !== "ready") return result;
     update({ ...state, current: cleanEntry(entry), history: [], returnTo: null });
     return { ...result, ...(notice ? { notice } : {}) };
   }
@@ -79,9 +82,12 @@ export function createNavigationStore(initialEntry?: NavigationEntry) {
       if (!canonical) return;
       const key = destinationKey(canonical);
       if (state.current && destinationKey(state.current.destination) === key) return;
+      const startsAuthentication = ["login", "signup"].includes(canonical.id) && !["login", "signup"].includes(state.current?.destination.id ?? "");
       const index = state.history.findLastIndex(entry => destinationKey(entry.destination) === key);
-      if (index >= 0) update({ ...state, current: state.history[index], history: state.history.slice(0, index) });
-      else update({ ...state, current: { destination: canonical }, history: state.current ? [...state.history, state.current] : state.history });
+      if (index >= 0) update({ ...state, current: state.history[index], history: state.history.slice(0, index), authenticationAttempt: state.authenticationAttempt + Number(startsAuthentication) });
+      else {
+        update({ ...state, current: { destination: canonical }, history: state.current ? [...state.history, state.current] : state.history, authenticationAttempt: state.authenticationAttempt + Number(startsAuthentication) });
+      }
     },
     back(): NavigationResult {
       if (!state.current) return { status: "invalid" };
@@ -108,13 +114,13 @@ export function createNavigationStore(initialEntry?: NavigationEntry) {
       return move({ destination: { id: step } }, true);
     },
     /** Must be called after the real adapter confirms membership and target availability. */
-    completeAuthentication(session: SessionState, availability: TargetAvailability): NavigationResult | { status: "loading" | "error" } {
+    completeAuthentication(session: SessionState, availability: TargetAvailability, onIntent?: (entry: NavigationEntry) => void): NavigationResult | { status: "loading" | "error" } {
       if (session.status === "loading" || availability === "loading") return { status: "loading" };
       if (session.status === "error" || availability === "error") return { status: "error" };
       if (session.status === "guest") return move({ destination: { id: "login" } }, true);
       if (session.status === "signup-incomplete") return move({ destination: { id: "signup" } }, true);
       if (availability === "unavailable") return finish({ destination: { id: "home" } }, "unavailable");
-      return finish(state.returnTo?.target ?? { destination: { id: "home" } });
+      return finish(state.returnTo?.target ?? { destination: { id: "home" } }, undefined, onIntent);
     },
     cancelAuthentication(): NavigationResult {
       return finish(state.returnTo?.cancelTo ?? { destination: { id: "start" } });
@@ -130,7 +136,7 @@ export function createNavigationStore(initialEntry?: NavigationEntry) {
       update({ ...state, snapshots: state.snapshots.filter(item => destinationKey(item.destination) !== destinationKey(destination) || item.kind !== kind) });
     },
     /** Session adapter calls this on logout/account switch; feature stores clear their own values. */
-    clear() { update({ current: null, history: [], returnTo: null, snapshots: [] }); },
+    clear() { update({ authenticationAttempt: state.authenticationAttempt, current: null, history: [], returnTo: null, snapshots: [] }); },
   };
 }
 export type NavigationStore = ReturnType<typeof createNavigationStore>;

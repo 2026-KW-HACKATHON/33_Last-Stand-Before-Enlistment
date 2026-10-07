@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import { Button } from "../../components/ui/Button";
+import { TextArea } from "../../components/ui/TextArea";
 import { Input } from "../../components/ui/Input";
 import { Notice } from "../../components/ui/Notice";
 import type { ProfileStepProps, RegionStepProps, SignupEditors } from "../signup/contracts";
@@ -23,7 +24,7 @@ export function ProfileFields({ value, onChange, disabled, photoUrl, signup = fa
  {!service?.photoPolicy && <Notice>사진 연결 준비 중입니다.</Notice>}
  <Input label="닉네임" value={value.nickname} disabled={disabled} aria-invalid={!value.nickname.trim() || Array.from(value.nickname.trim()).length > 10} onChange={e => onChange({ ...value, nickname: e.currentTarget.value })} />
  <Notice>{signup ? "중복 없이 최대 10자" : "최대 10자 · 중복 불가"}</Notice>
- {!signup && <><Input label="한 줄 소개" value={value.bio} disabled={disabled} aria-invalid={Array.from(value.bio).length > 50} onChange={e => onChange({ ...value, bio: e.currentTarget.value })} /><Notice>최대 50자</Notice></>}
+ {!signup && <><TextArea label="한 줄 소개" value={value.bio} disabled={disabled} aria-invalid={Array.from(value.bio).length > 50} onChange={e => onChange({ ...value, bio: e.currentTarget.value })} /><Notice>최대 50자</Notice></>}
  <fieldset disabled={disabled} className="flex flex-col gap-section"><legend className="mb-section text-caption">이웃 속성 · 복수 선택</legend><div className="grid grid-cols-3 gap-internal">{attributes.map(label => <button type="button" key={label} aria-pressed={value.attributes.includes(label)} className={"rounded-chip px-page py-internal text-caption disabled:opacity-50 " + (value.attributes.includes(label) ? "bg-selected text-surface" : "bg-[#F3F4F6] text-[#4B5563]")} onClick={() => onChange({ ...value, attributes: value.attributes.includes(label) ? value.attributes.filter(v => v !== label) : [...value.attributes, label] })}>{value.attributes.includes(label) ? "☑" : "□"} {label}</button>)}</div></fieldset>
  </>;
 }
