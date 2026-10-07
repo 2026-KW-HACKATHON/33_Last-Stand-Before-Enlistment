@@ -1150,3 +1150,9 @@ GET    /users/me/activity
 ```
 
 제품 범위·정책은 최신 정본으로 정렬했으며, 기술 초안의 경로/필드/Enum은 FE/BE 합의·실제 구현 대조 전 확정 완료로 표시하지 않는다.
+
+## 내부 독립 개발 규약 (2026-10-07)
+
+Backend 내부 호출은 [계약 검토표 §11](Discushion_API_CONTRACT_검토표_2026-10-07.md#11-독립-개발용-내부-인터페이스-상세안-2026-10-07)을 따른다. CurrentActor/MemberQualification/MemberWriteGuard/PostContext와 참여 batch 집계·게시물 batch 요약·삭제 시 북마크 해제 port를 준비했다. 이는 HTTP Request/Response 확정이나 실제 adapter 구현을 뜻하지 않는다.
+
+BE1은 A·C·D/참여 집계, BE2는 B/게시물 요약·사진·환경을 맡으며 각자 자기 API/Migration을 작성한다. 삭제 시 공개/공유/추가 참여를 차단하고 북마크 자동 해제·사진 삭제 예약은 같은 DB transaction으로 처리한다. 참여/활동/기관 감사 관계는 보존하되 삭제 콘텐츠·선택지·결과는 비노출한다. 삭제 투표의 개인 이력은 기존 UNAVAILABLE 계약을 유지한다. 진행 중 투표의 질문·선택지·지역·주제 변경 금지, 종료 후 수정/삭제/신규·변경 제출 금지는 유지한다.
