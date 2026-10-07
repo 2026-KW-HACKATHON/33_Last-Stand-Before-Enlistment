@@ -70,3 +70,9 @@ $env:DISCUSHION_TEST_JDBC_URL = 'jdbc:postgresql://127.0.0.1:55432/discushion_mi
 사용자 요청으로 back/develop `42dfb14`의 기존 `20261007104543_support_photo_cleanup_leases.sql`1개를 지정 개발 Supabase에 적용했다. dry-run으로 단일 파일을 확인했고 역할/seed/Vault 변경 없이 CLI2.120.0 db push를 사용했다. 이전176컬럼/이력4개 기록을 대신하는 최신 원격 상태는 **27테이블·180컬럼·이력5개·FK55·RLS27**이다. 권한 만료/삭제 claim4컬럼·검증된6제약·유효 cleanup 인덱스2개, 기존 사진/파일0행 보존, 후속 dry-run 적용 대상0을 확인했다.
 
 원격 smoke의 기대 Schema/이력을 갱신했으며 localhost 시험과 원격 opt-in3개를 포함한 전체 Java17 test/build69통과/skip0이다. 실제 원격 시험은SELECT-only이고 기능 쓰기 시험은localhost에만 수행했다. 적용된5개 파일은 수정하지 않았다. 실제 서버 계정·Storage/worker·FE 연결 완료와 구분한다. 실행 기록과 잔여 경계는 [DB 연결 결정 기록](../docs/collaboration/backend-db-connection-decisions.md)의 최신 절 및 [API 계약 검토표 §14.5](../docs/api/Discushion_API_CONTRACT_검토표_2026-10-07.md#145-최신-기준-pull사진-보완-원격-적용-2026-10-08)를 따른다.
+
+## #30 실행 계정 후속 Migration (2026-10-08)
+
+`20261007202633_configure_server_runtime_permissions.sql`은 현재 Spring 가입·권한·지역·사진 구현의 서버 역할과 작업별 RLS를 준비한다. 계정은 NOLOGIN/비밀번호 없음이며 현재 코드용 11개 테이블에만 명시적인 권한/정책 26개를 추가한다. 테이블 정의·기존 5개 적용 파일은 보존하고 미래 기능 권한이나 default privilege를 추가하지 않는다. 기존 전체 MVP 권한표의 나머지 항목은 기능 구현 때 검토한다.
+
+CI는 새 Migration까지 처음부터 적용하고 공개 API 역할 차단 시험에서도 동일 파일을 적용한다. 실제 LOGIN/가입/사진 연결과 금지 작업 시험은 Java의 `ServerRuntimePermissionsIntegrationTests`에서 격리 localhost에만 수행한다. 실제 원격은 **이력5개·계정/정책 미적용** 상태로 유지한다. BE1 승인·병합 후 공용 DB 적용·비밀번호 설정/LOGIN·TLS 연결·실제 최소 권한 시험을 진행한다. 절차와 검증 경계는 [DB 연결 결정 기록](../docs/collaboration/backend-db-connection-decisions.md)의 마지막 절을 따른다.
