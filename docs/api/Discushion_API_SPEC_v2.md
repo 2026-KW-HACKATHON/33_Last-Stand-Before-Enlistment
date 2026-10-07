@@ -645,6 +645,8 @@ VOTE는 vote를 추가:
 
 ### 5.4 게시물 생성·사진
 
+#74 사진 JSON/API의 최신 BE1 검토안은 §13을 참조한다. FE/BE2 wire 확인 전 구현 계약으로 고정하지 않으며 아래 multipart는 변경 전 예시다.
+
 > **전송 계약 변경 대기:** 게시물 사진은 Supabase Storage에 저장하며 회원·게스트·사진 URL을 아는 앱 외부 사람 모두 열람할 수 있다. JPG/PNG·최대 10장·게시물 합계 10MB를 유지한다. 사진 제거·교체 및 게시물 전체 삭제 시 해당 저장 파일을 지운다. 미완료 업로드는 임시 보관 후 24시간이 지나면 정리한다. 업로드 권한·최종 연결·bytes 환산·삭제 보상·24시간 기준시각/정리 간격/경합·임시 파일 공개 시점은 #74/#13/#30에서 합의한다. 이는 게시물 임시저장 기능을 추가한다는 뜻이 아니다. 아래 multipart·newImageIndex 등의 전송 예시는 변경 전 제안이다. 직접 업로드의 파일 참조/Endpoint/DTO는 #74 합의 후 고정하며 게시물 제품 입력·유형 제약은 유지한다.
 
 `POST /posts`, 해당 지역 이웃 인증 완료 회원, multipart, 201 최신 상세 DTO. 서버는 사용자/지역 자격·공통 및 유형 입력·사진을 검증하고 원본과 하위 데이터를 저장한다. 성공한 postId의 상세로 FE가 이동하며 목록/마이/지도도 같은 원본을 사용한다.
@@ -699,6 +701,8 @@ images: 반복 파일 part (선택, 첨부 순서 유지)
 사진 선택·카메라/갤러리·미리보기·교체·제거는 제출 전 FE 파일 큐에서 지원한다. 화면 왕복/선택 취소/저장 실패 시 공통/유형별 입력과 기존 사진 유지. 성공 때만 연결 완료로 표시한다. 파일 부분 실패 시 게시물 생성 완료로 표시하지 않는 원자 저장/보상 처리는 **[설계 제안]**.
 
 ### 5.5 게시물 수정·삭제
+
+#74의 기존 photoId/신규 fileId 최종 순서 배열과 삭제 예약/최종 완료 응답 구분은 §13의 BE1 검토안에 정리했다. FE/BE2 확인 전 구현 계약으로 고정하지 않는다.
 
 > **전송 계약 변경 대기:** 게시물 사진은 Supabase Storage에 저장하며 회원·게스트·사진 URL을 아는 앱 외부 사람 모두 열람할 수 있다. JPG/PNG·최대 10장·게시물 합계 10MB를 유지한다. 사진 제거·교체 및 게시물 전체 삭제 시 해당 저장 파일을 지운다. 미완료 업로드는 임시 보관 후 24시간이 지나면 정리한다. 업로드 권한·최종 연결·bytes 환산·삭제 보상·24시간 기준시각/정리 간격/경합·임시 파일 공개 시점은 #74/#13/#30에서 합의한다. 이는 게시물 임시저장 기능을 추가한다는 뜻이 아니다. 아래 multipart·newImageIndex 등의 전송 예시는 변경 전 제안이다. 직접 업로드의 파일 참조/Endpoint/DTO는 #74 합의 후 고정하며 게시물 제품 입력·유형 제약은 유지한다.
 
@@ -1150,3 +1154,61 @@ GET    /users/me/activity
 ```
 
 제품 범위·정책은 최신 정본으로 정렬했으며, 기술 초안의 경로/필드/Enum은 FE/BE 합의·실제 구현 대조 전 확정 완료로 표시하지 않는다.
+
+## 13. #74 사진 API BE1 검토안 — FE/BE2 wire 확인 대기
+
+2026-10-07 사용자 요청으로 BE2 원문 `back/feature/74-photo-contract`의 `4f7bb25` / 검토표 §10.8~10.9를 대조했다. 실행 방향 1~4는 사용자 채택이며 아래 경로·DTO·응답 코드·bytes는 **BE1 검토안**이다. FE/BE2 확인자·날짜·대상 SHA/PR이 기록되기 전 확정 계약이나 #13 구현 완료로 취급하지 않는다. 아래 안이 확인되면 §5.4~5.5의 변경 전 multipart/newImageIndex 예시를 대체한다. 인증 토큰/header/cookie 방식은 #74 인증 계약의 선행 조건을 유지한다.
+
+### 13.1 전송·ID·용량
+
+- 모든 앱 경로의 prefix는 `/api/v1`. 가입 완료 회원의 검증된 로컬 회원 ID를 owner로 사용한다. 업로드 준비/완료/조회/취소에 `regionId`는 허용하지 않는다. 최종 게시물 작성·변경에서 대상 지역 자격/소유권/게시물 상태를 재검증한다.
+- `fileId`, `photoId`, `postId`는 기존 전역 계약의 양의 JSON number, 최대 9007199254740991. fileId는 media_files.id, photoId는 post_photos.id이며 서로 대체하지 않는다.
+- **BE1/FE 확인 대기인 환산안: 10MB = 10,000,000 bytes.** 최종 전체 사진 최대 10장, 서버가 검증한 실제 크기 합계로 계산한다. 신고 sizeBytes는 양의 정수이며 개별 파일도 게시물 전체 한도를 초과할 수 없다. 확장자/신고 MIME만으로 통과시키지 않고 실제 JPG/PNG 내용을 검증한다.
+- 최초 예약 createdAt와 최초 검증 완료 uploadedAt을 유지한다. UPLOADING의 cleanupEligibleAt은 createdAt+24h, UNLINKED는 uploadedAt+24h. 업로드 권한의 upload.expiresAt와 연결 마감 linkExpiresAt은 별개다. LINKED/LEGACY는 자동 만료 대상이 아니다.
+
+### 13.2 API와 공통 상태 DTO
+
+| Method·경로 | 요청 | 성공 응답·멱등 의미 |
+| --- | --- | --- |
+| POST /photo-uploads | JSON `{originalName, contentType, sizeBytes}`. contentType은 image/jpeg 또는 image/png 신고값 | 201 `{data:{fileId,status:"UPLOADING",createdAt,cleanupEligibleAt,upload:{url,method,headers,expiresAt}}}`. method/headers는 실제 Storage adapter가 검증한 전송 정보이며 비밀 관리 키를 포함하지 않는다. 권한 발급 성공 전 만료 추적을 영속 기록한다. |
+| POST /photo-uploads/{fileId}/complete | 빈 JSON 객체. 바이너리/실제 크기/owner/region 값을 받지 않음 | 200 `{data:PhotoUploadView}`. 실제 object를 검증한 뒤 최초 uploadedAt 설정·MIME/bytes 갱신·UNLINKED 전환. 반복 완료는 시간을 연장하지 않으며 이미 LINKED면 기존 검증 결과와 canAttach=false 반환. |
+| GET /photo-uploads/{fileId} | 본인 fileId, body 없음 | 200 `{data:PhotoUploadView}`. DELETE_PENDING/DELETED/만료 상태도 본인에게 조회 가능. 조회 자체가 완료 검증·권한 재발급을 수행하지 않는다. |
+| DELETE /photo-uploads/{fileId} | 본인 미연결 POST_PHOTO, body 없음 | 삭제 예약 확정/이미 대기면 202 `{data:PhotoUploadView}`. 이미 최종 DELETED면 200 같은 상태. LINKED는 409로 거부하고 게시물 변경 API를 거친다. 존재하지 않거나 타인 파일은 모두 404. |
+
+PhotoUploadView 필드:
+
+| 필드 | 타입·의미 |
+| --- | --- |
+| fileId, status | number, LEGACY/UPLOADING/UNLINKED/LINKED/DELETE_PENDING/DELETED |
+| contentType, sizeBytes, url | 검증 완료 파일만 MIME/number/공개 URL, 미검증이면 null. 삭제 대기/완료의 url은 null이어도 이미 알려진 URL 접근 차단을 보장하는 뜻은 아님 |
+| createdAt, uploadedAt | 전역 시각 문자열; uploadedAt은 미검증일 때 null |
+| uploadAuthorizationExpiresAt | 마지막으로 발급한 모든 업로드 권한 중 최댓값의 만료시각, 발급 전/legacy는 null. signed URL/token 원문 반환 없음 |
+| cleanupEligibleAt, linkExpiresAt | 정리 후보 시각 / UNLINKED 연결 마감시각. 자동 정리 제외 상태에는 null. canAttach는 요청 시점의 실제 참조·상태·소유권·시간을 재검사한 boolean |
+| canAttach, deletionCompleted | boolean. deletionCompleted는 최종 DELETED만 true. 단순 예약/한 번의 Storage 삭제 성공은 false |
+| deleteRequestedAt, deletedAt | nullable 시각. 최초 예약/최종 확인 시각이며 반복 취소로 예약 시각을 갱신하지 않음 |
+
+검증 실패는 파일을 연결 가능 상태로 승격하지 않고 DELETE_PENDING 예약을 영속 저장한 뒤 오류를 반환한다. Storage 일시 장애는 검증 성공으로 처리하지 않는다. signed 권한 재발급은 최초 시각을 유지하고 상태/소유권을 검사하며 기존과 새 권한의 최대 만료를 보존한다. 발급 실패/프로세스 장애 때문에 이미 발급된 권한 추적을 잃지 않도록 #13에서 검증한다. 미완료 예약 수/용량·발급 빈도 제한 수치는 #13 전에 별도 합의하며 이 안은 임의 값을 추가하지 않는다.
+
+### 13.3 게시물 JSON 사진 참조
+
+- POST /posts는 JSON 요청의 기존 유형별 필드에 `photoFileIds:[101,102]`를 추가한다. 생략/빈 배열은 사진 없음, null·중복 ID는 입력 오류. 배열 순서가 최종 sort_order 0부터의 연속 순서다.
+- PATCH /posts/{postId}는 JSON `photoOrder:[{"photoId":801},{"fileId":102}]`를 사용한다. 생략=기존 유지, []=모두 제거, 지정=최종 전체 사진 구성. 각 항목은 photoId 또는 fileId 하나만 허용하며 null·두 참조 동시 지정·같은 실제 파일의 중복·타 게시물 photoId를 거부한다.
+- 기존 photoId는 해당 게시물의 사진만 유지/재정렬한다. 신규 fileId는 본인 POST_PHOTO·서버 검증 완료·미연결·미만료 파일만 허용한다. 같은 파일의 다중 게시물 연결은 서비스 검사와 DB UNIQUE(file_id)로 차단한다.
+- 게시물/파일 권한 재검증, 모든 관련 media_files 행의 ID 오름차순 잠금, 참조·LINKED 갱신 및 제거된 파일의 DELETE_PENDING 예약은 같은 DB 트랜잭션이다. Storage 삭제는 커밋 이후 수행한다. rollback 시 기존 object를 먼저 삭제하지 않는다.
+- POST/PATCH는 201/200 상세 DTO를 유지한다. PATCH에서 삭제 예약이 있으면 `meta.photoDeletion:{status:"PENDING",fileIds:[제거된 본인 fileId]}`를 함께 반환하고 본인 파일 상태 GET으로 최종 확인한다. 최종 삭제 확인 후에는 같은 GET이 deletionCompleted=true를 반환한다.
+- DELETE /posts/{postId}의 기존 204는 게시물 비노출·관계 처리·삭제 예약 커밋을 뜻하며 Storage 최종 삭제 완료를 뜻하지 않는다. FE는 기존 상세에서 본인 fileId를 보존해 상태를 조회한다. 이 204 의미와 PATCH meta는 FE 확인 항목이며 실제 저장 파일 삭제는 #13/#16 인수 조건으로 남긴다.
+
+### 13.4 오류안과 확인 조건
+
+전역 `{code,message,details,traceId}` 오류 envelope를 유지하고 아래 code/status는 FE/BE2 확인 후 고정한다. 토큰·signed URL·worker claim·DB 원문 오류를 반환하지 않는다.
+
+| HTTP | code 제안 | 의미 |
+| --- | --- | --- |
+| 401 / 403 | 기존 인증 오류 / REGISTRATION_INCOMPLETE 또는 기존 권한 오류 | 인증 실패 / 미가입 완료 및 최종 게시물 권한 거부. 정확한 인증 오류명은 #74 인증 계약을 따름 |
+| 404 | PHOTO_UPLOAD_NOT_FOUND | 없음·타인·다른 용도 파일을 동일하게 처리 |
+| 409 | PHOTO_UPLOAD_NOT_READY / PHOTO_UPLOAD_EXPIRED / PHOTO_ALREADY_LINKED / PHOTO_DELETION_PENDING | object 미확인·만료·중복 연결·취소/정리 경합. 재시도 전 GET 상태 확인 |
+| 400 | VALIDATION_ERROR | 참조 중복/배열 구조/regionId 등 허용하지 않은 요청 필드 |
+| 413 / 415 | PHOTO_SIZE_EXCEEDED / PHOTO_FORMAT_UNSUPPORTED | 검증된 용량 초과 / 실제 JPG·PNG 외 형식. 완료 실패 파일은 삭제 예약 |
+| 503 | PHOTO_STORAGE_UNAVAILABLE | Storage 확인/권한 발급 일시 장애. 성공/삭제 완료로 표시하지 않음 |
+
+FE/BE2 확인 대상은 숫자 ID, endpoint/요청·응답, Storage 전송 method/headers, JSON 최종 순서, 10,000,000 bytes, 오류와 재시도, 202 삭제 대기/200 최종 삭제/게시물 204 의미, 상태 polling 동작이다. #74에 실제 확인자·날짜·문서 SHA/PR·이견을 기록하고 계약과 필요한 DB 보완이 back/develop에 반영된 뒤 #13/#14/#16 의존 코드를 구현한다. FE 확인을 받은 증거가 아직 없으므로 최종 확정/구현 완료 체크를 하지 않는다.

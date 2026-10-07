@@ -53,7 +53,9 @@ const addedColumns = {
   media_files: [['lifecycle_status','text',false], ['uploaded_at','timestamp with time zone',true],
     ['linked_at','timestamp with time zone',true], ['delete_requested_at','timestamp with time zone',true],
     ['deleted_at','timestamp with time zone',true], ['deletion_attempts','integer',false],
-    ['next_delete_attempt_at','timestamp with time zone',true], ['last_delete_error_code','text',true]]
+    ['next_delete_attempt_at','timestamp with time zone',true], ['last_delete_error_code','text',true],
+    ['upload_authorization_expires_at','timestamp with time zone',true], ['deletion_claim_token','uuid',true],
+    ['deletion_claimed_at','timestamp with time zone',true], ['deletion_claim_expires_at','timestamp with time zone',true]]
 };
 const entities = new Map();
 const typeMap = { bigint: 'bigint', integer: 'integer', text: 'text', boolean: 'boolean', timestamp: 'timestamp with time zone' };
@@ -121,6 +123,8 @@ for (const [, child, childCols, parent, parentCols] of composite) {
 if (catalog.compositeFks.length !== 8 || composite.length !== 8) errors.push('복합 FK 개수');
 if (!catalog.keys.some(k => k.table === 'users' && k.kind === 'u' && JSON.stringify(k.columns) === '["privy_user_id"]'))
   errors.push('Privy 1:1 유일성');
+if (!catalog.keys.some(k => k.table === 'post_photos' && k.kind === 'u' && JSON.stringify(k.columns) === '["file_id"]'))
+  errors.push('#74 파일 단일 게시물 연결 유일성');
 console.log(JSON.stringify({ scope: 'legacy-preserving schema + approved v10.2 Privy/registration/media columns; API/worker excluded',
   nullableOverrides: [...nullableOverrides], tables: entities.size, columns: fields, singleReferences,
   compositeFks: composite.length, errors }, null, 2));

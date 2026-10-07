@@ -49,7 +49,7 @@ try {
     throw ('재실행 비교 실패: Schema={0}, 이력={1}, 데이터={2}' -f
       ($taskBeforeSchema -cne $taskAfterSchema),($taskBeforeHistory -cne $taskAfterHistory),($taskBeforeData -cne $taskAfterData))
   }
-  Write-Output 'PASS: 무결성 113개 및 Migration 재실행의 Schema/이력/기존 데이터 불변 확인'
+  Write-Output 'PASS: DB 무결성 시험 및 Migration 재실행의 Schema/이력/기존 데이터 불변 확인 (assertion 수는 SQL 출력 참조)'
 } finally {
   # 이 실행이 만든 합성 표식만 제거. 다른 데이터·Schema·DB를 초기화하지 않는다.
   if($taskMarkerCreated) {

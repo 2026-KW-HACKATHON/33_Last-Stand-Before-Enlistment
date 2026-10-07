@@ -1,5 +1,9 @@
 # Discushion DB Schema / Issue #3
 
+## #74 사진 저장 구조 검토 후속
+
+`20261007104543_support_photo_cleanup_leases.sql`을 추가해 미완료/실패 파일의 삭제 예약, 업로드 권한 만료와 삭제 선점/복구 저장 구조, 파일당 현재 게시물 참조 UNIQUE를 준비했다. 로컬 카탈로그는 27테이블·180컬럼, DB 시험 128개·권한 모의9개·재실행 불변을 검증했다. 원격은 기존 이력4개/176컬럼이며 새 Migration은 미적용이다. [검토표 §10.10](../docs/api/Discushion_API_CONTRACT_검토표_2026-10-07.md)와 [API 정본 §13의 FE/BE2 확인 대기 계약](../docs/api/Discushion_API_SPEC_v2.md)을 먼저 확인한다. 아래 #3의 113개/176컬럼/이력4개 수치는 당시 검증 기록이다. 실제 Storage worker·최소 권한 서버 계정·FE 연동 완료를 뜻하지 않는다.
+
 > **최신 기준 dad35c0 / MVP v10.2:** [승인된 MVP DB 반영](../docs/architecture/Discushion_Issue3_MVP_v10.2_반영.md)을 우선 확인한다. Migration 4개로 legacy 포함 27테이블·176컬럼을 구성했다. 기존 비밀번호·증빙 필수 의존 해제, Privy 회원 1:1/가입 완료, 사진 lifecycle·24시간 정리 후보/삭제 재시도 저장 구조를 사용자 승인 후 로컬 검증하고 지정 Supabase에 적용했다. 실제 Privy API/Storage worker나 BE2 검토·최소 권한 서버 역할 완료를 뜻하지 않는다.
 
 Migration 도구는 사용자 승인에 따라 **Supabase CLI**를 사용한다. 검증한 CLI 버전은 **2.120.0**이며 다음처럼 버전을 고정해서 실행한다. 다른 Migration 도구와 중복 관리하지 않는다.
