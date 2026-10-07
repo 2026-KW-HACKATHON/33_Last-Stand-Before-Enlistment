@@ -469,6 +469,31 @@ DB 검토: uploaded_at 없는 삭제 상태 추적, 발급 만료 최댓값 저�
 
 최신 기준의 Backend test/build 및 격리 PostgreSQL CI 결과는 PR #85와 #74에 실행 후 기록한다. 기존 시험 결과는 그대로 보존하며 새 CI로 검증한 범위와 실제 FE/Storage 미실행을 구분한다. 필수 리뷰·wire/필수 계약 확인 전에는 PR 병합이나 #13 의존 구현 완료로 기록하지 않는다.
 
+### 10.12 사진 잔여 계약 구체화 — BE2 실행 기준 (2026-10-07)
+
+사용자가 PR #85 병합 후 다음 작업인 사진 잔여 계약 마무리를 요청했다. API 정본 §13.5~13.7에 다음을 구체화했다. 같은 주제의 재발급 허용·예약 제한 수치 미정 표현은 이 기준으로 대체하며 제품 사진 한도/삭제/24시간 정리와 공통 규약은 유지한다.
+
+- 같은 예약의 권한 재발급 endpoint는 만들지 않는다. 유효한 최초 URL의 전송 실패는 같은 key로 재시도하되 덮어쓰기는 금지한다. 성공 여부가 불분명하면 complete로 확인하고, fileId를 아는 권한 만료/전송 정보 유실은 이전 예약 취소 후 새 fileId/key로 예약한다. 최초 응답 전체 유실로 fileId를 모르면 §10.13의 별도 서버 추적/정리·명시적 재시도 흐름을 따른다.
+- 초기 서버 예약 보호 기준: 회원당 UPLOADING/UNLINKED/DELETE_PENDING 20개·신고 합계100,000,000 bytes, 최근60초 새 예약20개. 삭제 예약은 실제 최종 정리 전 슬롯 반환으로 취급하지 않는다. users 잠금과 같은 DB transaction에서 제한 조회/예약을 원자 처리한다. 실 Storage 사용량 상한으로 주장하지 않는다.
+- 게시물 10MB는 BE2 실행 기준 10,000,000 bytes로 정리한다. 영역 오류안409 PHOTO_UPLOAD_QUOTA_EXCEEDED/429 PHOTO_UPLOAD_RATE_LIMITED·Retry-After와 FE 재시도/삭제 상태 확인을 명시했다. 공통 오류 envelope나 인증 코드 registry는 변경하지 않았다.
+- provider 호출 전 잠재 권한 만료 상한을 기록하고 commit 후 외부 호출한다. provider TTL/시각/timeout·응답 유실·프로세스 장애·상한 확장 저장·취소 재검사와 최종 삭제 시 진행 중 전송 종료/재생성 방어는 #13 실제 adapter 검증 조건이다. 확인 불가하면 DELETE_PENDING 유지이며 임의 시간이 안전성 보장이 아니다.
+- FE가 확인할 endpoint/숫자ID/bytes/최종배열/Storage 직접 전송·오류/재시도·202/200/204 표를 API §13.7과 통합 지침서에 준비했다. 최신 FE 문서 대조는 합의 대기를 확인한 것이며 FE 승인·외부 연락·실제 연동 완료가 아니다.
+
+이번 변경은 기존 문서 내용만 갱신한다. Java 기능·추가 Migration·FE 브랜치·Storage 프로젝트·비밀 변수는 변경하지 않는다. FE wire 확인과 계약 PR 통합 전 #13 의존 endpoint를 임의 구현하지 않는다. #74의 인증 잔여 계약/실제 환경 검증은 별도 유지한다.
+
+### 10.13 PR #107 Codex 리뷰 보완안 (2026-10-07)
+
+2026-10-08 FE 계약 확인 기록: FE 담당 sungjin0616은 [PR #107 코멘트](https://github.com/2026-KW-HACKATHON/33_Last-Stand-Before-Enlistment/pull/107#issuecomment-6041114660)에서 상세 사진 DTO·PUT/RAW 전송·응답 유실 재시도·meta 보존을 구현 가능한 계약으로 확인했다. 사용자는 같은 날 FE에게 계약 자체에 문제가 없고 구현 가능하다는 확인을 전달받았다고 명시했다. 아래 과거 FE 확인 대기 표시는 이 기록으로 갱신한다. FE 코드 구현·실제 연동 완료나 GitHub Approve를 뜻하지 않는다. 최신 사진 계약에 대한 BE1 승인 1명과 back/develop 통합은 아직 필요하며, 실제 Storage/서버 계정 검증과 사용자 흐름은 #13/#30/#31에서 수행한다.
+
+사용자가 리뷰에서 발견한 세 누락의 보완안 작성을 요청했다. API §13.8이 이번 세부 계약의 정본이며 이전의 본문 형식 미정·fileId를 모르는 응답 유실도 취소 가능하다는 설명을 보완한다.
+
+- 상세 data.images 항목은 photoId/url/contentType/sizeBytes이며 첨부 순서 배열. fileId는 검증된 게시물 작성자의 상세/생성/수정 응답에만 포함하고 다른 회원/공유 게스트에는 생략한다. 삭제 전 ID 보존·PATCH meta.photoDeletion용 domain decoder를 명시한다.
+- Storage는 PUT·bodyMode=RAW, File/Blob bytes 직접 전송. 반환 Content-Type/x-upsert=false와 signed URL을 사용하며 앱 ApiClient/prepareRequest와 분리하고 credentials=omit·redirect=error. SDK File→FormData 자동 변환을 전용하지 않는다. 실제 adapter와 CORS 검증 후 endpoint를 제공한다.
+- POST 예약 응답 전체 유실로 fileId를 모르면 즉시 GET/DELETE 불가. 폼/파일 선택을 유지하고 명시적 재시도로 새 예약을 만들며 이전 예약은 서버가 영속 추적·24시간 후보 정리한다. 확인된 발급 실패는 즉시 DELETE_PENDING. 예약 POST는 비멱등이고 미식별 예약도 quota에 포함한다. 409/429에서 무한 재시도하지 않는다. 새 복구 endpoint/Idempotency-Key·DDL은 추가하지 않는다.
+- 원 검토는 PR #107 d6d481c, FE front/develop 67783ab, BE back/develop c768080의 코드·문서·Migration을 대조했다. 검토 결과: https://github.com/2026-KW-HACKATHON/33_Last-Stand-Before-Enlistment/pull/107#pullrequestreview-5443833790
+
+이번 변경은 계약 보완안이며 FE 실 담당자 확인/BE1 승인/실 Storage·DB·worker 구현·FE 연동 완료를 뜻하지 않는다. 사용자 요청에 따라 Codex가 작성했으며 필요한 상대 승인 1명과 FE wire 확인, back/develop 통합 조건을 유지한다. #13은 raw 전송과 최초 예약 응답 유실/실패·quota·정리 경합을, #14~16은 사진 DTO·연결·수정/삭제 흐름을 실제 검증한다.
+
 ## 11. 독립 개발용 내부 인터페이스 상세안 (2026-10-07)
 
 사용자가 “너가 알아서 생각해서 해줘”라고 요청해 합의된 공통 기반을 아래 메서드/반환 타입/실행 책임으로 구체화했다. 내부 규약의 준비 결과이며 BE1의 실제 리뷰나 코드 구현·back/develop 반영·연동 완료를 뜻하지 않는다. 새로운 HTTP endpoint·테이블·인증 provider를 추가하지 않는다. #74에서 공통 규약을 검토·반영하고 BE1 #4/#11/#12, BE2 #14/#15에서 실제 adapter를 구현한다. 기존 사용자 결정은 유지하며 코드 의존 작업은 필수 계약/Schema 통합 후 시작한다.

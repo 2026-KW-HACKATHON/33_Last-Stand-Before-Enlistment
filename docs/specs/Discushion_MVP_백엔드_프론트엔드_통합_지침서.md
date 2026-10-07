@@ -1,5 +1,29 @@
 # Discushion MVP 백엔드·프론트엔드 통합 지침서
 
+2026-10-08 FE 계약 확인 기록: FE 담당 sungjin0616은 [PR #107 코멘트](https://github.com/2026-KW-HACKATHON/33_Last-Stand-Before-Enlistment/pull/107#issuecomment-6041114660)에서 상세 사진 DTO·PUT/RAW 전송·응답 유실 재시도·meta 보존을 구현 가능한 계약으로 확인했다. 사용자는 같은 날 FE에게 계약 자체에 문제가 없고 구현 가능하다는 확인을 전달받았다고 명시했다. 아래 과거 FE 확인 대기 표시는 이 기록으로 갱신한다. FE 코드 구현·실제 연동 완료나 GitHub Approve를 뜻하지 않는다. 최신 사진 계약에 대한 BE1 승인 1명과 back/develop 통합은 아직 필요하며, 실제 Storage/서버 계정 검증과 사용자 흐름은 #13/#30/#31에서 수행한다.
+
+## 2026-10-07 사진 잔여 계약 — FE 전달/확인
+
+PR #85의 DB 보완 이후 BE2 실행 기준을 [API 정본 §13.5~13.7](../api/Discushion_API_SPEC_v2.md#135-재시도재발급시연용-예약-제한)에 정리했다. FE는 §13.7 체크리스트의 네 endpoint·숫자 fileId/photoId·10,000,000 bytes·생성 photoFileIds/수정 photoOrder·오류·삭제 예약/최종 완료 의미를 확인한다. 실제 Storage URL/method/headers는 #13 adapter 검증 후 제공하고 사진 본문은 Storage로 직접 보낸다. Privy/Backend secret을 Storage 요청에 덧붙이지 않는다.
+
+같은 예약의 업로드 권한 재발급은 제공하지 않는다. 전송 응답이 유실되면 complete로 기존 object를 확인하고, fileId를 아는 최초 URL 만료/전송 정보 유실은 기존 미연결 예약 취소 후 새 fileId/key로 예약한다. 최초 예약 응답 전체가 유실돼 fileId를 모르면 아래 복구 기준을 따른다. 초기 서버 예약 제한은 회원당 미정리20개·신고 합계100MB·최근60초 새 예약20개다. 제품 사진 한도10장·합계10MB와 별개이며 예약 제한을 FE 표시/추가 업로드 제한으로 혼동하지 않는다. 409 슬롯 부족·429 발급 빈도 제한은 취소/상태 확인·Retry-After를 적용하고 무한 자동 재시도를 하지 않는다.
+
+확인자·날짜·대상 PR/SHA·이견은 #74에 기록한다. 현재는 FE wire 확인 대기이며 실제 FE 승인·사진 API/worker 구현·Storage/사용자 흐름 완료로 표시하지 않는다. 잠재 권한 만료 상한과 진행 중 전송 종료/재생성 방어는 #13 실제 adapter 검증 조건이고 FE timer나 임의 대기시간으로 대신하지 않는다. 인증 관련 공통 계약은 BE1의 별도 #74/#4 범위를 유지한다.
+
+### PR #107 리뷰 보완안 — FE 구현 접점
+
+상세 계약은 [API §13.8](../api/Discushion_API_SPEC_v2.md#138-pr-107-리뷰-보완안--사진-응답직접-전송최초-응답-유실)을 따른다. 실제 FE 확인과 BE1 승인은 대기이며 아래 문구를 실 연동 완료로 취급하지 않는다.
+
+| 접점 | FE 적용 기준 |
+| --- | --- |
+| 상세 images | photoId/url/contentType/sizeBytes의 첨부 순서 배열, 사진 없음 []. fileId는 검증된 작성자에게만 포함. 수정은 기존 photoId/신규 fileId 구분, 게시물 삭제 전 본인 fileId 보존 |
+| Storage 전송 | 예약 응답 upload.method=PUT·bodyMode=RAW. File/Blob을 그대로 body에 전달하고 반환 Content-Type/x-upsert=false 사용. FormData/JSON/base64 제외. 별도 fetch 함수, credentials=omit·redirect=error·취소 signal. 앱 API Client/prepareRequest·Privy Bearer 재사용 금지 |
+| PATCH 응답 | data뿐 아니라 meta.photoDeletion도 검증/보존하는 도메인 decoder 사용. 현재 decodeApiResponse의 data-only 결과로 삭제 예약 정보가 사라지지 않게 처리 |
+| fileId 미확보 | 최초 POST 응답 전체 유실은 기존 예약 취소 불가. 폼/File을 유지하고 사용자 명시적 재시도로 제한 내 새 예약. 이전 예약은 서버 추적·createdAt+24h 정리 후보. 발급 실패 확인 시 서버 즉시 DELETE_PENDING |
+| quota/rate | 모르는 예약도 미정리20개/100MB·최근60초20개에 포함. 409는 새 예약 반복 중지·정리 대기, 429는 Retry-After 이후 명시적 재시도. 취소만으로 슬롯 복구라고 표시하지 않음 |
+
+예약/완료/상태/취소 앱 API는 기존 Client를 사용한다. Storage 요청만 별도 전송 함수로 구현하며 실제 PUT·RAW 수용과 CORS·권한 만료/크기 제한은 #13/#30에서 검증한다. SDK 전송으로 변경하면 본문 형식 차이를 숨기지 않고 계약을 재검토한다. 이번 보완은 FE 브랜치·공통 Client·Schema를 변경하지 않는다.
+
 ## 2026-10-07 독립 개발 공통 준비
 
 사용자 위임으로 BE1·BE2 공동 준비까지 진행한다. BE1은 A·C·D, BE2는 B·사진·탐색·AI·환경을 담당하며 각자 자기 API·Migration을 작성한다. Backend 내부 port와 공통 test-only fixture/CI는 [계약 검토표 §11](../api/Discushion_API_CONTRACT_검토표_2026-10-07.md)을 따른다. 실제 wire 승인·adapter·DB 경합·FE 연결은 준비 완료와 구분한다.
