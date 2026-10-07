@@ -32,9 +32,11 @@ Invoke-RestMethod -Uri http://localhost:8080/health
 3. Supabase 프로젝트의 **Connect**에서 실제 호스트와 계정명을 확인하고 `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`를 로컬 파일 또는 배포 환경에 설정한다. DB URL에는 비밀번호를 넣지 않는다.
 4. `bootRun` 또는 아래 JAR 명령으로 시작한다.
 
-서버리스 배포 후보인 Vercel 컨테이너를 고려해 예시는 transaction pooler(6543)를 사용한다. JDBC의 `prepareThreshold=0`과 TLS의 `sslmode=require`를 유지한다. Supabase 인증서로 서버 검증까지 적용할 때는 `sslmode=verify-full`과 `sslrootcert`를 설정한다. 상시 서버에서 direct/session 연결을 선택하면 프로젝트의 실제 URL로 바꾸고 연결 방식도 결정 기록에 남긴다. [Supabase 공식 연결 안내](https://supabase.com/docs/guides/database/connecting-to-postgres)
+서버리스 실행 후보와 IPv4 환경을 고려해 transaction pooler(6543)를 사용한다. `prepareThreshold=0`, `sslmode=verify-full`, 공식 Supabase 루트 CA 파일을 지정하는 `sslrootcert`를 연결 예시에 설정했다. 초기 Java 기본 신뢰 저장소 방식은 실제 인증서 체인을 신뢰하지 못해 실패했으므로 프로젝트 연결 전용 CA 파일로 보완했다. 시스템/Java 전역 인증서는 바꾸지 않고 인증서·호스트 검증을 유지한다. 연결 10초/소켓 30초는 초기 기술 기준이다. direct/session으로 바꾸면 실제 URL과 이유를 기록한다. [Supabase 연결 안내](https://supabase.com/docs/guides/database/connecting-to-postgres), [결정 기록](../docs/collaboration/backend-db-connection-decisions.md)
 
-`DB_POOL_SIZE` 기본값은 인스턴스당 1이다. 트래픽과 Supabase 연결 한도를 확인한 뒤 조정한다. SQL 초기화는 비활성화돼 있으며 Schema/Migration은 BE1의 Issue #3에서 관리한다. ORM·도메인 Entity·테이블 생성은 포함하지 않는다. Storage는 별도 사용자 결정으로 선택됐으며 인증은 Privy를 사용한다. 실제 연결 정보가 없으므로 원격 DB 연결은 미검증이다.
+`DB_POOL_SIZE` 기본값은 인스턴스당 1이다. 트래픽과 Supabase 연결 한도를 확인한 뒤 조정한다. SQL 초기화는 비활성화돼 있으며 Schema/Migration은 BE1의 Issue #3에서 관리한다. ORM·도메인 Entity·테이블 생성은 포함하지 않는다. Storage는 별도 사용자 결정으로 선택됐으며 인증은 Privy를 사용한다. Supabase Auth를 추가 채택하지 않는다. 2026-10-07 사용자 지정 개발 DB에 실제 Spring JDBC SELECT-only 검증 3개가 통과했다. 초기 검증용 postgres 계정이며 최종 앱 최소 권한 역할·권한표·계정 검증은 [DB 연결 결정 기록](../docs/collaboration/backend-db-connection-decisions.md)의 #4/#30 후속 조건을 따른다. DB 연결 검증은 Storage·Privy·Gemini의 실제 연결이나 FE/BE 연동 완료를 뜻하지 않는다.
+
+원격 연결 회귀 검사는 `backend/`에서 `DISCUSHION_VERIFY_SUPABASE=true`를 설정하고 `./gradlew.bat test --tests com.discushion.SupabaseJdbcSmokeTests --rerun-tasks`로 명시적으로 실행한다. 지정 개발 프로젝트만 검사하며 비밀값은 `.env`에서 읽고 쿼리는 SELECT만 수행한다. 기본 실행에서는 이 3개 검사가 skip된다. 현재 PC의 CA 파일은 Git 제외 `.local-db/supabase-prod-ca-2021.crt`다. 다른 PC/배포 환경에서는 공식 대시보드의 SSL Certificate를 다운로드하고 실제 파일 경로를 지정한다. 이 원격 검사는 fixture를 사용하는 localhost 전용 Schema 시험과 구분한다.
 
 ## 외부 서비스 환경변수 준비
 

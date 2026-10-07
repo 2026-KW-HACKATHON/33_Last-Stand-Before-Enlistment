@@ -18,6 +18,21 @@
 > 주 파일: 이 문서. 과거 편집 원본으로 언급한 `Discushion_MVP_ERD.mmd`는 현재 작업 트리에 없다. 새 원본/DDL을 임의 생성하지 않는다.
 > 최초 문서 작성 시점의 논리 설계다. 현재 Backend 실행 골격이 있으며 실제 Entity·Schema/Migration과 대조는 #3/#74에서 수행한다.
 
+## v10.2 확정 범위의 DB 호환 보완 — #3 작업 중
+
+[후속 Migration](../../supabase/migrations/20261007021128_align_mvp_auth_and_demo_prerequisites.sql)은 기존 적용 이력과 데이터를 보존하면서 다음 필수 의존만 해제한다. localhost 검증 후 사용자 지정 Supabase에 적용했다.
+
+| 컬럼 | 변경 | 유지되는 제한 |
+| --- | --- | --- |
+| users.password_hash | NULL 허용, 변경 전 이력 호환용 | 이메일·회원 PK/다른 필수 필드 유지. 자체 비밀번호 로그인 구현을 허용하는 결정 아님 |
+| institution_credentials.request_id | NULL 허용, 신청 없는 시연 자격 준비 가능 | 회원·기관·담당 지역 FK와 유효기간 CHECK 유지. 기존 신청 참조가 있으면 단일/복합 FK 유지 |
+
+이웃 완료 지역의 source_request_id는 이미 NULL 허용이다. 증빙/자체 이메일 코드 테이블 5개는 기존 데이터·참조 보존을 위해 legacy-only로 남기고 공개 API 접근 차단을 유지한다. 남아 있다는 이유로 이번 MVP의 구현 대상으로 해석하지 않는다. 27개는 현재 legacy 포함 물리 테이블 수이며 확정된 신규 MVP 테이블 수가 아니다.
+
+사용자(BE1) 승인 후 [Privy·파일 lifecycle Migration](../../supabase/migrations/20261007023149_add_privy_registration_and_media_lifecycle.sql)도 구현·적용했다. [현재 컬럼·상태·관계의 상세 계약](../architecture/Discushion_Issue3_MVP_v10.2_반영.md)의 §2를 변경 전 그림보다 우선 적용한다. users에 privy_user_id(TEXT NULL UNIQUE)·registration_completed_at(TIMESTAMPTZ NULL), media_files에 lifecycle_status(TEXT NOT NULL), uploaded_at/linked_at/delete_requested_at/deleted_at/next_delete_attempt_at(TIMESTAMPTZ NULL), deletion_attempts(INTEGER NOT NULL), last_delete_error_code(TEXT NULL)을 추가했다. 현재 물리 구조는 legacy 포함 27테이블·176컬럼이다.
+
+Privy subject와 회원 1:1·가입 미완료/완료 구분, 서버 확인 업로드 완료부터 24시간 미연결 POST_PHOTO 정리 후보, 연결 파일 보호, 삭제 대기/재시도/성공 기록을 승인했다. 기존 subject/가입 완료/업로드 시각은 자동 추측하지 않는다. 실제 참조 확인·잠금·Storage 삭제·재시도 worker와 API/FE 토큰/파일 전송 계약은 후속 작업이다. 변경 전 Mermaid/컬럼표는 이력을 보존하고 실제 카탈로그 검사는 두 NULL 변경과 신규 10컬럼·Privy UNIQUE를 모두 명시적으로 대조한다.
+
 ## 1. 근거와 설계 경계
 
 | 근거 파일 | 반영 내용 |

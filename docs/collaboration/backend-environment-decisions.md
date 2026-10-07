@@ -83,7 +83,7 @@ Vercel Functions의 요청 본문 제한은 4.5MB다. 제품 명세의 게시물
 | --- | --- | --- |
 | `SPRING_PROFILES_ACTIVE` | `local` / `supabase` | 현재 코드 사용. local은 외부 서비스 없는 실행 확인용 |
 | `PORT` | `8080` | 현재 코드 사용 |
-| `DB_URL` | `jdbc:postgresql://<pooler-host>:6543/postgres?sslmode=require&prepareThreshold=0` | 현재 코드 사용. 실제 접속 주소는 외부 관리 |
+| `DB_URL` | `jdbc:postgresql://<pooler-host>:6543/postgres?sslmode=verify-full&sslrootcert=<root-certificate-path>&prepareThreshold=0&connectTimeout=10&socketTimeout=30` | 현재 코드 사용. #3의 실제 JDBC 검증을 반영한 예시. 공식 CA 경로와 실제 접속 주소는 외부 관리 |
 | `DB_USERNAME`, `DB_PASSWORD` | `<database-user>`, `<database-password>` | 현재 코드 사용. 비밀번호는 서버 비밀 값 |
 | `DB_POOL_SIZE` | `1` | 현재 코드 사용. 실제 한도 확인 후 조정 |
 | `PRIVY_APP_ID` | `<privy-app-id>` | 공개 앱 식별자. 후속 인증 구현용, 현재 코드 미사용 |
