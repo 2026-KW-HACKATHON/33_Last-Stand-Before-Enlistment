@@ -47,14 +47,27 @@ class SupabaseJdbcSmokeTests {
                        (select count(*) from information_schema.columns where table_schema='discushion'),
                        (select count(*) from pg_constraint where connamespace='discushion'::regnamespace and contype='f'),
                        (select count(*) from pg_class where relnamespace='discushion'::regnamespace and relkind='r' and relrowsecurity),
-                       (select string_agg(version, ',' order by version) from supabase_migrations.schema_migrations)
+                       (select string_agg(version, ',' order by version) from supabase_migrations.schema_migrations),
+                       (select count(*) from information_schema.columns where table_schema='discushion'
+                         and table_name='media_files' and column_name in ('upload_authorization_expires_at',
+                           'deletion_claim_token','deletion_claimed_at','deletion_claim_expires_at')),
+                       (select count(*) from pg_constraint where connamespace='discushion'::regnamespace
+                         and convalidated and conname in ('media_lifecycle_shape','media_lifecycle_times',
+                           'media_upload_authorization_time','media_deletion_claim_shape',
+                           'media_deleted_after_upload_authorization','post_photos_file_id_key')),
+                       (select count(*) from pg_index i join pg_class c on c.oid=i.indexrelid
+                         where c.relnamespace='discushion'::regnamespace and i.indisvalid and i.indisready
+                           and c.relname in ('ix_media_uploading_expiry','ix_media_delete_claim_expiry'))
                      """)) {
             assertThat(result.next()).isTrue();
             assertThat(result.getInt(1)).isEqualTo(27);
-            assertThat(result.getInt(2)).isEqualTo(176);
+            assertThat(result.getInt(2)).isEqualTo(180);
             assertThat(result.getInt(3)).isEqualTo(55);
             assertThat(result.getInt(4)).isEqualTo(27);
-            assertThat(result.getString(5)).isEqualTo("20261006182228,20261007011459,20261007021128,20261007023149");
+            assertThat(result.getString(5)).isEqualTo("20261006182228,20261007011459,20261007021128,20261007023149,20261007104543");
+            assertThat(result.getInt(6)).isEqualTo(4);
+            assertThat(result.getInt(7)).isEqualTo(6);
+            assertThat(result.getInt(8)).isEqualTo(2);
         }
     }
 

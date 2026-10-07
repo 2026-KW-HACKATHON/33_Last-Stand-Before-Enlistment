@@ -64,3 +64,9 @@ $env:DISCUSHION_TEST_JDBC_URL = 'jdbc:postgresql://127.0.0.1:55432/discushion_mi
 2026-10-07 03:39 KST: 실제 JDBC 시험 4개 + 기존 Health/설정 시험 4개, 총 8개·skip/실패/오류 0 및 build/JAR 성공. JDBC 시험 환경변수가 없으면 해당 4개는 skip이며 통과로 기록하지 않는다. 환경변수 변경 후 기존 캐시 결과를 쓰지 않도록 rerun-tasks를 사용한다.
 
 비공개 Schema의 모든 테이블은 RLS 활성화, PUBLIC/API 역할 접근 차단 상태다. 서버 앱 역할/RLS 방식은 BE2/#4와 확인한다. 이미 적용/공유된 Migration은 덮어 고치지 않으며 CLI 이력 관리와 checksum 변경 감지를 같은 기능으로 가정하지 않는다.
+
+## 최신 사진 보완 원격 적용 (2026-10-08)
+
+사용자 요청으로 back/develop `42dfb14`의 기존 `20261007104543_support_photo_cleanup_leases.sql`1개를 지정 개발 Supabase에 적용했다. dry-run으로 단일 파일을 확인했고 역할/seed/Vault 변경 없이 CLI2.120.0 db push를 사용했다. 이전176컬럼/이력4개 기록을 대신하는 최신 원격 상태는 **27테이블·180컬럼·이력5개·FK55·RLS27**이다. 권한 만료/삭제 claim4컬럼·검증된6제약·유효 cleanup 인덱스2개, 기존 사진/파일0행 보존, 후속 dry-run 적용 대상0을 확인했다.
+
+원격 smoke의 기대 Schema/이력을 갱신했으며 localhost 시험과 원격 opt-in3개를 포함한 전체 Java17 test/build69통과/skip0이다. 실제 원격 시험은SELECT-only이고 기능 쓰기 시험은localhost에만 수행했다. 적용된5개 파일은 수정하지 않았다. 실제 서버 계정·Storage/worker·FE 연결 완료와 구분한다. 실행 기록과 잔여 경계는 [DB 연결 결정 기록](../docs/collaboration/backend-db-connection-decisions.md)의 최신 절 및 [API 계약 검토표 §14.5](../docs/api/Discushion_API_CONTRACT_검토표_2026-10-07.md#145-최신-기준-pull사진-보완-원격-적용-2026-10-08)를 따른다.

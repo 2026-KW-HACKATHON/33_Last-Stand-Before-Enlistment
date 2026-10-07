@@ -163,3 +163,15 @@ S/I/U/D는 SELECT/INSERT/UPDATE/DELETE다. `—`는 부여하지 않음을 뜻�
 - 식별자 생성 대상은 users/institutions/media_files/각 legacy 신청·OTP/posts/polls/poll_options/post_photos/comments/activity_events/institution_agenda_adoptions다. 위 표에서 서버 INSERT가 없는 원본/legacy에는 ID 생성 권한도 없다. 복합/기존 FK PK 테이블은 별도 시퀀스가 없다. #30은 pg_get_serial_sequence와 카탈로그로 실제 이름·권한을 대조한다.
 - RLS는 현재 모든 테이블에서 유지한다. 위 허용 작업만 실제 서버 역할 TO 정책으로 제공한다. SELECT/DELETE는 USING, INSERT는 WITH CHECK, UPDATE는 USING+WITH CHECK가 필요하며 UPDATE/잠금 경로는 SELECT 정책도 함께 확인한다. legacy와 미허용 작업에는 서버 허용 정책을 만들지 않는다. 서버 역할의 작업 허용 정책이 사용자별 행 격리를 대신하지 않으며 PUBLIC/anon/authenticated 역할 차단을 유지한다.
 - BE2의 B 영역 권한, 공통 파일/트랜잭션 제약, 실제 계정 이름·JDBC/TLS·pooler는 공동 검토 대기다. #30이 실제 역할을 구성한 뒤 허용 조회/저장·금지 DDL/삭제·RLS를 시험한다. localhost의 합성 NOLOGIN 역할/RLS 시험을 실제 Supabase 서버 로그인 계정 검증으로 표시하지 않는다.
+
+## 사진 보완 Migration 원격 적용 — 2026-10-08 사용자 요청 결과
+
+사용자가 최신 back/develop pull 및 사진 보완1개 미적용 문제 해결을 요청해 지정 개발 프로젝트 `pmhmgqpyvrbbseqelpze`에 통합된 변경을 적용했다. 기준 `42dfb14`에는 PR #85의 DB 보완과 PR #107의 사진 계약이 포함돼 있다. #107 병합을 #13 기능 구현 완료로 해석하지 않는다. #9 미커밋 변경은 stash 보존/복원, Feature fast-forward와 문서 자동 병합 충돌0을 확인했다. 이전 절의 원격176컬럼/이력4개와 미적용 표현은 당시 결과이며 최신 상태는 이 절이다.
+
+- CLI2.120.0 help·공식 changelog 확인, 적용 전 dry-run은 `20261007104543_support_photo_cleanup_leases.sql`1개만 대상. 병합된 파일 내용/기존 이력을 유지해 `db push --linked --project-ref pmhmgqpyvrbbseqelpze --skip-vault --yes` 실행. 역할/seed/Vault·Storage 설정·비밀값 변경 없음.
+- 사전 원격 확인: media_files/post_photos 각0행, 중복 파일 연결0·lifecycle shape 위반0. 기존 데이터를 삭제/교정하지 않았다.
+- 적용 후: 27테이블·180컬럼·FK55·RLS27, Migration5개. 업로드 권한 만료/삭제 claim 추적4컬럼, 신규4제약·교체2제약이 validated, cleanup 인덱스2개 ready/valid. 사진/파일 행0 유지. 후속 dry-run은 적용 대상0이다.
+- security/performance advisor WARN/ERROR0. 정보성 안내는 각각1/2개다. 공개 anon/authenticated/service_role 접근 차단을 유지하고 서버 전용 RLS/권한 확정·실제 LOGIN 역할 검증을 대신하지 않는다.
+- SupabaseJdbcSmokeTests를180컬럼/정확한5개 이력 및 사진4컬럼·6제약·2인덱스 검사로 갱신했다. 2026-10-08 01:16 KST Java17 전체 test/build69통과/실패0/오류0/skip0. 원격3개는 실제 TLS/최신 Schema/공개 역할 차단의 SELECT-only 검사, 쓰기·경합 시험은localhost에만 수행. 상세는 API 계약 검토표 §14.5를 따른다.
+
+사진 Schema의 원격 미적용은 해소됐으며 #13/#30의 실제 Storage 전송·공개·삭제/재시도·lease 경합·늦은 재생성 방어, 실제 서버 계정/FE 연결은 남아 있다. 기존 Migration 파일을 다시 편집하지 않는다. 이번 문서/검증 변경은 미커밋이며 원격 Git push·PR/병합·배포는 수행하지 않았다.
