@@ -217,6 +217,67 @@ for (const kind of ["list", "search", "map", "form"] as const satisfies readonly
     store.removeSnapshot({ id: "board" }, kind);
     assert.equal(snapshotReference(store.getState(), { id: "board" }, kind), undefined);
     store.clear();
-    assert.deepEqual(store.getState(), { current: null, history: [], returnTo: null, snapshots: [] });
+    assert.deepEqual(store.getState(), { authenticationAttempt: store.getState().authenticationAttempt, current: null, history: [], returnTo: null, snapshots: [] });
   });
 }
+
+
+test("accepted settings auth intent consumes returnTo without inventing a URL", () => {
+  const store = createNavigationStore({ destination: { id: "me" } });
+  const target = { destination: { id: "settings" as const }, origin: { id: "me" as const } };
+  store.beginAuthentication(target);
+  const intents: unknown[] = [];
+  assert.equal(store.completeAuthentication(member(), "available", entry => intents.push(entry)).status, "unresolved");
+  assert.deepEqual(intents, [target]);
+  assert.equal(store.getState().returnTo, null);
+  assert.deepEqual(store.getState().current, target);
+  assert.deepEqual(store.getState().history, []);
+  store.beginAuthentication({ destination: post });
+  store.completeAuthentication(member(), "available");
+  assert.deepEqual(store.getState().current?.destination, post);
+});
+test("missing or throwing logical consumer cannot consume pending auth", () => {
+  const store = createNavigationStore({ destination: { id: "me" } });
+  store.beginAuthentication({ destination: { id: "settings" } });
+  store.completeAuthentication(member(), "available");
+  assert.ok(store.getState().returnTo);
+  assert.equal(store.getState().current?.destination.id, "login");
+  assert.throws(() => store.completeAuthentication(member(), "available", () => { throw new Error("intent failed"); }));
+  assert.ok(store.getState().returnTo);
+});
+test("new login attempts change scope but signup continuation retains it", () => {
+  const store = createNavigationStore({ destination: post });
+  store.beginAuthentication();
+  const attempt = store.getState().authenticationAttempt;
+  store.completeAuthentication({ status: "signup-incomplete" }, "available");
+  store.beginAuthentication(undefined, "login");
+  assert.equal(store.getState().authenticationAttempt, attempt);
+  store.cancelAuthentication();
+  store.beginAuthentication();
+  assert.ok(store.getState().authenticationAttempt > attempt);
+});
+
+
+test("native back into an earlier login starts a fresh attempt", () => {
+  const store = createNavigationStore({ destination: { id: "home" } });
+  store.navigate({ destination: { id: "login" } });
+  const attempt = store.getState().authenticationAttempt;
+  store.navigate({ destination: { id: "me" } });
+  store.syncDestination({ id: "login" });
+  assert.ok(store.getState().authenticationAttempt > attempt);
+});
+test("NavigationProvider forwards settings auth intent and the next auth returns to its new post", () => {
+  let api!: ReturnType<typeof useNavigation>;
+  const intents: unknown[] = [];
+  const paths: string[] = [];
+  function Capture() { api = useNavigation(); return null; }
+  renderToStaticMarkup(<NavigationProvider currentDestination={{ id: "me" }} onNavigate={href => paths.push(href)} onIntent={entry => intents.push(entry)}><Capture/></NavigationProvider>);
+  api.beginAuthentication({ destination: { id: "settings" }, origin: { id: "me" } });
+  api.completeAuthentication(member(), "available");
+  assert.equal(intents.length, 1);
+  api.beginAuthentication({ destination: post });
+  const result = api.completeAuthentication(member(), "available");
+  assert.equal(result.status, "ready");
+  if (result.status === "ready") assert.equal(result.href, "/posts/post-%EA%B0%80");
+  assert.equal(paths.at(-1), "/posts/post-%EA%B0%80");
+});

@@ -37,7 +37,7 @@ export function NavigationProvider({ children, currentDestination, onNavigate, o
     navigate: (entry, replace = false) => { const result = store.navigate(entry, replace); if (result.status === "unresolved") onIntent?.(entry); return deliver(result, replace); },
     back: () => { const current = store.getState().current; const result = store.back(); if (result.status === "unresolved" && current) onIntent?.({ destination: backDestination(current), origin: current.origin }); return deliver(result, true); },
     beginAuthentication: (entry, step) => deliver(store.beginAuthentication(entry, step), true),
-    completeAuthentication: (session, availability) => { const target = store.getState().returnTo?.target; const result = store.completeAuthentication(session, availability); if (result.status === "unresolved" && target) onIntent?.(target); return deliver(result, true); },
+    completeAuthentication: (session, availability) => deliver(store.completeAuthentication(session, availability, onIntent), true),
     cancelAuthentication: () => deliver(store.cancelAuthentication(), true),
     registerSnapshot: store.registerSnapshot,
     removeSnapshot: store.removeSnapshot,

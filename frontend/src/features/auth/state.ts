@@ -77,3 +77,21 @@ export function createLoginStore(service: OtpLoginService | null) {
   };
 }
 export type LoginStore = ReturnType<typeof createLoginStore>;
+
+/** Identity/guest transitions and new auth attempts own separate, cancellable results. */
+export type LoginScope = { guest: boolean; subjectKey: string | null; attempt: number };
+export function createLoginLifecycle(service: OtpLoginService | null) {
+  let scope: LoginScope | null = null;
+  let store = createLoginStore(service);
+  return {
+    getStore(next: LoginScope) {
+      if (scope && ((next.guest && !scope.guest) || (scope.subjectKey !== null && scope.subjectKey !== next.subjectKey) || scope.attempt !== next.attempt)) {
+        store.dispose();
+        store = createLoginStore(service);
+      }
+      scope = { ...next };
+      return store;
+    },
+    dispose() { store.dispose(); },
+  };
+}

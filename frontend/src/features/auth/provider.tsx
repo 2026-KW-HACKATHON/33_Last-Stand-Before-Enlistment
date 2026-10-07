@@ -1,15 +1,20 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useMemo, useSyncExternalStore, type ReactNode } from "react";
 import type { OtpLoginService } from "./contracts";
-import { createLoginStore, type LoginStore } from "./state";
+import { createLoginLifecycle, type LoginStore } from "./state";
+
+import { useNavigation, useSession } from "../../lib/navigation";
 
 const LoginContext = createContext<{ store: LoginStore; source: OtpLoginService["source"] | null } | null>(null);
 
 /** Stable service injection, no automatic SDK/Mock/environment selection. #61 supplies a real adapter. */
-export function LoginProvider({ children, service = null }: { children: ReactNode; service?: OtpLoginService | null }) {
-  const [store] = useState(() => createLoginStore(service));
-  useEffect(() => () => store.dispose(), [store]);
+export function LoginProvider({ children, service = null, subjectKey = null }: { children: ReactNode; service?: OtpLoginService | null; subjectKey?: string | null }) {
+  const { session } = useSession();
+  const { state: navigation } = useNavigation();
+  const lifecycle = useMemo(() => createLoginLifecycle(service), [service]);
+  const store = lifecycle.getStore({ guest: session.status === "guest", subjectKey, attempt: navigation.authenticationAttempt });
+  useEffect(() => () => lifecycle.dispose(), [lifecycle]);
   return <LoginContext.Provider value={{ store, source: service?.source ?? null }}>{children}</LoginContext.Provider>;
 }
 export function useLogin() {

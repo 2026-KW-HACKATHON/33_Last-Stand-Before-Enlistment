@@ -31,7 +31,7 @@ export function AppProviders({ children, session, retrySession, apiClient, login
   const currentDestination = useMemo(() => destinationFromPathname(pathname), [pathname]);
   return <SessionProvider session={session} retry={retrySession}>
     <SettingsNavigation subjectKey={subjectKey} onMenu={onSettingsMenu} currentDestination={currentDestination} onNavigate={(href, replace) => replace ? router.replace(href) : router.push(href)}>
-      <LoginProvider service={loginService}>
+      <LoginProvider service={loginService} subjectKey={subjectKey}>
         <MyPageProvider subjectKey={subjectKey} service={activityService} onMenu={onMyMenu}><InstitutionProvider subjectKey={subjectKey} service={institutionService}><NeighborProvider subjectKey={subjectKey} service={neighborService}><ProfileProvider service={profileService}><SignupProvider service={signupService} editors={signupEditors ?? profileSignupEditors}>
           {apiClient ? <ApiClientProvider client={apiClient}>{children}</ApiClientProvider> : children}
         </SignupProvider></ProfileProvider></NeighborProvider></InstitutionProvider></MyPageProvider>
