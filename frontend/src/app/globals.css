@@ -1,1 +1,88 @@
 @import "tailwindcss";
+
+@font-face {
+  font-family: "Pretendard";
+  src: url("/fonts/PretendardVariable.woff2") format("woff2");
+  font-weight: 45 920;
+  font-style: normal;
+  font-display: swap;
+}
+
+@theme {
+  --font-sans: "Pretendard", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --color-primary: #0F766E;
+  --color-selected: #0F7662;
+  --color-background: #F8FAFC;
+  --color-surface: #FFFFFF;
+  --color-text: #1F2937;
+  --color-secondary: #667085;
+  --color-border: #D5DDE3;
+  --color-disabled: #E9EEF1;
+  --color-muted: #94A3B8;
+  --color-soft: #E6F4F1;
+  --color-error: #D92D20;
+  --color-error-soft: #FFF1F0;
+  --color-warning: #B7791F;
+  --color-warning-soft: #FFF7E6;
+
+  --spacing-page: 16px;
+  --spacing-section: 12px;
+  --spacing-internal: 8px;
+  --spacing-content-top: 20px;
+  --spacing-content-bottom: 32px;
+  --spacing-mobile: 396px;
+  --spacing-header: 58px;
+  --spacing-navigation: 76px;
+  --spacing-button: 52px;
+  --spacing-textarea: 132px;
+  --spacing-nav-icon: 24px;
+  --spacing-write: 40px;
+  --spacing-back-width: 24px;
+  --spacing-back-height: 39px;
+
+  --radius-button: 14px;
+  --radius-card: 14px;
+  --radius-input: 10px;
+  --radius-notice: 10px;
+  --radius-chip: 999px;
+
+  --text-header: 18px;
+  --text-header--line-height: 27px;
+  --text-header--font-weight: 600;
+  --text-section: 18px;
+  --text-section--line-height: 27px;
+  --text-section--font-weight: 700;
+  --text-card-title: 17px;
+  --text-card-title--line-height: 26px;
+  --text-card-title--font-weight: 600;
+  --text-body: 15px;
+  --text-body--line-height: 23px;
+  --text-body--font-weight: 400;
+  --text-button: 15px;
+  --text-button--line-height: 23px;
+  --text-button--font-weight: 600;
+  --text-caption: 12px;
+  --text-caption--line-height: 18px;
+  --text-caption--font-weight: 500;
+  --text-navigation: 11px;
+  --text-navigation--line-height: 17px;
+  --text-navigation--font-weight: 500;
+  --text-back: 26px;
+  --text-back--line-height: 39px;
+  --text-back--font-weight: 500;
+
+  --shadow-card: 0 3px 10px 0 rgb(15 23 41 / 4%);
+  --shadow-navigation: 0 -2px 8px 0 rgb(15 23 41 / 5%);
+}
+
+@layer base {
+  body {
+    @apply bg-background font-sans text-body text-text;
+    letter-spacing: 0;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+  }
+}
