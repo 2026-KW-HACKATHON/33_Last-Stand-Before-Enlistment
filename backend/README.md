@@ -1,6 +1,6 @@
 # Discushion Backend
 
-Issue #1의 실행 골격이다. Java 17, Spring Boot 4.0.8, Gradle Wrapper 9.7.1을 사용한다. DB는 사용자 선택에 따라 Supabase PostgreSQL로 연결한다. 버전은 초기화에 사용한 기술 기준이고, 파일 저장·이메일·AI 서비스는 미정이다. [결정 기록](../docs/collaboration/backend-environment-decisions.md)을 함께 확인한다.
+Issue #1의 실행 골격이다. Java 17, Spring Boot 4.0.8, Gradle Wrapper 9.7.1을 사용한다. 사용자 선택은 Supabase PostgreSQL·Storage, Privy 이메일 OTP, Google Gemini 3.5 Flash-Lite다. 버전·Health 계약의 BE1·FE 확인과 실제 서비스 구성/연동은 별도로 기록한다. [결정 기록](../docs/collaboration/backend-environment-decisions.md)을 함께 확인한다.
 
 ## 로컬 실행
 
@@ -34,9 +34,15 @@ Invoke-RestMethod -Uri http://localhost:8080/health
 
 서버리스 실행 후보와 IPv4 환경을 고려해 transaction pooler(6543)를 사용한다. `prepareThreshold=0`, `sslmode=verify-full`, 공식 Supabase 루트 CA 파일을 지정하는 `sslrootcert`를 연결 예시에 설정했다. 초기 Java 기본 신뢰 저장소 방식은 실제 인증서 체인을 신뢰하지 못해 실패했으므로 프로젝트 연결 전용 CA 파일로 보완했다. 시스템/Java 전역 인증서는 바꾸지 않고 인증서·호스트 검증을 유지한다. 연결 10초/소켓 30초는 초기 기술 기준이다. direct/session으로 바꾸면 실제 URL과 이유를 기록한다. [Supabase 연결 안내](https://supabase.com/docs/guides/database/connecting-to-postgres), [결정 기록](../docs/collaboration/backend-db-connection-decisions.md)
 
-`DB_POOL_SIZE` 기본값은 인스턴스당 1이다. 트래픽과 Supabase 연결 한도를 확인한 뒤 조정한다. SQL 초기화는 비활성화돼 있으며 Schema/Migration은 BE1의 Issue #3에서 관리한다. ORM·도메인 Entity·테이블 생성은 포함하지 않는다. Supabase Auth와 Storage는 DB 선택만으로 채택하지 않는다. 2026-10-07 사용자 지정 개발 DB에 실제 Spring JDBC SELECT-only 검증 3개가 통과했다. 초기 검증용 postgres 계정이며 최종 앱 최소 권한 역할은 BE2/#4와 확인해야 한다.
+`DB_POOL_SIZE` 기본값은 인스턴스당 1이다. 트래픽과 Supabase 연결 한도를 확인한 뒤 조정한다. SQL 초기화는 비활성화돼 있으며 Schema/Migration은 BE1의 Issue #3에서 관리한다. ORM·도메인 Entity·테이블 생성은 포함하지 않는다. Storage는 별도 사용자 결정으로 선택됐으며 인증은 Privy를 사용한다. Supabase Auth를 추가 채택하지 않는다. 2026-10-07 사용자 지정 개발 DB에 실제 Spring JDBC SELECT-only 검증 3개가 통과했다. 초기 검증용 postgres 계정이며 최종 앱 최소 권한 역할·권한표·계정 검증은 [DB 연결 결정 기록](../docs/collaboration/backend-db-connection-decisions.md)의 #4/#30 후속 조건을 따른다. DB 연결 검증은 Storage·Privy·Gemini의 실제 연결이나 FE/BE 연동 완료를 뜻하지 않는다.
 
 원격 연결 회귀 검사는 `backend/`에서 `DISCUSHION_VERIFY_SUPABASE=true`를 설정하고 `./gradlew.bat test --tests com.discushion.SupabaseJdbcSmokeTests --rerun-tasks`로 명시적으로 실행한다. 지정 개발 프로젝트만 검사하며 비밀값은 `.env`에서 읽고 쿼리는 SELECT만 수행한다. 기본 실행에서는 이 3개 검사가 skip된다. 현재 PC의 CA 파일은 Git 제외 `.local-db/supabase-prod-ca-2021.crt`다. 다른 PC/배포 환경에서는 공식 대시보드의 SSL Certificate를 다운로드하고 실제 파일 경로를 지정한다. 이 원격 검사는 fixture를 사용하는 localhost 전용 Schema 시험과 구분한다.
+
+## 외부 서비스 환경변수 준비
+
+`.env.example`의 기존 실행/DB 변수는 현재 코드에서 사용한다. 추가한 `PRIVY_*`, `SUPABASE_*`, `GEMINI_*`는 후속 구현을 위한 프로젝트 변수 이름과 자리표시자이며 현재 코드에서 읽지 않는다. 예시를 채우는 것만으로 외부 서비스가 연결되지 않는다. 변수별 용도·비밀 여부·후속 Issue는 [환경 결정 기록](../docs/collaboration/backend-environment-decisions.md)의 환경변수 표를 따른다.
+
+Privy 앱 ID는 FE에도 필요한 공개 식별자이며 FE 변수 이름은 해당 담당자가 합의한다. Privy 앱 secret, Supabase secret key, DB password, Gemini API key는 Backend의 로컬 `.env` 또는 배포 환경의 비밀 변수로 관리한다. `NEXT_PUBLIC_` 접두사를 붙이거나 FE에 전달하지 않는다. 현재 FE 파일은 변경하지 않는다. Supabase 공개 사진 열람은 URL로 가능하지만 업로드·삭제 권한은 #74/#13에서 합의하고 서버에서 확인한다.
 
 ## 테스트와 build
 
@@ -69,7 +75,7 @@ docker run --rm -p 8080:8080 -e SPRING_PROFILES_ACTIVE=local discushion-backend:
 
 실제 배포는 Issue #30에서 프로젝트·요금제·리전·이미지 실행·DB 연결과 FE 연동을 검증한다. Backend를 별도 Vercel 프로젝트로 배포한다면 Root Directory는 `backend/`, `PORT=8080`을 프로젝트 환경변수로 설정한다. FE와 같은 프로젝트에 배포할 경우에는 Services와 `/health`, `/api/v1/*` 라우팅을 FE 담당자와 합의한다. 현재 루트 `vercel.json`, 외부 프로젝트 생성, 배포는 포함하지 않는다.
 
-Vercel의 요청 본문 제한(4.5MB)과 제품의 사진·기관 증빙 한도를 함께 만족할 파일 전송 경로는 Issue #13·#12·#30에서 합의한다. 파일 저장 서비스가 미정인 상태에서 제품 한도를 줄이거나 임의 업로드 계약을 만들지 않는다. [Vercel 요청 제한](https://vercel.com/docs/functions/limitations#request-body-size)
+Vercel의 요청 본문 제한(4.5MB)과 게시물 사진 합계 10MB를 함께 만족할 전송 경로는 #74/#13/#30에서 합의한다. 저장 서비스는 Supabase Storage이며 JPG/PNG·최대 10장·합계 10MB, 저장 파일 삭제, 미완료 업로드 24시간 정리 정책을 따른다. 기관·이웃 증빙 제출은 이번 MVP에서 제외한다. 제품 한도를 임의로 줄이거나 업로드 계약을 만들지 않는다. [Vercel 요청 제한](https://vercel.com/docs/functions/limitations#request-body-size)
 
 FE/BE 실제 연동은 실제 FE가 실행 중인 Backend를 호출해야 한다. Health API 직접 호출이나 Backend 테스트만으로 FE/BE 연동을 완료 처리하지 않는다. API 오류·인증·권한 계약은 BE1의 Issue #2·#4와 맞춘다.
 

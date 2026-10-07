@@ -41,7 +41,7 @@ Supabase PostgreSQL과 Storage를 선택했다. 인증은 Privy이며 Supabase A
 
 당시 검증 시점에 Supabase 플러그인은 설치·활성화 상태였지만 조회 도구가 제공되지 않아 실제 프로젝트를 조회하지 못했다. Vercel 플러그인으로 공식 컨테이너 지원 문서와 이름에 discushion이 포함된 프로젝트 목록을 조회했으며 검색 결과는 없었다. 프로젝트·배포·DB·인증 설정은 변경하지 않았다.
 
-외부 서비스 선택은 사용자 결정으로 갱신했다. #1의 초기화 버전·Health 계약 및 FE/BE 확인 기록은 여전히 남아 있다. 초기화 코드가 통과해도 Issue 전체를 완료 처리하거나 닫지 않는다.
+외부 서비스 선택은 사용자 결정으로 갱신했다. 초기화 버전·Health 계약의 팀 확인과 FE/BE 실제 연동은 아래 사용자 지시에 따라 #30의 연결 단계로 이관했다. 초기화 코드 통과만으로 팀 승인이나 실제 연동 완료를 표시하지 않는다.
 
 ## 검증 기록
 
@@ -74,3 +74,63 @@ Vercel Functions의 요청 본문 제한은 4.5MB다. 제품 명세의 게시물
 - 가비아 구매 도메인의 사용할 호스트·DNS 권한·Vercel 실제 Java 실행 방식/프로젝트·HTTPS·CORS를 확인한다.
 - 파일 정리의 실행 위치/간격·오류/재시도/관측과 24시간 기준은 #74/#13과 맞춘다. 무료 요금제·여유 용량·비용 0원은 확인 전 보장하지 않는다.
 - #75의 시연 계정 생성/설정·재실행/초기화·인증정보 보관을 확정 담당자가 수행한다. 실제 키와 계정 인증정보는 저장소에 기록하지 않는다.
+
+## #1 후속 정리: 환경변수와 확인 요청
+
+2026-10-07, BE2 작업 범위. 기존 파일명과 경로를 유지해 이 기록·Backend README·환경변수 예시를 갱신한다. 아래 변수 이름은 프로젝트의 환경 설정 규약이며 실제 값이나 외부 서비스 구성을 확정한 기록이 아니다.
+
+| 변수 | 용도·예시 | 비밀 여부·현재 적용 상태 |
+| --- | --- | --- |
+| `SPRING_PROFILES_ACTIVE` | `local` / `supabase` | 현재 코드 사용. local은 외부 서비스 없는 실행 확인용 |
+| `PORT` | `8080` | 현재 코드 사용 |
+| `DB_URL` | `jdbc:postgresql://<pooler-host>:6543/postgres?sslmode=verify-full&sslrootcert=<root-certificate-path>&prepareThreshold=0&connectTimeout=10&socketTimeout=30` | 현재 코드 사용. #3의 실제 JDBC 검증을 반영한 예시. 공식 CA 경로와 실제 접속 주소는 외부 관리 |
+| `DB_USERNAME`, `DB_PASSWORD` | `<database-user>`, `<database-password>` | 현재 코드 사용. 비밀번호는 서버 비밀 값 |
+| `DB_POOL_SIZE` | `1` | 현재 코드 사용. 실제 한도 확인 후 조정 |
+| `PRIVY_APP_ID` | `<privy-app-id>` | 공개 앱 식별자. 후속 인증 구현용, 현재 코드 미사용 |
+| `PRIVY_APP_SECRET` | `<server-only-privy-app-secret>` | 서버 API 호출 시 필요한 비밀 값. 토큰 검증만으로 필수라고 단정하지 않음; #74/#4에서 필요 여부 확인. 현재 코드 미사용 |
+| `SUPABASE_URL` | `https://<project-ref>.supabase.co` | Storage 프로젝트 주소. 현재 코드 미사용 |
+| `SUPABASE_SECRET_KEY` | `<server-only-supabase-secret-key>` | 서버 전용 권한 키. 브라우저·FE 변수에 노출 금지. 현재 코드 미사용 |
+| `SUPABASE_STORAGE_BUCKET` | `<post-photo-bucket>` | 실제 버킷 이름은 #13/#30에서 확인. 현재 코드 미사용 |
+| `GEMINI_API_KEY` | `<server-only-gemini-api-key>` | 서버 전용 비밀 값. 현재 코드 미사용 |
+| `GEMINI_MODEL` | `<confirmed-api-model-id>` | 서비스 표시명과 API ID를 구분. #20/#30에서 사용 가능한 ID 확인 후 입력. 현재 코드 미사용 |
+
+FE의 Privy 앱 ID 환경변수 이름은 FE 담당자가 확인한다. 사진 URL 공개 열람에 서버 secret key를 전달하지 않는다. FE 직접 업로드 여부·토큰 검증 키/JWKS 설정·회원 연결은 #74에서 합의한 뒤 필요한 변수와 구현을 갱신한다. 자체 SMTP·메일 발송 변수나 Supabase Auth 설정은 이번 선택만으로 추가하지 않는다.
+
+비밀 값은 로컬 `backend/.env` 또는 실제 배포 환경의 비밀 변수에 설정한다. `.env.example`에는 자리표시자만 보관한다. 앱 ID 같은 공개 식별자와 비밀 키를 구분하고 서버 secret에 `NEXT_PUBLIC_` 접두사를 사용하지 않는다.
+
+### BE1·FE 확인할 내용
+
+| 확인 대상 | 제시하는 기준 | 확인 상태 |
+| --- | --- | --- |
+| 초기화 버전 | Java 17, Spring Boot 4.0.8, Gradle Wrapper 9.7.1. 현재 build.gradle/Wrapper 설정과 대조 | BE1·FE 확인 대기; 사용자 스택 선택과 팀 확인을 구분 |
+| Health 계약 | 인증 없는 `GET /health`, HTTP 200, `application/json`, `{"data":{"status":"UP"}}` | 코드·API 정본 초안과 일치. BE1·FE 확인 대기 |
+| Health 의미 | 프로세스가 HTTP 요청을 처리하는지 확인. DB·Privy·Storage·Gemini readiness를 보장하지 않음 | BE1·FE 확인 대기 |
+| 선택된 서비스 | Supabase PostgreSQL/Storage, Privy 이메일 OTP, Gemini 3.5 Flash-Lite, Vercel 도구 | 사용자 선택 기록 있음. 팀 확인 대기 |
+
+확인자는 실제 GitHub 계정/역할, 확인 날짜, 대상 commit 또는 PR, 동의 항목/이견을 #1 댓글 또는 리뷰에 남긴다. Codex의 코드·문서 대조 결과는 팀원의 확인을 대신하지 않는다. 현재 #1 댓글과 API 계약 검토표에는 BE1·FE의 위 확인 완료 근거가 없어 대기로 유지한다. 외부 팀원에게 메시지를 전송한 기록은 없다.
+
+남은 범위: #1은 서비스 선택·환경변수 예시·현재 실행 골격 검증 기록을 PR로 반영한다. #74는 변경된 API/DB 상세 계약, #30은 초기화 버전·서비스 선택·Health 계약의 팀 확인과 실제 구성·연결·배포, #13/#20은 사진·AI 기능 구현이다. 이 후속 문서 변경만으로 #1을 닫거나 합의/실제 연동 완료 체크를 하지 않는다.
+
+### 사용자 지시에 따른 #30 이관
+
+2026-10-07 사용자 지시: 팀 승인과 실제 FE/BE 연동 완료 확인은 나중에 연결할 때 해결한다. 두 항목을 #1 초기화 단계의 진행을 막는 조건에서 제외하고 #30 연결 단계의 미완료 작업으로 옮긴다. #1의 초기화·환경변수 예시·검증 기록 변경은 PR로 반영하며, 이번 이관만으로 Issue를 닫지 않는다.
+
+- #30에서 BE1·FE와 초기화 버전·서비스 선택·Health 계약/의미를 확인하고 확인자·날짜·대상 SHA/PR을 기록한다.
+- #30에서 실제 FE 실행/배포 환경의 API 주소·CORS를 설정하고 Backend 호출·응답을 검증한다. Mock이나 Backend 직접 호출만으로 FE/BE 연동 완료를 표시하지 않는다.
+- 전체 검증 #31 전에 두 항목을 해소한다. #74의 토큰·회원 연결·사진 등 상세 API/DB 계약 선행 조건은 유지한다.
+- 읽기 전용 조회 기준 `front/develop`의 `4f4f4d5`에 Backend 버전과 Health 응답 참고 기록이 있으며 [FE PR #81](https://github.com/2026-KW-HACKATHON/33_Last-Stand-Before-Enlistment/pull/81)이 병합돼 있다. 이는 팀 승인·실제 연동 완료 기록을 대신하지 않는다.
+
+### 이번 후속 작업 검증
+
+2026-10-07 16:44 (Asia/Seoul), 확인자 Codex. 기준 SHA `ea9005c7979e0a463644b43fe263ce0d91903411`에서 시작한 `back/feature/1-env-followup`의 미커밋 변경 기준이다. 변경은 `backend/.env.example`, `backend/README.md`, 이 기록의 3개 파일이며 코드·API 정본·DB Schema·FE 구현은 변경하지 않았다.
+
+| 검사 | 실제 결과 |
+| --- | --- |
+| Backend `gradlew.bat --no-daemon test build --rerun-tasks --console=plain` | 성공. 작업 6개 재실행, JAR 생성. 기존 실제 HTTP Health/오류 응답 테스트와 DB 없는 설정 테스트 수행 |
+| `git diff --check` | 통과 |
+| 변경 문서의 상대 링크 대상 검사 | 통과 |
+| `backend/.env` Git 제외 규칙 | 확인. 예시는 자리표시자이며 실제 비밀 값 추가 없음 |
+| 실제 서비스 연결·Docker·배포·FE/BE 사용자 흐름 | 미실행. #30/관련 기능 Issue에서 실제 환경 검증 필요 |
+| BE1·FE 계약 확인 | 확인 완료 근거 없음. 대기 유지 |
+
+공식 자료: [Supabase 키](https://supabase.com/docs/guides/getting-started/api-keys), [Privy 토큰 확인](https://docs.privy.io/authentication/user-authentication/access-tokens), [Privy 서버 설정](https://docs.privy.io/basics/nodeJS-node/setup), [Gemini API 키](https://ai.google.dev/gemini-api/docs/api-key). 2026-10-07 조회. Supabase changelog Markdown 조회는 도구의 content-type 오류와 실행환경 DNS 제한으로 실패했으며 변경 로그 확인 완료로 기록하지 않는다. 이 작업은 실제 Supabase 프로젝트·Schema·Storage 권한을 변경하지 않는다.

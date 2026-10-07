@@ -159,3 +159,13 @@ Java 결과 XML의 이번 실행 시각은 13:47:12~13:47:20 KST이며 JAR도 �
 기존 native 시험 DB를 localhost:55432로 시작해 `node supabase/tests/check-erd-schema.mjs`를 실제 실행했다. 결과는 27테이블·176컬럼·단일 FK 47·복합 FK 8·Privy UNIQUE 대조 오류 0이다. #35의 source_request_id UNIQUE와 식별 관계 표기 수정, #78의 승인된 MVP v10.2 설명이 함께 유지된 것을 diff로 확인했다. 병합 diff 공백 검사도 통과했고 시험 DB를 정상 종료했다.
 
 변경은 ERD와 검증 문서이며 코드·Migration·DB 권한은 변경되지 않았다. 이번에는 ERD 카탈로그 대조만 재실행했으며 SQL 113개·역할 모의 9개·Java test/build·원격 JDBC는 §11 결과로 유지하고 재실행했다고 기록하지 않는다. #35와의 문서 병합 순서는 해소됐으며 BE2 검토·후속 배정 확인·#74 계약 경계·필수 리뷰/CI는 여전히 확인이 필요하다.
+
+## 14. PR #82 이후 최신 back/develop 반영·충돌 해결
+
+2026-10-07 17:50~17:51 KST 사용자 요청으로 `origin/back/develop`의 `db50de31a28d0921430d43500bb800ce13873652`(PR #82 병합)을 현재 Feature `0261abcb1d29570336052be7d3e628bc744c8b3f`에 반영했다. `backend/README.md`에서 #82의 서비스 선택/외부 환경변수 설명과 #3의 실제 Supabase 연결 결과가 충돌했다.
+
+충돌 해결은 양쪽 목적을 유지했다. Supabase Storage·Privy·Gemini 선택과 미사용 환경변수/후속 구현 경계를 반영하고, 실제 DB SELECT-only 연결 검증·공식 CA·verify-full TLS·최소 권한 후속 작업을 보존했다. 원격 DB 미검증 문구는 #3의 실제 결과로 갱신하되 외부 서비스·FE/BE 연동 완료로 확대하지 않았다. `.env.example`의 자동 병합은 #3 TLS 설정과 #82 외부 서비스 자리표시자를 함께 유지했고 환경 결정 기록의 DB_URL 표도 현재 예시와 일치시켰다. #82의 AGENTS.md 문서 수정 규칙과 #30 이관 내용도 보존했다.
+
+실제 실행: ERD 대조 27테이블·176컬럼·단일 FK 47·복합 FK 8·Privy UNIQUE 오류 0. Java 17 `gradlew.bat --no-daemon test build --console=plain --rerun-tasks` 성공, Health 3 + 로컬 JDBC 4 + 설정 1 + 실제 Supabase JDBC 3 = 11개, 실패/오류/skip 0, JAR 생성. 실제 원격 검사는 SELECT-only이며 verify-full 연결·Schema/이력·공개 역할 차단을 확인했다. 로컬 시험 DB는 검사 뒤 정상 종료했다.
+
+충돌 마커/미해결 파일 없음, 문서 상대 링크와 diff 공백 검사 통과. 실제 코드·Migration·DB 권한·운영 환경변수 변경은 없으며 SQL 113개/역할 모의 9개는 이번에 재실행하지 않았다. 로컬 성공은 GitHub CI/팀 리뷰 완료를 대신하지 않는다. BE2 공동 검토와 후속 배정 확인은 미완료로 유지한다.
