@@ -18,11 +18,11 @@
 6. `release` 브랜치와 기존 Part 장기 브랜치를 사용하지 않는다.
 7. FE/BE Feature는 각자 영역의 develop으로만 통합한다. 다른 영역 Feature를 직접 merge하지 않는다.
 8. FE/BE 연동은 Git merge 대신 합의한 API 계약으로 검증한다.
-9. PR 전 담당자가 변경 범위와 test/build를 확인한다. 리뷰와 필수 자동 검증을 통과한 PR만 병합한다.
+9. PR 전 담당자가 변경 범위와 test/build를 확인한다. 필수 자동 검증과 대상 브랜치·변경 영향에 따라 필요한 리뷰를 통과한 PR만 병합한다.
 
 ```text
 Issue → 최신 영역 develop에서 Feature 생성 → 구현/test/build → push
-→ 영역 develop 대상 PR → review/CI → merge
+→ 영역 develop 대상 PR → 필요한 리뷰/CI → merge
 → 최종 검증 후 front/develop 및 back/develop을 각각 main으로 PR
 ```
 
@@ -176,7 +176,7 @@ Frontend 예시는 `#33 [FE] 댓글 UI 구현`, `front/feature/33-comment`, base
 4. Feature를 push한다.
 5. FE는 `front/develop`, BE는 `back/develop`을 base로 PR을 연다.
 6. PR에 Issue 연결, 변경 요약, 기능명세 ID, API/DB 영향, 테스트 결과를 기록한다.
-7. 지정 리뷰와 필수 자동 검증을 통과하면 GitHub PR에서 병합한다.
+7. 필수 자동 검증과 §13의 대상 브랜치·변경 영향별 리뷰 조건을 통과하면 GitHub PR에서 병합한다.
 8. 병합 결과를 확인하고 Issue를 닫은 뒤 Feature 브랜치를 삭제한다.
 
 PR 충돌·검증 실패가 있으면 병합하지 않는다. develop에서 로컬 merge 후 직접 push하는 절차는 사용하지 않는다.
@@ -191,7 +191,11 @@ PR 충돌·검증 실패가 있으면 병합하지 않는다. develop에서 로�
 
 ## 13. PR 리뷰와 보호 규칙
 
-`main`, `front/develop`, `back/develop`에는 보호 규칙을 적용한다. 직접 push를 제한하고 PR, 리뷰, 필수 CI를 병합 조건으로 둔다. 작성자가 자기 PR을 단독 승인·병합하지 않는다. 동일 파일이나 API 계약에 영향이 겹치는 작업은 Issue/PR에서 선행 순서를 조율한다.
+`main`, `front/develop`, `back/develop`에는 보호 규칙을 적용하고 직접 push를 제한하며 PR과 필수 CI로 통합한다. FE와 `main` 대상 PR의 기존 리뷰 정책은 유지한다.
+
+2026-10-07 Backend 변경: `back/develop` 대상 일반 PR은 Codex 변경 검토·관련 test/build·필수 CI 통과 후 작성자가 병합할 수 있다. 공통 인터페이스·API 계약·DB 구조/Migration·인증/권한·타 영역 영향 변경은 상대 Backend 담당자 1명의 리뷰·승인을 받는다. 문서만 바꾸더라도 계약이나 협업 규칙을 바꾸면 상대 리뷰 대상이며 이 정책 변경 PR도 포함한다. 상세 기준과 PR 분류는 [AGENTS.md의 Backend PR 리뷰 기준](../../AGENTS.md#backend-pr-리뷰-기준-2026-10-07-변경)과 [Backend 전략 §5.1](Discushion_백엔드_Git_GitHub_협업전략_2026-10-06.md#51-변경-영향별-리뷰와-병합-조건)을 따른다.
+
+`back/develop`의 일괄 필수 승인 수는 0으로 조정하며 필수 CI 등 다른 보호 조건은 유지한다. 상대 리뷰가 필요한 변경은 PR 운영 규칙으로 확인하고 GitHub가 변경별 승인을 자동 강제한다고 기록하지 않는다. 작성자는 자기 PR을 승인할 수 없으며 필요한 상대 승인을 Codex 검사로 대체하지 않는다. 동일 파일이나 API 계약에 영향이 겹치는 작업은 Issue/PR에서 선행 순서를 조율한다.
 
 ## 14. 동시 개발
 
@@ -219,7 +223,7 @@ PR 충돌·검증 실패가 있으면 병합하지 않는다. develop에서 로�
 최종 시연·배포 단계에서 `front/develop`과 `back/develop`을 각각 `main`으로 PR한다. `main` 직접 push/merge는 금지한다.
 
 1. 두 develop에서 각 영역 전체 검증과 FE/BE 연동을 완료한다.
-2. 먼저 반영할 develop에서 `main`으로 PR을 열고 review/CI를 통과시켜 병합한다.
+2. 먼저 반영할 develop에서 `main`으로 PR을 열고 필요한 리뷰/CI를 통과시켜 병합한다.
 3. 두 번째 PR 전, 두 번째 develop과 최신 `main`의 차이·충돌·누락을 다시 확인한다.
 4. 첫 PR에서 들어온 main 변경을 두 번째 develop에 반영해야 하면 `main → 해당 develop` 동기화 PR을 열고 검토·검증한다. 직접 merge/push하지 않는다.
 5. 두 번째 develop에서 최신 main을 확인한 PR을 갱신/생성하고 양 영역 변경의 포함 여부를 확인한 뒤 병합한다.
@@ -241,7 +245,7 @@ main 전체 검증
 - `feature/fe-*`, `feature/be-*` 이름 사용
 - FE Feature를 `back/develop`에, BE Feature를 `front/develop`에 PR
 - Issue 없는 일반 Feature 개발 또는 PR 없는 develop/main 반영
-- 미검증·미승인 PR 병합
+- 미검증 PR 또는 필요한 상대 담당자 승인이 없는 PR 병합
 - FE/BE Feature 간 직접 merge
 - 타인의 변경 임의 삭제, 관련 없는 대규모 리팩터링, 전역 포맷팅
 - API 계약 변경 무통보
@@ -260,10 +264,10 @@ main 전체 검증
 
 - [ ] base가 FE `front/develop` 또는 BE `back/develop`으로 정확하다.
 - [ ] Issue 완료 조건, 기능명세 범위, 변경 diff를 검토했다.
-- [ ] 관련 테스트/build 결과가 기록됐고 필수 CI와 리뷰가 통과했다.
+- [ ] 관련 테스트/build 결과가 기록됐고 필수 CI와 대상 브랜치·변경 영향에 따라 필요한 리뷰가 통과했다.
 - [ ] API/DB 영향과 FE/BE 연동 통보를 확인했다.
 - [ ] GitHub PR을 통해 병합한다. develop/main 직접 push하지 않는다.
 
-**기억할 흐름: Issue → 최신 영역 develop → Feature → 구현/test/build → push → 영역 develop 대상 PR → review/CI → merge. 최종 단계에서 두 develop을 각각 PR로 main에 반영한다.**
+**기억할 흐름: Issue → 최신 영역 develop → Feature → 구현/test/build → push → 영역 develop 대상 PR → 필요한 리뷰/CI → merge. 최종 단계에서 두 develop을 각각 PR로 main에 반영한다.**
 
 2026-10-07 팀 합의: Backend 공통 기반 1~5번과 독립 개발·Migration 영역별 작성은 [AGENTS.md](../../AGENTS.md)의 같은 날짜 합의를 따른다. 이전 담당/전담 작성 예시보다 현재 분담을 우선하며 GitHub 이슈 담당·선행은 후속 동기화 대상이다.
