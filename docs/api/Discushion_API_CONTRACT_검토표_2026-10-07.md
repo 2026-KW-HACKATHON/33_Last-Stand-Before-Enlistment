@@ -579,3 +579,46 @@ DB 보존은 원본/감사 이력 유지를 위한 기술 기준이며 삭제된
 #### 준비와 실제 완료 기준
 
 인터페이스·test-only batch 대체 구현 및 guest/타회원 정보 격리·삭제 display 차단 회귀 검사를 준비했다. #15/#17/#18/#19는 집계 adapter 전체 완성을 기다리지 않고 규약/Schema 통합 후 본문·목록을 구현할 수 있다. #21~#29도 PostContext/요약 규약을 사용해 개별 검증한다. 실제 연결·DB 경합·서비스 실패 전파는 해당 기능 완료 조건이고 FE 사용자 흐름은 #30/#31에서 확인한다. CI·CODEOWNERS/필수 검사 설정은 GitHub 실제 실행/관리자 설정 완료와 구분한다.
+
+## 12. #74 남은 인증 계약 — BE1 검토 (2026-10-07)
+
+작업 전 기준 확인: origin/back/develop `d9fe885`, AGENTS.md와 Backend 협업전략, API 정본 §1.3/§4.2~4.4, 이 검토표 §11, 최신 GitHub #74/#4 완료 조건. 사진 검토 브랜치의 로컬 `f3a17cf`(원격 미push 병합 포함)는 보존하고 별도 `back/feature/74-auth-contract`를 최신 기준에서 시작했다. 미커밋 변경은 없었다. 문서는 기존 파일명/경로를 유지한다.
+
+### 12.1 변경 전 범위·검증 기준
+
+| 구분 | 이번 작업 |
+| --- | --- |
+| 유지할 합의 | Privy Bearer 직접 검증/자체 세션 교환 제외, subject 1:1, 미가입/미완료/완료, 기존 identity/qualification/write guard, 권한·잠금/내부 규약 |
+| 남은 인증 문서 | 공식 검증 사실/실제 키 확인, 이메일 원본·가입 원자성, Auth wire와 오류 매핑 제안, FE token 취득/보관/갱신 및 기존 로그아웃 제외 범위 |
+| 공동 변경 제안 | 403 미가입/가입 미완료 code와 503 provider 장애 code, 기존 로그인 후보의 상태 확인 응답. 이유/영향을 API 정본에 먼저 제안하고 공통 오류표/Java 규약에 바로 등록하지 않음 |
+| 범위 밖 | #4 adapter/Controller/Dependency/Migration/실행환경, 사진·게시물·참여 집계·삭제 보존·역할 분담·공통 port/fixture/CI/리뷰 정책 |
+| 문서 검사 | 상대 링크·JSON 예시, 최신 기준과 diff, 기존 §11·공통 envelope/오류표·범위 밖 절/파일 보존, 이미 합의한 항목을 다시 선택 대기로 돌리지 않았는지 확인 |
+| 구현/연동 검사 | 이번에는 코드·token·DB·FE 구현/연동 검사를 수행하지 않음. 문서 검사 통과를 실제 인증/adapter 완료로 표시하지 않음 |
+
+### 12.2 확인된 내용과 미정 항목
+
+| 항목 | 상태 | 남은 확인·연결 |
+| --- | --- | --- |
+| 인증 방식 | 합의됨: access token Bearer 직접 검증 | 자체 세션 비교/선택 재진행 없음 |
+| 현재 주체/회원 상태 | §11.2 확정 규약 유지 | HTTP wire/오류 매핑은 아래 제안 검토, 운영 adapter는 #4 |
+| 서명·iss/aud/sub/exp | 공식 provider 자료 대조 | 실제 앱 ID·공식 지원키·Java 검증기·시간 설정은 #4/실행값 #30 |
+| verification key 설명 | official 자료에 ES256/Ed25519 문구 불일치 확인 | 추측한 JWKS URL/키 타입으로 구현하지 않음. 실제 앱 키·지원 검증 경로 대조 후 #4 수용 시험 |
+| 이메일 출처/중복 | 이메일 자동 연결 금지/기존 UNIQUE 유지. 최초 가입 이메일은 검증된 subject의 서버 provider 정보 사용 제안 | 실제 검증 email 계정 선택/서버 credential·API 사용 확인은 #6/#7·BE2, identity token Bearer 대체는 추가하지 않음 |
+| 가입 원자 저장 | 가입 완료는 동의·프로필·활동 지역·완료시각 원자 커밋 | #7 DB 경합/rollback 실검증. local row 자동 생성/legacy backfill 없음 |
+| Auth wire | 기존 POST /auth/login과 /auth/sign-up 후보를 사용한 회원 상태 응답/입력 검토안 | FE/BE2 데이터 계약 확인 전 확정/구현 완료 아님. 새로운 공통 port/일반 프로필·자격 DTO 변경 없음 |
+| HTTP 오류 | 401 UNAUTHORIZED·이메일 충돌409는 기존 규약 유지. 미가입/미완료403·키/provider 장애503 code는 공동 검토 제안 | 이유·영향은 API 정본에 기록. 기존 registry/envelope는 변경하지 않았고 승인 전 임의 구현 금지 |
+| 갱신·보관 | SDK access token 취득/갱신, 자체 refresh 발급/저장 없음 | 실제 FE SDK 저장 설정/재시도 UI·실제 앱 TTL은 #6~8/#30. OTP 수치를 추측하지 않음 |
+| 로그아웃 | 기존 MVP 서버 기능 제외 유지 | FE provider logout 사용 시 실제 동작 확인. 오프라인 JWT 검사만으로 즉시 revoke 완료 주장 금지 |
+
+상세 검토안과 근거는 [API 정본의 #74 인증 잔여 계약 정리](Discushion_API_SPEC_v2.md#74-인증-잔여-계약-정리--be1)를 따른다. 공식 근거: [Privy tokens](https://docs.privy.io/authentication/user-authentication/tokens), [access token](https://docs.privy.io/authentication/user-authentication/access-tokens), [user 조회](https://docs.privy.io/api-reference/users/get), [logout](https://docs.privy.io/authentication/user-authentication/logout), [이메일 인증](https://docs.privy.io/authentication/user-authentication/login-methods/email). 2026-10-07 문서 조회이며 실제 provider 호출/앱 설정 확인은 아니다.
+
+### 12.3 공동 검토·후속 인계
+
+- [ ] BE1·BE2가 제안된 Auth code의 의미·status·기술 장애 구분과 공통 error adapter 영향을 검토한다. 공통 registry/§11 변경이 필요하면 이유/영향을 별도 승인 후 반영한다.
+- [ ] FE 데이터 담당자가 Bearer/SDK 취득·갱신, login 상태 응답·미가입/미완료 분기, sign-up 입력·이메일 서버 확인·중복 응답, 오류/재시도·returnTo를 확인하고 실제 확인자/날짜/PR·SHA/이견을 #74에 기록한다. 문서 전체 최종 UI/연동은 기존 #30/#31 이관을 유지한다.
+- [ ] BE1/#4는 공식 앱 검증키·검증 경로와 Clock/장애 수용 기준을 확인하고 필요한 계약이 back/develop에 반영된 뒤 별도 Feature로 구현한다. 각 기능은 §11 port/test-only 대체 구현으로 독립 개발하되 실제 adapter/권한/데이터/transaction 검증을 완료 조건으로 남긴다.
+- [ ] 원격 통합 전에 최신 back/develop과 문서 diff/충돌을 다시 확인한다. 필수 CI·리뷰1명 유지, CODEOWNERS 생략. develop/main 직접 push·PR 병합·배포 없음.
+
+작성/대조: Codex(BE1 계약 준비), 사용자 이번 역할/범위 지시. 실제 FE/BE2 리뷰나 코드/DB/Privy 연동 완료를 대신하지 않는다. #74 전체 완료/Issue 종료로 표시하지 않는다. 문서 검사 결과와 Feature PR 링크는 실제 실행/준비 후 연결한다.
+
+문서 검증(2026-10-07): 상대 파일 링크 16개와 새 JSON 예시 3개 검사 통과, 기존 검토표 전체(§11 포함) 보존 확인, API 공통 형식/상태·공유·사진/수정·내부 독립 개발 규약 보존 확인, diff 공백 검사 통과. 변경 파일은 API 정본과 이 검토표 2개뿐이며 코드·Dependency·Migration·공통 Java 규약·담당 분담·CI/리뷰 정책 변경은 없다. Backend test/build·실제 Privy token/DB/FE 검증은 이번에 재실행하지 않았다. PR의 자동 CI 결과는 별도로 확인하며 문서 검사 결과로 대체하지 않는다.
