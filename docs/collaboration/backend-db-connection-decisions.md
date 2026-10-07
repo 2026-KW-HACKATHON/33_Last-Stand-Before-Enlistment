@@ -219,3 +219,10 @@ S/I/U/D는 SELECT/INSERT/UPDATE/DELETE다. `—`는 부여하지 않음을 뜻�
 - 전체 Java17 `test build --rerun-tasks` 171개/실패0/오류0/skip0, build 성공. 기존 Supabase SELECT-only 3개 포함이다. 테스트 자격·provider는 합성값이며 실제 Privy/Storage/FE 연결로 표시하지 않는다.
 - 마지막 테스트 정리/권한 위임 검증을 보완한 뒤 최종 소스의 서버 LOGIN 회귀8개 + Supabase 감사3개, 총11개/실패0/skip0과 build를 다시 실행했다. 런타임 DB_USERNAME/DB_PASSWORD에는 실제로 사용할 수 없는 시험 값을 넣고 DB_AUDIT_*로만 실제 관리자 감사를 연결해 설정 분리를 확인했다. 실제 `.env` 비밀값/서버 실행 설정은 변경하지 않았다.
 - 원격 SELECT-only 사전 확인: 서버 역할 아직 없음, PUBLIC의 두 Schema CREATE 권한 없음, 기존 RLS27개/이력5개 유지. LOGIN·GRANT·원격 쓰기 시험·FE 연동 및 BE1 승인은 남아 있다. PR은 상대 리뷰 필요이며 #30 전체를 종료하지 않는다.
+
+### 최신 develop 반영과 가입 경합 재검증 (2026-10-08 06:35 KST)
+
+- PR #140이 병합된 `back/develop`의 `a0db95a`를 #30 Feature에 충돌 없이 병합했다. 로그인 구현은 제거된 상태이며 #7 동일 Privy subject 동시 가입의 이메일 UNIQUE 충돌 복구와 회귀 테스트는 보존됐다. #30에서 가입 코드를 별도로 수정하지 않았다.
+- 반영 커밋 `3517368`에서 Java17 전체 `test build --rerun-tasks`를 실행했다. 172개 통과/실패0/오류0/skip0, build 성공이다. 가입 JDBC13개(동시 가입 포함), 서버 LOGIN/권한8개, 실제 Supabase SELECT-only 감사3개를 모두 실행했다.
+- PR #138 최초 브랜치 CI에서 발견한 가입 경합 오류에 대한 추가 수정 요청은 해소됐다. 최초 실패 이력은 보존하며 최신 push 이후 새 CI 결과는 PR에 기록한다. #7의 기존 승인과 별도로 재승인을 요구하지 않는다.
+- 남은 상대 리뷰는 PR #138의 DB 권한표·26개 RLS 정책·Migration 및 감사 연결 분리 변경에 대한 BE1의 최신 변경 승인이다. 승인·병합 후 실제 Supabase 적용/LOGIN·비밀번호 설정·런타임 계정 교체·권한 허용/거부 검증 순서는 유지한다. 이번 재검증은 원격 권한 적용이나 실제 서버 계정/FE 연동 완료가 아니다.
