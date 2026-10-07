@@ -44,6 +44,7 @@ class PhotoJdbcIntegrationTests {
     @AfterEach void cleanupFixtures() {
         tx.executeWithoutResult(status->{
             store.jdbc.update("delete from discushion.post_photos where post_id in (select id from discushion.posts where author_user_id=?)",owner);
+            store.jdbc.update("delete from discushion.polls where post_id in (select id from discushion.posts where author_user_id=?)",owner);
             store.jdbc.update("delete from discushion.posts where author_user_id=?",owner);
             store.jdbc.update("delete from discushion.media_files where owner_user_id=?",owner);
             store.jdbc.update("delete from discushion.neighbor_verified_regions where user_id=?",owner);
@@ -187,6 +188,32 @@ class PhotoJdbcIntegrationTests {
         assertThat(service.get(id).status()).isEqualTo("DELETE_PENDING");
         assertThat(service.get(id).uploadAuthorizationExpiresAt()).isEqualTo(clock.instant().plusSeconds(8000));
     }
+    @Test void pollEndingWhileWaitingForFileLockRejectsAllPhotoWrites() throws Exception {
+        long file=completed(),post=post();
+        Instant end=clock.instant().plusSeconds(10);
+        store.jdbc.update("insert into discushion.polls(post_id,question,ends_at) values(?,?,?)",post,"synthetic",Timestamp.from(end));
+        var pool=java.util.concurrent.Executors.newSingleThreadExecutor();
+        try(var blocker=source.getConnection()) {
+            blocker.setAutoCommit(false);
+            try(var statement=blocker.prepareStatement("select id from discushion.media_files where id=? for update")) {
+                statement.setLong(1,file);statement.executeQuery().close();
+            }
+            var waiting=pool.submit(()->tx.execute(status->attachments.replace(post,List.of(new PhotoAttachments.Reference(null,file)))));
+            long deadline=System.nanoTime()+java.util.concurrent.TimeUnit.SECONDS.toNanos(10);
+            boolean observed=false;
+            while(System.nanoTime()<deadline) {
+                observed=Boolean.TRUE.equals(store.jdbc.queryForObject("select exists(select 1 from pg_stat_activity where datname=current_database() and wait_event_type='Lock' and query like '%media_files%' and pid<>pg_backend_pid())",Boolean.class));
+                if(observed) break;
+                Thread.sleep(20);
+            }
+            assertThat(observed).as("actual media row lock wait").isTrue();
+            clock.now=end;blocker.rollback();
+            assertThatThrownBy(()->waiting.get(10,java.util.concurrent.TimeUnit.SECONDS))
+                .hasCauseInstanceOf(PhotoFailure.class).hasRootCauseMessage("VALIDATION_ERROR");
+            assertThat(store.jdbc.queryForObject("select count(*) from discushion.post_photos where post_id=?",Integer.class,post)).isZero();
+            assertThat(service.get(file).status()).isEqualTo("UNLINKED");
+        } finally {pool.shutdownNow();}
+    }
     final class Storage implements PhotoStorage {
         final Map<String,byte[]> objects=new HashMap<>();
         boolean failIssue,failRead,drained=true; int issued,removed; long grantSeconds=7200;
@@ -210,7 +237,7 @@ class PhotoJdbcIntegrationTests {
         public boolean uploadsDrained(String key,Instant expiry) {return drained;}
     }
     static final class TestClock extends Clock {
-        Instant now=Instant.parse("2026-10-08T00:00:00Z");
+        volatile Instant now=Instant.parse("2026-10-08T00:00:00Z");
         public ZoneId getZone(){return ZoneOffset.UTC;} public Clock withZone(ZoneId zone){return this;} public Instant instant(){return now;}
     }
 }

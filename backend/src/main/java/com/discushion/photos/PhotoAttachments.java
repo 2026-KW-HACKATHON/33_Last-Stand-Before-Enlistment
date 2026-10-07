@@ -56,6 +56,8 @@ public final class PhotoAttachments {
         }
         if(total>PhotoContent.MAX_BYTES) throw new PhotoFailure(PHOTO_SIZE_EXCEEDED);
         var removed=byPhoto.values().stream().filter(id->!desired.contains(id)).sorted().toList();
+        // File locks may have waited past ends_at. Recheck immediately before the first write.
+        if(!polls.isEmpty() && !clock.instant().isBefore(((Timestamp)polls.get(0).get("ends_at")).toInstant())) throw new PhotoFailure(VALIDATION_ERROR);
         // Deferrable ordering constraint permits swaps without temporary invalid/negative positions.
         store.jdbc.execute("set constraints discushion.post_photos_post_id_sort_order_key deferred");
         for(var entry:byPhoto.entrySet()) if(removed.contains(entry.getValue())) {
