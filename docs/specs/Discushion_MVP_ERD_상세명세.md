@@ -8,6 +8,12 @@
 
 ## 2026-10-07 결정 반영
 
+### #74 사진 저장 구조 보완 검토
+
+추가 Migration `20261007104543_support_photo_cleanup_leases.sql`은 legacy 보존 27테이블·180컬럼이다. 적용된 네 Migration을 수정하지 않는다. media_files에 nullable TIMESTAMPTZ upload_authorization_expires_at/deletion_claimed_at/deletion_claim_expires_at과 nullable UUID deletion_claim_token을 추가하고 post_photos.file_id 단독 UNIQUE를 추가한다. 미완료 파일도 uploaded_at 없이 삭제 예약/완료를 추적하되 UNLINKED/LINKED의 업로드 검증 완료 요구는 유지한다. 아래 역사적 Mermaid는 기존 모델이며 카탈로그 검사는 명시적 추가 컬럼 overlay와 UNIQUE를 대조한다.
+
+세 claim 필드는 DELETE_PENDING에서 함께 존재하며 예약 이후 선점·선점 이후 만료만 허용한다. DELETED는 기록된 마지막 업로드 권한 만료 이전에 기록할 수 없다. 서비스는 동일 파일 행 잠금·token 조건부 결과 갱신·실제 참조/소유권·늦은 업로드 종료를 별도로 확인한다. region_id 추가·기존 데이터 backfill·원격 적용·Storage worker 구현은 수행하지 않는다. 상세는 [계약 검토표 §10.10](../api/Discushion_API_CONTRACT_검토표_2026-10-07.md), wire 확인 대기는 [API 정본 §13](../api/Discushion_API_SPEC_v2.md)을 따른다.
+
 사용자가 확정한 아래 변경이 같은 주제의 변경 전 v10.1 본문·예시·MVP 표보다 우선한다. 상세 근거와 남은 계약은 [MVP 결정 변경 기록](./Discushion_MVP_결정변경_2026-10-07.md)을 확인한다. 제품 범위·서비스 선택과 팀 계약 합의·실제 구현/연동 완료를 구분한다. 기능 ID는 유지하며 PRD·기능명세서의 현재 파일명과 참조는 v10.2로 갱신했다.
 
 - **계정:** Privy 이메일 OTP로 인증·로그인한다. 최초 사용자는 필수/선택 동의·프로필·활동 지역을 완료해 로컬 회원으로 가입한다. 자체 비밀번호 설정·확인·로그인과 자체 가입 코드 발급은 대체한다. OTP 세부 제한과 토큰/회원 연결 계약은 #74에서 합의한다. `returnTo`를 전체 과정에서 보존하고 복귀만으로 참여·북마크를 자동 실행하지 않는다.

@@ -17,6 +17,7 @@ create role service_role nologin bypassrls;
 \ir ../migrations/20261007011459_harden_nonblank_inputs.sql
 \ir ../migrations/20261007021128_align_mvp_auth_and_demo_prerequisites.sql
 \ir ../migrations/20261007023149_add_privy_registration_and_media_lifecycle.sql
+\ir ../migrations/20261007104543_support_photo_cleanup_leases.sql
 do $checks$
 declare r text;
 begin
