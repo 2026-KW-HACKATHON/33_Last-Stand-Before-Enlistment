@@ -28,6 +28,20 @@ class SignupInputTests {
         assertThatThrownBy(()->new SignupInput(true,true,false,"주민","가".repeat(51),List.of(),1).validate()).isInstanceOf(SignupFailure.class);
         for(long id:new long[]{0,-1,9007199254740992L}) assertThatThrownBy(()->new SignupInput(true,true,false,"주민",null,List.of(),id).validate()).isInstanceOf(SignupFailure.class);
     }
+    @Test void unicodeWhitespaceAndBomOnlyNicknameAreFieldValidationErrors() {
+        for(String blank:List.of("\u00A0","\u202F","\uFEFF","\u0085","\t\u00A0\uFEFF "))
+            assertThatThrownBy(()->new SignupInput(true,true,false,blank,null,List.of(),1).validate())
+                .isInstanceOfSatisfying(SignupFailure.class,error->{
+                    assertThat(error.reason).isEqualTo(SignupFailure.Reason.VALIDATION_ERROR);
+                    assertThat(error.field).isEqualTo("profile.nickname");
+                });
+    }
+    @Test void realNicknameWithSpecialWhitespaceIsPreservedWithoutTrimming() {
+        for(String nickname:List.of("\u00A0주민","주\u202F민","주민\uFEFF")) {
+            var input=new SignupInput(true,true,false,nickname,null,List.of(),1);
+            input.validate();assertThat(input.nickname()).isEqualTo(nickname);
+        }
+    }
     @Test void attributesAreNonAuthorizationEnumsAndDuplicateValuesAreRejected() {
         new SignupInput(true,true,false,"주민",null,List.of("RESIDENT","STUDENT","WORKER","MERCHANT"),1).validate();
         for(var attrs:List.of(List.of("ADMIN"),List.of("RESIDENT","RESIDENT")))

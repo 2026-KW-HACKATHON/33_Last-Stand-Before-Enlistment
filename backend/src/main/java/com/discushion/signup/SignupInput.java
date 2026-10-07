@@ -10,13 +10,21 @@ record SignupInput(boolean terms, boolean privacy, boolean marketing, String nic
     SignupInput { attributes=List.copyOf(attributes); }
     void validate() {
         if (!terms || !privacy) throw new SignupFailure(SignupFailure.Reason.REQUIRED_AGREEMENT_MISSING, "agreements");
-        if (nickname==null || nickname.isBlank() || nickname.codePointCount(0,nickname.length())>10)
+        if (nickname==null || nickname.isBlank() || nickname.codePoints().allMatch(SignupInput::dbBlank)
+                || nickname.codePointCount(0,nickname.length())>10)
             throw invalid("profile.nickname");
         if (bio!=null && bio.codePointCount(0,bio.length())>50) throw invalid("profile.bio");
         if (regionId<1 || regionId>9007199254740991L) throw invalid("profile.activityRegionId");
         if (Set.copyOf(attributes).size()!=attributes.size()
                 || !Set.of("RESIDENT","STUDENT","WORKER","MERCHANT").containsAll(attributes))
             throw invalid("profile.residentAttributes");
+    }
+    /** Matches profiles_nickname_nonblank's Unicode White_Space + BOM, without trimming valid names. */
+    private static boolean dbBlank(int codePoint) {
+        return (codePoint>=0x0009 && codePoint<=0x000D) || codePoint==0x0020 || codePoint==0x0085
+            || codePoint==0x00A0 || codePoint==0x1680 || (codePoint>=0x2000 && codePoint<=0x200A)
+            || codePoint==0x2028 || codePoint==0x2029 || codePoint==0x202F || codePoint==0x205F
+            || codePoint==0x3000 || codePoint==0xFEFF;
     }
     static SignupInput parse(Map<String,Object> body) {
         if (body==null || !body.keySet().equals(Set.of("agreements","profile"))) throw invalid("body");

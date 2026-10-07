@@ -150,6 +150,24 @@ class SignupHttpIntegrationTests {
         var conflict=post(body(),token());assertThat(conflict.statusCode()).isEqualTo(409);
         assertThat(conflict.body()).contains("NICKNAME_ALREADY_IN_USE").doesNotContain("duplicate key","profiles_nickname_key","INSERT",subject);
     }
+    @Test void unicodeBlankNicknameReturns400BeforeProviderOrMemberWrites() throws Exception {
+        for(String blank:new String[]{"\u00A0","\u202F","\uFEFF","\u0085","\t\u00A0\uFEFF "}) {
+            // JSON escapes are used for the mixed case containing a tab.
+            String encoded=tools.jackson.databind.json.JsonMapper.builder().build().writeValueAsString(blank);
+            var response=post(body().replace("\""+nickname+"\"",encoded),token());
+            assertThat(response.statusCode()).isEqualTo(400);
+            assertThat(response.body()).contains("VALIDATION_ERROR","profile.nickname","details","traceId")
+                .doesNotContain("INTERNAL_ERROR","profiles_nickname_nonblank","INSERT",subject);
+        }
+        assertThat(EMAIL_CALLS.get()).isZero();
+        assertThat(jdbc().queryForObject("select count(*) from discushion.users where privy_user_id=?",Integer.class,subject)).isZero();
+    }
+    @Test void validNicknameWithSpecialSpaceIsStoredUnchanged() throws Exception {
+        String expected="\u00A0"+nickname;
+        var response=post(body().replace(nickname,expected),token());
+        assertThat(response.statusCode()).isEqualTo(201);
+        assertThat(jdbc().queryForObject("select p.nickname from discushion.profiles p join discushion.users u on u.id=p.user_id where u.privy_user_id=?",String.class,subject)).isEqualTo(expected);
+    }
     private static com.nimbusds.jose.jwk.ECKey key() {
         try{return new ECKeyGenerator(Curve.P_256).generate();}catch(Exception e){throw new ExceptionInInitializerError(e);}
     }
