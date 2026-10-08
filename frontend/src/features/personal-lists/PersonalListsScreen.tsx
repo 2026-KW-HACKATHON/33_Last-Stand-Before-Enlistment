@@ -4,6 +4,7 @@ import { Header } from "../../components/layout/Header";
 import { MobileLayout } from "../../components/layout/MobileLayout";
 import { BottomNavigation } from "../../components/layout/BottomNavigation";
 import { Notice } from "../../components/ui/Notice";
+import { VoteValueSummary } from "../../components/ui/VoteValue";
 import { Button } from "../../components/ui/Button";
 import { PostCard } from "../post/PostCard";
 import { postTypeLabel } from "../post/model";
@@ -25,7 +26,7 @@ export function PersonalListsScreen({ store, subjectKey, onBack, renderDetail }:
  {(state.phase === "idle" || state.phase === "loading") && <Notice role="status">게시물 불러오는 중</Notice>}
  {state.phase === "error" && <Notice tone="error"><p>목록을 불러오지 못했습니다. 선택한 유형을 유지했습니다.</p><Button onClick={() => void store.load()}>다시 시도</Button></Notice>}
  {state.phase === "unavailable" && <Notice>개인 목록 Service 연결 대기 · 실 API 연동 대기</Notice>}
- {state.phase === "ready" && (!items.length ? <Notice>{state.kind === "participations" ? "아직 참여한 게시물이 없습니다" : "작성한 게시물이 없습니다"}</Notice> : items.map(item => <section key={item.post.id} className="flex flex-col gap-section"><PostCard post={item.post} onOpen={open}/>{state.kind === "participations" && <><p className="text-caption">내 현재 참여</p>{item.actions.some(action => action !== "VOTE") && <div className="flex flex-wrap gap-1.5" aria-label="일반 참여 상태">{item.actions.filter(action => action !== "VOTE").map(action => <span key={action} className="whitespace-nowrap rounded-chip bg-soft px-page py-internal text-caption text-primary">{participationLabels[action]}</span>)}</div>}{item.actions.includes("VOTE") && <div className="flex flex-wrap gap-internal"><span className="rounded-chip bg-[#F3F4F6] px-page py-internal text-caption text-[#4B5563]">{participationLabels.VOTE}</span></div>}{item.voteSummary && <Notice>{item.voteSummary}</Notice>}</>}</section>))}
+ {state.phase === "ready" && (!items.length ? <Notice>{state.kind === "participations" ? "아직 참여한 게시물이 없습니다" : "작성한 게시물이 없습니다"}</Notice> : items.map(item => <section key={item.post.id} className="flex flex-col gap-section"><PostCard post={item.post} onOpen={open}/>{state.kind === "participations" && <><p className="text-caption">내 현재 참여</p>{item.actions.some(action => action !== "VOTE") && <div className="flex flex-wrap gap-1.5" aria-label="일반 참여 상태">{item.actions.filter(action => action !== "VOTE").map(action => <span key={action} className="whitespace-nowrap rounded-chip bg-soft px-page py-internal text-caption text-primary">{participationLabels[action]}</span>)}</div>}{item.actions.includes("VOTE") && <div className="flex flex-wrap gap-internal"><span className="rounded-chip bg-[#F3F4F6] px-page py-internal text-caption text-[#4B5563]">{participationLabels.VOTE}</span></div>}{item.voteSummary && <Notice><VoteValueSummary summary={item.voteSummary}/></Notice>}</>}</section>))}
  {state.phase === "ready" && <Button variant="secondary" onClick={() => { store.close(); navigation.navigate({ destination: { id: "board" }, origin: destination }); }}>게시판으로</Button>}
  </AccessGuard></MobileLayout></div>{detail && state.visible && renderDetail?.(detail, () => { setDetail(null); void store.load(); })}</>;
 }
