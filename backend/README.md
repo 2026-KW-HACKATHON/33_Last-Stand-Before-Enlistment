@@ -332,6 +332,20 @@ FE 기준 `origin/front/develop ad0700c`의 post model/service와 대조했다. 
 
 #18/#16 최종 통합 후 재검증: 기준305a793을 반영한1613900에서 메인·지도·서버 권한·실제 감사3/Storage4 관련34개 통과·실패0·오류0·skip0·build 성공(00:52 KST, 1분58초). Schema133/공개 역할 차단9 통과. 앞선 전체361개와 구분하며 최종 원본/권한·빈 동·썸네일·profile 불변을 재검토했다.
 
+### #27 본인 작성·현재 참여·투표 기록 (2026-10-09)
+
+기준 `origin/back/develop 86cc67a`(#29 병합)에서 `back/feature/27-personal`을 시작했다. 사용자가 작성시각/남은 본인 참여의 최근시각/투표 마지막 제출·변경시각 내림차순, postId 동률 정렬, 기본20/최대100 및 cursor 조회를 채택했다. 삭제 투표는 ALL에만 UNAVAILABLE 최소 이력을 남기고 OPEN/CLOSED 및 작성/참여 목록에서는 제외한다. 기존 myParticipation·본인 실제 선택·원본 결과/#25 반올림과 #5 건너뜀을 유지한다. 계약은 기존 API 정본 §8.1~8.2/검토표 D10·D15에 반영했다.
+
+GET `/api/v1/users/me/posts`, `/participations`, `/votes`는 검증된 Privy subject로 실제 회원/가입 완료를 다시 확인하고 REPEATABLE READ·read-only transaction에서 현재 원본 관계와 실제 PostSummaryReader/ParticipationSnapshotReader를 batch 조회한다. 회원→postId 현재 관계만 사용하고 북마크/타인 행동/게스트를 참여 근거로 만들지 않는다. cursor는 본인·API·필터에 귀속되며 반응 취소/평가 삭제로 남은 표시와 카드 유무가 갱신된다. 최초 투표 참여시각은 보존하고 정렬은 현재 표의 updated_at을 사용한다. 삭제 투표의 제목/본문/선택/사진/결과는 응답에 포함하지 않는다. 새 Migration·권한 확대·누적 활동 이벤트 쓰기는 없다.
+
+신규15개(입력/cursor4·실제 HTTP/JDBC11)는 실패/오류/skip0, build 성공이다. 첫 시험의 투표 종료시각이 DB 현재시각보다 과거여서 생성이 거부됐고 기존 #14 계약에 맞게 시험 데이터를 수정한 뒤 재실행했다. 실제 discushion_server 역할로 본인 격리·유형/상태/페이지·모든 참여 중복 제거·취소 후 남은 표시·실제 표 변경/33.33·66.67 반올림·종료 경계·삭제 투표 최소 이력·권한/입력 오류·adapter 장애의 안전한500 및 읽기 중 삭제의 snapshot 일관성을 확인했다. test-only snapshot probe는 src/test에만 있으며 운영 Bean/fixture가 아니다.
+
+2026-10-09 01:25 KST 전체 Java17 `test build --max-workers=2 --console=plain`: **414개 중407통과·실패0·오류0·선택형 원격7개 미실행, build 성공(7분33초)**. 이후 SupabaseJdbcSmokeTests를 별도 opt-in/rerun-tasks로 실행해 **원격 SELECT-only 감사3개 전부 통과·skip0, build 성공(1분10초)**를 확인했다. Storage4개는 이번 조회 기능에서 실행하지 않았다. 최종 Schema133/공개 역할 격리9/RLS·ERD27테이블185컬럼/FK55 통과, 정책52개·합성 회원/지역0·NOLOGIN/password null 및 로컬 DB 종료를 확인했다.
+
+원격 감사3개는 기존 지정 개발 프로젝트의 관리자 감사 연결·TLS·Schema/Migration·공개 역할 차단 시험이며 최소 권한 서버 역할의 #27 성공을 대신하지 않는다. 별도 SELECT-only 권한 조회에서 서버 역할의 activity_post_details/bookmarks/comment_evaluations/comments/poll_options/post_reactions/vote_selections SELECT 및 SELECT 정책이 아직 없음을 확인했다. 기존 통합 Migration의 실제 공유 DB rollout을 #30에서 해소한 뒤 실제 서버 역할로 #27을 검증해야 한다. 이번 실행은 공유 Migration 적용·배포·원격 쓰기를 수행하지 않았다.
+
+최신 FE `origin/front/develop ad0700c`의 personal-lists/model.ts와 my-votes/model.ts를 대조했다. FE adapter는 숫자 ID→string, NEEDED→NECESSARY, CLOSED→ENDED, availability 대문자→소문자 및 post/vote→FE post/snapshot을 변환해야 한다. 본인 목록은 서버 인증 주체로 제한하므로 임의 author.id/회원 ID를 만들어 공개하지 않고 인증된 본인과 capabilities를 기준으로 소비한다. UNAVAILABLE은 FE status=null로 ALL에만 표시하며 결과와 본인 선택을 혼동하지 않는다. FE의 기존 정수 백분율 표시와 서버 소수 둘째 자리 결과의 실제 소비는 #30/#31에서 확인한다. 이 문서 대조는 실제 FE 승인/사용자 흐름 검증을 대신하지 않는다. 변경은 Feature의 미커밋 상태로 준비했으며 통합 전 최신 base·최종 diff·필수 CI를 다시 확인한다.
+
 ### #20 최신 게시물 기준 검증 (2026-10-09)
 #16 포함 기준72969f0을 반영한74a2bcb에서 summary·게시물·서버 권한·실제 감사3/Storage4/Gemini2 관련71개 통과·실패0·오류0·skip0·build 성공(00:49 KST, 4분24초). Schema133/공개 역할 차단9 통과. 이전 전체345개와 이 후속 검증을 구분한다. 합성 안건 정상3문장·정보 부족 처리의 실제 Gemini 호출 성공. 공유 DB summary 권한 적용·Render 비밀 설정/활성화·프로젝트 FE 연동은 대기다.
 
@@ -363,3 +377,12 @@ FE 기준 `origin/front/develop ad0700c`의 post model/service와 대조했다. 
 
 최신 기준 관련28개(개인query4·HTTP11·서버권한8·실제감사3·Storage2) 통과/실패0/오류0/skip0와build를01:56:03 KST 확인했다. #27 원격 Backend tests and build도success다. 새 Migration/권한 추가는 없으며 기존55정책·18이력을 사용한다. 전체/실제Gemini 재통과 결과를 뜻하지 않는다. 배포/실제 API 결과는 환경 결정 기록의 최신 절을 따른다.
 #30 최종: Gemini 키 저장 승인 후 AI_SUMMARIES_ENABLED=true 적용·동일eb9a7d4 재배포가02:14:53 KST Live다. 실제3문장 생성/SUCCEEDED·DB저장·재조회 동일, 실패fallback/FAILED 저장·캐시를 확인했다. 짧은 원문SOURCE_TOO_SHORT 실제 확인은 아직 미완료다. 최신 health/메인/지도/개인 기록3개200. 합성 게시물 4건은 소프트 삭제하고 요약 이력을 보존했다. 상세는 환경 결정 기록의 최신 절을 따른다. FE 연동·전체 인수는 미완료이며 commit/push/PR은 수행하지 않았다.
+### #17 통합 게시판 목록 (2026-10-09)
+
+최신 `origin/back/develop eb9a7d4`(#27 병합)에서 `back/feature/17-list`를 시작했다. `GET /api/v1/posts`는 가입 완료 회원만 접근하며 프로필 기본 지역/명시한 임시 지역·유형·주제 필터, 최신 작성시각/postId 내림차순, 기본20/최대100 cursor 페이지를 사용한다. 필터·본인·실제 지역에 cursor를 귀속시키고 기본 지역이 바뀌면 이전 cursor를 거부한다. 자유 검색·인기도 정렬·상태 필터는 추가하지 않는다. 계약은 기존 API §5.3/검토표 D10에 기록했다.
+
+기존 #27의 실제 batch PostSummaryReader/ParticipationSnapshotReader·원본 조회와 카드 조합기를 package 내부에서 재사용한다. #27 응답/동작은 보존하며 새 DTO·port·Migration·권한 확대는 없다. 같은 REPEATABLE READ/read-only transaction에서 공개 게시물·사진·작성자 공개명/현재 기관 배지·반응/댓글·투표를 조합한다. 신규 게시/수정/삭제/참여 변경은 복제 없이 반영하고 사진 없는 카드는 thumbnailUrl=null, 유효 LINKED 사진은 첨부 순서의 첫 공개 URL만 제공한다. 목록에 내부 fileId/이메일은 반환하지 않는다.
+
+신규11개(입력2·실제 HTTP/JDBC9)와 #27 회귀15개·서버 권한8개, 총 **34개 모두 통과·실패/오류/skip0·build 성공(1분22초)**. 기본 지역/임시 지역 비저장·세 유형/주제·페이지·cursor 격리/기본 지역 변경·생성/수정/삭제/반응 재조회·사진 없음/공개 URL·게스트/미가입/미완료 거부·읽기 중 삭제 snapshot·안전한500을 실제 서버 역할로 확인했다. 첫 사진 fixture의 컬럼명과 LINKED 연결시각 누락은 시험 데이터만 보완했으며 운영 제약은 변경하지 않았다. Schema133/공개 역할 차단9/ERD27테이블185컬럼/FK55 통과, 정책55개·합성 회원/지역0·NOLOGIN/password null 및 로컬 DB 정상 종료 확인.
+
+최신 FE ad0700c의 post display model과 대조했다. 기존 #15/#27처럼 숫자 ID·활동/투표 상태·기관 배지 및 권한의 표시 변환은 FE adapter에서 확인한다. API 원본을 사용하고 사진 없는 영역은 생략하며 기본 이미지/다른 콘텐츠 fallback을 만들지 않는다. 실제 FE 필터/스크롤 복귀, 공유 DB 기존 권한 rollout·실제 서버 역할/Privy 흐름·배포는 #30/#31에서 해소한다. 이번 localhost 시험은 원격 Supabase/Storage/Gemini를 실행한 결과가 아니다. PR의 최종 diff·필수 CI·최신 base·미해결 대화·충돌 조건을 확인한 뒤 사용자 요청대로 병합한다.
