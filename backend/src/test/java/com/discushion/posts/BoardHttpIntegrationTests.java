@@ -68,7 +68,7 @@ class BoardHttpIntegrationTests {
     }
     @Test void firstOrderedLinkedPhotoUsesPublicAdapterAndNoFileIdIsReturned()throws Exception{
         long id=fixture.create("owner","LOCAL_AGENDA");var admin=PersonalHttpIntegrationTests.admin();
-        long file=admin.queryForObject("insert into discushion.media_files(owner_user_id,storage_key,original_name,mime_type,size_bytes,purpose,created_at,lifecycle_status,uploaded_at) values(?,?,?,'image/png',68,'POST_PHOTO',?,'LINKED',?) returning id",Long.class,fixture.owner,"synthetic17/first","test.png",Timestamp.from(PersonalHttpIntegrationTests.NOW),Timestamp.from(PersonalHttpIntegrationTests.NOW));
+        long file=admin.queryForObject("insert into discushion.media_files(owner_user_id,storage_key,original_name,mime_type,size_bytes,purpose,created_at,lifecycle_status,uploaded_at,linked_at) values(?,?,?,'image/png',68,'POST_PHOTO',?,'LINKED',?,?) returning id",Long.class,fixture.owner,"synthetic17/first","test.png",Timestamp.from(PersonalHttpIntegrationTests.NOW),Timestamp.from(PersonalHttpIntegrationTests.NOW),Timestamp.from(PersonalHttpIntegrationTests.NOW));
         admin.update("insert into discushion.post_photos(post_id,file_id,sort_order) values(?,?,0)",id,file);when(photos.publicUrl("synthetic17/first")).thenReturn("https://example.invalid/public/first.png");
         var item=data(list("","viewer")).path(0);assertThat(item.path("thumbnailUrl").asText()).isEqualTo("https://example.invalid/public/first.png");assertThat(item.has("fileId")).isFalse();
     }
