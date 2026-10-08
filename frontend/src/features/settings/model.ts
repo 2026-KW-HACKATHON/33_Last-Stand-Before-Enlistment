@@ -3,7 +3,7 @@ export const settingsMenus = [
  { id: "account", label: "계정 관리", section: "계정", issue: 92, destination: { id: "account" } },
  { id: "myPosts", label: "내가 쓴 글", section: "커뮤니티", issue: 47, destination: { id: "myPosts" } },
  { id: "participations", label: "댓글 남긴 글", section: "커뮤니티", issue: 47, destination: { id: "participations" } },
- { id: "bookmarks", label: "스크랩한 글", section: "커뮤니티", issue: 49, destination: { id: "bookmarks" } },
+ { id: "bookmarks", label: "북마크", section: "커뮤니티", issue: 49, destination: { id: "bookmarks" } },
  { id: "interestKeywords", label: "관심 키워드", section: "커뮤니티", issue: 88, destination: { id: "interestKeywords" } },
  { id: "notificationSettings", label: "알림 설정", section: "앱 설정", issue: 90, destination: { id: "notificationSettings" } },
  { id: "logout", label: "로그아웃", section: "기타", issue: 94 },
