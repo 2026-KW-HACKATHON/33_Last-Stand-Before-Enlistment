@@ -245,3 +245,18 @@ S/I/U/D는 SELECT/INSERT/UPDATE/DELETE다. `—`는 부여하지 않음을 뜻�
 Storage object0개·초기 최종 DELETED 검증 이력2행을 확인했다. 회원/지역 등록과 합성 만료 예약 생성은 개발 검증용 DML이며 Migration/역할/GRANT/RLS 변경이 아니다. 최신 develop의 추가 기능/권한 Migration을 배포하거나 이번 사진 검증에서 임의 적용하지 않았으며 #13/#30은 남은 연결 조건 확인 전까지 열어 둔다.
 
 22:06:30 KST의 실제 자연 휴면 종료 로그를 확인한 뒤 별도 만료 예약1행을 생성했다. 서버 휴면 중에는 UPLOADING·정리 시도0회였으며 Health 요청/재기동 뒤22:10:56에 실제 worker가 DELETED·시도1회·오류 없음으로 처리했다. 최종 삭제 이력3행·Storage object0개이며 실제 휴면 후 재개 검증도 완료했다. 과거 시각은 합성 새 예약에만 지정했고 기존 행·Schema·권한을 변경하지 않았다. 실제24시간 대기와 프로젝트 FE/게시물 사진 연결을 완료했다고 기록하지 않는다.
+
+## #14 게시물 생성 서버 권한 보완 (2026-10-08)
+
+`20261008130000_allow_post_creation.sql`은 공통 게시물·활동 상세·투표 원본·선택지 생성에 필요한 INSERT만 추가한다. 기존에 공유 DB에 적용된 Migration은 수정하지 않았다. 아래는 이 Feature의 추가분이며 앞의 단계별 예정 권한표 전체를 한 번에 적용한다는 뜻이 아니다.
+
+| 테이블 | 추가 테이블 권한 | 추가 RLS 정책 |
+| --- | --- | --- |
+| posts | INSERT | discushion_server 전용 server_insert |
+| activity_post_details | INSERT | discushion_server 전용 server_insert |
+| polls | INSERT | discushion_server 전용 server_insert |
+| poll_options | INSERT | discushion_server 전용 server_insert |
+
+게시물·유형별 행·사진 참조는 하나의 Spring 트랜잭션에서 저장한다. Spring이 검증된 현재 회원·가입 완료·지역 자격과 사진 소유권/상태를 확인하며 서버용 RLS는 사용자별 제품 권한 검사를 대신하지 않는다. 기존 SELECT/UPDATE 권한은 유지하고 DELETE·DDL·시퀀스 직접 사용·GRANT OPTION·공개 API 역할 접근은 추가하지 않는다. activity_post_details의 조회/수정 권한은 이번 추가 범위가 아니다.
+
+격리 localhost PostgreSQL에서 Migration·133개 무결성 검사·공개 역할 차단9개·ERD 27테이블/185컬럼 대조를 확인했다. 실제 discushion_server 로그인으로 세 유형 생성, 사진 연결, 실패 rollback, 같은 파일의 중복 연결 방지, 물리 삭제/DDL 거부를 검사한다. 전체 실행 결과는 Backend README의 #14 기록을 따른다. 공유 Supabase 적용·배포·실제 FE 연결은 아직 수행하지 않았으며 로컬 검증과 구분한다.
