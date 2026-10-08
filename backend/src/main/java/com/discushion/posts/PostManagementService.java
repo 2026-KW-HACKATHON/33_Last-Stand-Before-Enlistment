@@ -37,11 +37,14 @@ final class PostManagementService {
             if (post.poll().isPresent() && !posts.databaseNow().isBefore(post.poll().orElseThrow().endsAt()))
                 throw PostEditFailure.notEditable();
             long targetRegion = patch.regionId().supplied() ? patch.regionId().value() : current.regionId();
+            if (patch.regionId().supplied() && !posts.regionExists(targetRegion)) throw PostEditFailure.invalid("regionId");
             members.requireVerifiedRegion(member, targetRegion);
             if (targetRegion != current.regionId() && posts.hasActiveAdoption(postId)) throw PostEditFailure.notEditable();
             validateValues(patch);
             if (post.poll().isPresent() && !posts.databaseNow().isBefore(post.poll().orElseThrow().endsAt()))
                 throw PostEditFailure.notEditable();
+            if (patch.endsAt().supplied() && !patch.endsAt().value().isAfter(posts.databaseNow()))
+                throw PostEditFailure.invalid("details.endsAt");
             posts.update(postId, patch, current);
             List<Long> removed = patch.photoOrder().supplied() ? photos.replace(postId, patch.photoOrder().value()) : List.of();
             PostDetailLookup reader = details.get();
@@ -68,6 +71,7 @@ final class PostManagementService {
 
     private void requirePublishedAndOwned(PostContext post, MemberQualification member, boolean deleting) {
         if (post.status() != PostStatus.PUBLISHED) throw PostEditFailure.notFound();
+        if (post.type() == PostType.VOTE && post.poll().isEmpty()) throw new IllegalStateException("Published vote has no poll source");
         if (!members.isOwner(member, post.authorUserId())) {
             if (deleting) throw new PostEditFailure("POST_NOT_DELETABLE", 403, "postId");
             throw PostEditFailure.notEditable();

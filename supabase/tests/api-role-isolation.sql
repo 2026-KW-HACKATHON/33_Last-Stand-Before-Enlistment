@@ -26,6 +26,9 @@ create role service_role nologin bypassrls;
 \ir ../migrations/20261008100000_allow_vote_selection_writes.sql
 \ir ../migrations/20261008104330_bookmarks_server_runtime_permissions.sql
 \ir ../migrations/20261008113000_allow_officer_agenda_reads.sql
+\ir ../migrations/20261008130000_allow_post_creation.sql
+\ir ../migrations/20261008144530_allow_activity_detail_reads.sql
+\ir ../migrations/20261008150737_allow_activity_post_updates.sql
 do $checks$
 declare r text;
 begin
@@ -42,6 +45,53 @@ begin
 end $checks$;
 do $server_checks$
 begin
+  if not has_table_privilege('discushion_server','discushion.activity_post_details','SELECT')
+    or not has_table_privilege('discushion_server','discushion.activity_post_details','INSERT')
+    or not has_table_privilege('discushion_server','discushion.activity_post_details','UPDATE')
+    or has_table_privilege('discushion_server','discushion.activity_post_details','DELETE,TRUNCATE,REFERENCES,TRIGGER')
+    or not exists(select 1 from pg_policies where schemaname='discushion'
+      and tablename='activity_post_details' and policyname='server_insert'
+      and roles=array['discushion_server']::name[] and cmd='INSERT' and with_check='true') then
+    raise exception 'Unexpected activity creation permissions';
+  end if;
+  if not exists(select 1 from pg_policies where schemaname='discushion' and tablename='activity_post_details'
+      and policyname='server_select' and roles=array['discushion_server']::name[] and cmd='SELECT' and qual='true') then
+    raise exception 'Missing activity detail server SELECT policy';
+  end if;
+  if not exists(select 1 from pg_policies where schemaname='discushion' and tablename='activity_post_details'
+      and policyname='server_update' and roles=array['discushion_server']::name[] and cmd='UPDATE' and qual='true' and with_check='true') then
+    raise exception 'Missing activity update server policy';
+  end if;
+  if not has_table_privilege('discushion_server','discushion.posts','INSERT')
+    or has_table_privilege('discushion_server','discushion.posts','DELETE,TRUNCATE,REFERENCES,TRIGGER')
+    or not has_table_privilege('discushion_server','discushion.polls','INSERT')
+    or has_table_privilege('discushion_server','discushion.polls','DELETE,TRUNCATE,REFERENCES,TRIGGER')
+    or not has_table_privilege('discushion_server','discushion.poll_options','INSERT')
+    or has_table_privilege('discushion_server','discushion.poll_options','UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER') then
+    raise exception 'Unexpected post creation grants for discushion_server';
+  end if;
+  if not exists(select 1 from pg_policies where schemaname='discushion'
+      and tablename='posts' and policyname='server_insert'
+      and roles=array['discushion_server']::name[] and cmd='INSERT' and with_check='true')
+    or not exists(select 1 from pg_policies where schemaname='discushion'
+      and tablename='polls' and policyname='server_insert'
+      and roles=array['discushion_server']::name[] and cmd='INSERT' and with_check='true')
+    or not exists(select 1 from pg_policies where schemaname='discushion'
+      and tablename='poll_options' and policyname='server_insert'
+      and roles=array['discushion_server']::name[] and cmd='INSERT' and with_check='true') then
+    raise exception 'Missing or unexpected post creation server RLS policies';
+  end if;
+  if has_table_privilege('anon','discushion.posts','INSERT')
+    or has_table_privilege('authenticated','discushion.posts','INSERT')
+    or has_table_privilege('service_role','discushion.posts','INSERT')
+    or has_table_privilege('anon','discushion.polls','INSERT')
+    or has_table_privilege('authenticated','discushion.polls','INSERT')
+    or has_table_privilege('service_role','discushion.polls','INSERT')
+    or has_table_privilege('anon','discushion.poll_options','INSERT')
+    or has_table_privilege('authenticated','discushion.poll_options','INSERT')
+    or has_table_privilege('service_role','discushion.poll_options','INSERT') then
+    raise exception 'API roles must not create posts or poll rows';
+  end if;
   if not has_table_privilege('discushion_server','discushion.vote_selections','SELECT')
     or not has_table_privilege('discushion_server','discushion.vote_selections','INSERT')
     or not has_table_privilege('discushion_server','discushion.vote_selections','UPDATE')
@@ -71,7 +121,7 @@ begin
     raise exception 'Client/API role must not access vote tables/options';
   end if;
   if not has_table_privilege('discushion_server','discushion.poll_options','SELECT')
-    or has_table_privilege('discushion_server','discushion.poll_options','INSERT')
+    or not has_table_privilege('discushion_server','discushion.poll_options','INSERT')
     or has_table_privilege('discushion_server','discushion.poll_options','UPDATE')
     or has_table_privilege('discushion_server','discushion.poll_options','DELETE')
     or not exists(select 1 from pg_policies where schemaname='discushion'

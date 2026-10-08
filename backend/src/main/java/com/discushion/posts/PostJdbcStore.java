@@ -60,6 +60,7 @@ public final class PostJdbcStore {
     }
 
     Instant databaseNow() { return jdbc.queryForObject("select clock_timestamp()", Timestamp.class).toInstant(); }
+    boolean regionExists(long id) { return Boolean.TRUE.equals(jdbc.queryForObject("select exists(select 1 from discushion.regions where id=?)", Boolean.class, id)); }
     boolean hasActiveAdoption(long postId) {
         return Boolean.TRUE.equals(jdbc.queryForObject("select exists(select 1 from discushion.institution_agenda_adoptions where post_id=? and canceled_at is null)",
                 Boolean.class, postId));
@@ -73,10 +74,11 @@ public final class PostJdbcStore {
         if (jdbc.update("update discushion.posts set " + String.join(",", columns) + " where id=? and status='PUBLISHED'", values.toArray()) != 1)
             throw new IllegalStateException("Locked post could not be updated");
         if (patch.detailsSupplied() && current.type() == PostType.LOCAL_ACTIVITY) {
-            jdbc.update("update discushion.activity_post_details set source=?,schedule=?,place=?,activity_status=?,external_participation_url=? where post_id=?",
+            if (jdbc.update("update discushion.activity_post_details set source=?,schedule=?,place=?,activity_status=?,external_participation_url=? where post_id=?",
                     value(patch.source(), current.source()), value(patch.schedule(), current.schedule()),
                     value(patch.place(), current.place()), value(patch.activityStatus(), current.activityStatus()),
-                    value(patch.externalParticipationUrl(), current.externalParticipationUrl()), postId);
+                    value(patch.externalParticipationUrl(), current.externalParticipationUrl()), postId) != 1)
+                throw new IllegalStateException("Locked activity details are missing");
         } else if (patch.endsAt().supplied()) {
             if (jdbc.update("update discushion.polls set ends_at=? where post_id=?", Timestamp.from(patch.endsAt().value()), postId) != 1)
                 throw new IllegalStateException("Locked poll could not be updated");

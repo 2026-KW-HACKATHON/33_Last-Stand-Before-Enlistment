@@ -63,6 +63,7 @@ class PostManagementServiceTests {
         var posts = mock(PostJdbcStore.class);
         when(posts.findForUpdate(POST_ID)).thenReturn(Optional.of(post));
         when(posts.databaseNow()).thenReturn(NOW);
+        when(posts.regionExists(anyLong())).thenReturn(true);
         when(posts.editable(POST_ID)).thenReturn(new PostJdbcStore.Editable("제목", "본문", "SAFETY", REGION_ID,
                 post.type(), "기관", "일정", "장소", "SCHEDULED", null, Optional.empty()));
         var photos = mock(PhotoAttachments.class);

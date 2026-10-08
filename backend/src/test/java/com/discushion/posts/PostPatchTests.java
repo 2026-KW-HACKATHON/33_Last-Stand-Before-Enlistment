@@ -44,4 +44,13 @@ class PostPatchTests {
         assertThatThrownBy(() -> PostPatch.parse(Map.of("userId", 4), PostType.LOCAL_AGENDA))
                 .isInstanceOf(PostEditFailure.class);
     }
+    @Test void rejectsFractionalIdsAndUnsafeExternalUrls() {
+        for (String value : List.of("1.00000000000000000001", "9007199254740991.1")) {
+            var id = new java.math.BigDecimal(value);
+            assertThatThrownBy(() -> PostPatch.parse(Map.of("regionId", id), PostType.LOCAL_AGENDA)).isInstanceOf(PostEditFailure.class);
+            assertThatThrownBy(() -> PostPatch.parse(Map.of("photoOrder", List.of(Map.of("fileId", id))), PostType.LOCAL_AGENDA)).isInstanceOf(PostEditFailure.class);
+        }
+        for (String url : List.of("javascript:alert(1)", "/relative", "https://"))
+            assertThatThrownBy(() -> PostPatch.parse(Map.of("details", Map.of("externalParticipationUrl", url)), PostType.LOCAL_ACTIVITY)).isInstanceOf(PostEditFailure.class);
+    }
 }

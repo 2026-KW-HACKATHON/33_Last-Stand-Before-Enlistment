@@ -43,6 +43,13 @@ record PostPatch(Field<String> title, Field<String> content, Field<String> topic
                 source = string(details, "source", false); schedule = string(details, "schedule", false);
                 place = string(details, "place", false); activityStatus = string(details, "activityStatus", false);
                 externalUrl = string(details, "externalParticipationUrl", true);
+                if (externalUrl.supplied() && externalUrl.value() != null) {
+                    try {
+                        var uri = java.net.URI.create(externalUrl.value());
+                        if (!uri.isAbsolute() || uri.getHost() == null || !("http".equalsIgnoreCase(uri.getScheme()) || "https".equalsIgnoreCase(uri.getScheme())))
+                            throw PostEditFailure.invalid("details.externalParticipationUrl");
+                    } catch (IllegalArgumentException invalid) { throw PostEditFailure.invalid("details.externalParticipationUrl"); }
+                }
                 if (!(source.supplied() || schedule.supplied() || place.supplied() || activityStatus.supplied() || externalUrl.supplied()))
                     throw PostEditFailure.invalid("details");
             } else if (type == PostType.VOTE) {
@@ -70,10 +77,7 @@ record PostPatch(Field<String> title, Field<String> content, Field<String> topic
         if (!object.containsKey(key)) return Field.missing();
         Object raw = object.get(key);
         if (!(raw instanceof Number number)) throw PostEditFailure.invalid(key);
-        long value = number.longValue();
-        if (value < 1 || value > 9_007_199_254_740_991L || number.doubleValue() != value)
-            throw PostEditFailure.invalid(key);
-        return Field.supplied(value);
+        return Field.supplied(exactId(number, key));
     }
     private static Field<List<PhotoAttachments.Reference>> photoOrder(Map<String, Object> object) {
         if (!object.containsKey("photoOrder")) return Field.missing();
@@ -87,11 +91,17 @@ record PostPatch(Field<String> title, Field<String> content, Field<String> topic
                 throw PostEditFailure.invalid("photoOrder");
             Object rawId = reference.get(key);
             if (!(rawId instanceof Number number)) throw PostEditFailure.invalid("photoOrder");
-            long id = number.longValue();
-            if (id < 1 || id > 9_007_199_254_740_991L || number.doubleValue() != id) throw PostEditFailure.invalid("photoOrder");
+            long id = exactId(number, "photoOrder");
             references.add(name.equals("photoId") ? new PhotoAttachments.Reference(id, null)
                     : new PhotoAttachments.Reference(null, id));
         }
         return Field.supplied(List.copyOf(references));
+    }
+    private static long exactId(Number number, String field) {
+        try {
+            long value = new java.math.BigDecimal(number.toString()).longValueExact();
+            if (value < 1 || value > 9_007_199_254_740_991L) throw PostEditFailure.invalid(field);
+            return value;
+        } catch (NumberFormatException | ArithmeticException invalid) { throw PostEditFailure.invalid(field); }
     }
 }

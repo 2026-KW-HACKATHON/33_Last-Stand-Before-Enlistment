@@ -18,7 +18,7 @@ final class PostController {
     PostController(PostManagementService service) { this.service = service; }
 
     @PatchMapping("/api/v1/posts/{postId}")
-    ResponseEntity<Map<String, Object>> patch(@PathVariable String postId, @RequestBody Map<String, Object> body) {
+    ResponseEntity<Map<String, Object>> patch(@PathVariable("postId") String postId, @RequestBody Map<String, Object> body) {
         var result = service.patch(PostIds.parse(postId, "postId"), body);
         Map<String, Object> envelope = new LinkedHashMap<>();
         envelope.put("data", result.data());
@@ -28,7 +28,7 @@ final class PostController {
     }
 
     @DeleteMapping("/api/v1/posts/{postId}")
-    ResponseEntity<Void> delete(@PathVariable String postId, @RequestBody(required = false) String body) {
+    ResponseEntity<Void> delete(@PathVariable("postId") String postId, @RequestBody(required = false) String body) {
         if (body != null && !body.isBlank()) throw PostEditFailure.invalid("body");
         service.delete(PostIds.parse(postId, "postId"));
         return ResponseEntity.noContent().build();

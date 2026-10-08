@@ -40,7 +40,7 @@ Invoke-RestMethod -Uri http://localhost:8080/health
 
 ## 외부 서비스 환경변수 준비
 
-`.env.example`의 기존 실행/DB 변수는 현재 코드에서 사용한다. 추가한 `PRIVY_*`, `SUPABASE_*`, `GEMINI_*`는 후속 구현을 위한 프로젝트 변수 이름과 자리표시자이며 현재 코드에서 읽지 않는다. 예시를 채우는 것만으로 외부 서비스가 연결되지 않는다. 변수별 용도·비밀 여부·후속 Issue는 [환경 결정 기록](../docs/collaboration/backend-environment-decisions.md)의 환경변수 표를 따른다.
+`.env.example`의 실행/DB 변수와 `PRIVY_APP_ID`·`PRIVY_APP_SECRET`은 현재 코드에서 사용한다. 사진 활성화 시 `SUPABASE_*`를 Storage adapter가 사용하며 `GEMINI_*`는 아직 후속 구현용이다. 예시를 채우는 것만으로 외부 서비스가 연결되지 않는다. 변수별 용도·비밀 여부·후속 Issue는 [환경 결정 기록](../docs/collaboration/backend-environment-decisions.md)의 환경변수 표를 따른다.
 
 Privy 앱 ID는 FE에도 필요한 공개 식별자이며 FE 변수 이름은 해당 담당자가 합의한다. Privy 앱 secret, Supabase secret key, DB password, Gemini API key는 Backend의 로컬 `.env` 또는 배포 환경의 비밀 변수로 관리한다. `NEXT_PUBLIC_` 접두사를 붙이거나 FE에 전달하지 않는다. 현재 FE 파일은 변경하지 않는다. Supabase 공개 사진 열람은 URL로 가능하지만 업로드·삭제 권한은 #74/#13에서 합의하고 서버에서 확인한다.
 
@@ -223,3 +223,67 @@ Storage 성공 종료 판정은 [공식 Storage POST 구현](https://github.com/
 2026-10-08 16:48 KST 최종 검증: 기준 back/develop `04d60fa`와 현재 `back/feature/13-storage-verification`의 미커밋 서버 중계 구현으로 Java17 test/build를 새로 실행했다. **전체256개 통과·실패0·오류0·skip0·build 성공(7분6초)**. 관리자 원격 감사3개, 기존 직접 Storage 회귀2개, 새 서버 중계 실제 Storage2개와 JDBC 안전성9개를 포함한다. 새 실제 시험은 합성 인증·격리된 최소 권한 서버 LOGIN으로 Spring PUT→실제 Storage 쓰기/익명 공개 조회→complete→취소→최종 DELETED→늦은 PUT 거부를 확인했으며 정확히10,000,000 bytes PNG도 같은 흐름을 통과했다. JPG 내용 검사 등 기존 검증은 유지한다. 실제 Privy OTP·FE 화면·배포 환경의10MB 수용 시험을 대신하지 않는다.
 
 로컬 PostgreSQL 제약133개, 공개 역할 차단9개, 전체7 Migration의 적용/재실행 불변성, ERD27테이블/185컬럼 일치를 검증했다. 시험 Storage object 삭제·부재, 로컬 사진 회원/파일0개, 임시 서버 역할 NOLOGIN/비밀번호 제거, 운영 JAR의 테스트 fixture0개를 확인했다. 문서 상대 링크와 diff 공백 검사를 통과했다. 공유 Supabase에는 새 Migration을 적용하지 않았으며 PHOTO_* 활성화·FE 연결·GitHub 상대 승인·commit/push/PR은 별도다. 결과 불명확 전송과 기존 직접 전송 파일은 삭제 대기를 유지하고 시간 경과로 최종 삭제하지 않는다.
+
+## #13 공유 DB 적용·Render 사진 설정 준비 (2026-10-08)
+
+기준 back/develop dd5cb52의 `20261008071616_track_server_photo_uploads.sql`을 지정 공유 개발 DB에 실제 적용했다. 앞선 로컬 적용/공유 DB 미적용 기록은 당시 결과다. 원격 버전은 Supabase가 생성한20261008111216이며 로컬 파일명을 유지하고 SQL 내용까지 대조한다. 현재 원격27테이블/185컬럼/FK55/RLS27·Migration7개, 전송 추적5컬럼·신규 제약4개·guard trigger/함수 최소 권한 및 공개 역할 접근 차단을 확인했다. 상세와 참여 권한 Migration4개의 별도 rollout 대기는 DB 연결 결정 기록의 새 절을 따른다.
+
+사용자 승인 후 Render discushion-api에 SUPABASE_URL·SUPABASE_STORAGE_BUCKET·SUPABASE_SECRET_KEY를 Save only로 저장하고 값이 가려진 저장 화면에서 확인했다. 키는 백엔드 서비스에만 등록했고 Git·FE에 전달하지 않았다. 저장만 수행했으므로 기존 Live 배포4fffb1e에 새 설정이 적용됐다고 표시하지 않는다. PHOTO_UPLOADS_ENABLED·PHOTO_STORAGE_WIRE_VERIFIED·PHOTO_CLEANUP_ENABLED는 false를 유지하며 자동 배포도 켜지 않았다.
+
+사용자는 Privy 앱이 아직 없다고 확인했다. 다음 연결에는 FE와 같은 Privy 앱의 실제 App ID/서버 App Secret, 이메일 OTP·허용 origin 설정, 실제 로그인 및 공유 DB의 가입 완료 회원이 필요하다. 비밀 값은 ignored .env와 승인된 배포 secret에서 관리한다. 테스트용 인증을 Render에 등록하지 않는다. 실제 배포의 10,000,000 bytes 업로드·익명 조회·완료·삭제·늦은 PUT 거부·24시간 후보 정리 및 휴면 후 재개, FE/BE 사용자 흐름은 대기이며 #13 완료로 기록하지 않는다.
+
+20:19 KST 실제 관리자 원격 감사3개/실패0/오류0/skip0·build 성공(1분6초). TLS/hostname, 정확한 적용 이력·SQL digest/사진 제약/trigger/함수 권한, private Schema 공개 역할 차단을 SELECT-only로 확인했다. 제품 사진 코드·적용된 Migration은 수정하지 않았다.
+
+2026-10-08 20:22 KST 최종 후속 검증: 위 원격 감사3개, PhotoRelayLiveIntegrationTests2개, 기존 PhotoStorageLiveIntegrationTests2개, PhotoRelayJdbcIntegrationTests9개를 실제 실행해 **16개 통과/실패0/오류0/skip0·build 성공(1분22초)**을 확인했다. 실제 Storage와 로컬 Spring/합성 JWT/격리된 최소 권한 LOGIN을 연결해 정상 사진 및 정확히10,000,000 bytes PNG의 전송·익명 공개 조회·완료·취소·DELETED·늦은 PUT 거부를 재검증했다. 기존 직접 전송의 삭제 후 재생성/재삭제·24시간 정리 경계 및 RUNNING/UNKNOWN 추적·경합은 각각 기존 실제 Storage/JDBC 시험으로 확인했다. 실제24시간 대기·Privy OTP·Render 요청 수용/worker·FE 사용자 흐름 검증은 아니다.
+
+종료 후 지정 버킷 object0개·공유 DB 사진/참조0개, 로컬 사진 회원/파일0개·시험 서버 역할 NOLOGIN/password null을 확인하고 이번에 시작한 로컬 DB를 정상 종료했다. 실제 제품 코드와 Migration 파일은 유지했다. 이전 전체307개 통과 기준41ef5bb와 현재 기준dd5cb52의 Git tree가 동일(ceabef9c6f10b4d2aef8b129425bbc1ee2eed65f)함을 확인했으며, 이번 변경에 맞는16개만 재실행했다. 전체307개를 이번에 재실행한 것으로 기록하지 않는다. 변경 문서4개/감사 테스트1개는 현재 Feature에서 미커밋이며 commit/push/PR/병합은 수행하지 않았다.
+
+### Privy 설정 소비 재배포와 실제 OTP 준비 (2026-10-08)
+
+앞선 Privy 미준비/Save only 기록 이후 실제 앱을 만들고 사용자 승인된 서버 Secret을 ignored `.env`와 Render에 저장했다. 기존 Live `4fffb1e`를 [수동 재배포](https://dashboard.render.com/web/srv-db3mtql9fdbs73efdhng/deploys/dep-db3ohhk9v7es73dsrm7g)해 Live 전환·HTTPS Health200/UP·실제 월계1동 조회200을 확인했다. 최신 develop `26cb5e8`의 추가 기능/권한 Migration을 이번 배포에 포함하지 않았다.
+
+공유 DB의 빈 지역 목록에 가입 검증용 `서울특별시 노원구 월계1동`(ID1)을 등록했고 확인되지 않은 공적 코드/지도 key는 NULL로 유지했다. 지역/기관 인증 자격은 부여하지 않았다. 실제 Privy SDK 화면은 프로젝트 밖의 임시 검증 도구이며 frontend 파일을 수정하지 않았다. 공식 Privy 로그인 모달 OTP 인증이 성공했고 실제 Render 회원 조회는 가입 전403이었다. 사용자 승인된 필수 동의값 true·마케팅 false로 가입201·재요청200·본인 프로필200을 확인했으며 DB의 가입 완료 Privy 회원1명과 동의3행을 대조했다.
+
+Storage 버킷의 public=true·파일 상한10,000,000 bytes·JPEG/PNG 허용을 실제 조회했다. 사용자 승인 후 Render의 PHOTO_UPLOADS_ENABLED·PHOTO_STORAGE_WIRE_VERIFIED·PHOTO_CLEANUP_ENABLED를 true로 저장하고 같은 `4fffb1e`를 재배포했다. [사진 활성화 배포](https://dashboard.render.com/web/srv-db3mtql9fdbs73efdhng/deploys/dep-db3p1l49v7es73dufs2g)는21:47:16 KST에 시작해1분29초 후 Live다. 자동 배포는 꺼져 있으며 worker 주기는60000ms다.
+
+실제 Privy 회원으로 예약201·정확히10,000,000 bytes RAW PUT200·complete200/UNLINKED·익명 공개200/원본 내용 일치·complete 재요청 시각 불변을 확인했다. 비로그인 PUT401, 10,000,001 bytes 예약413, DELETE202/DELETE_PENDING, 늦은 PUT409, worker 처리 후 GET200/DELETED/deletionCompleted와 공개 파일 부재400을 확인했다. 25시간 전 생성된 폐기용 미완료 예약도 실제 worker가1회 처리해 DELETED다. 이 시험은 새 합성 행을 사용했고 기존 행·guard/시간 제약을 수정하지 않았으며 실제24시간 대기 시험이 아니다.
+
+Storage object0개·초기 최종 DELETED 검증 이력2행·시연 회원1명·활동 지역1건을 확인했다. 삭제 이력과 사용자 승인된 회원은 보존한다. 이 배포 검증 시점에는 제품 코드/Schema/Migration 변경이나 commit/push/PR/병합을 수행하지 않았다. 이후 문서·감사 테스트 변경은 별도 PR로 통합한다.
+
+22:06:30 KST 실제15분 무요청 후 graceful shutdown을 확인했다. 휴면 중 생성한 별도25시간 전 만료 예약은 UPLOADING·정리 시도0회로 유지됐다. Health 요청으로 서버를 깨운 뒤76.29초에 UP 응답을 확인했고22:10:56에 새 worker가 후보1개를 DELETED·시도1회·오류 없음으로 처리했다. 수동 재배포/재시작으로 자연 휴면 검증을 대신하지 않았다. 최종 DELETED 이력3행·Storage object0개이며 이 결과로 휴면 후 재개 검증 대기를 해소한다. 실제24시간 대기와 프로젝트 FE SDK/adapter·배포 origin/CORS·화면 및 게시물 사진 연결은 이 시험과 구분한다. 무료 플랜의 정리는 휴면 동안 지연될 수 있다.
+
+### 배포 검증 기록 PR의 최신 기준 재검증 (2026-10-08)
+
+최신 `origin/back/develop 26cb5e8`을 Feature에 반영한 `1d6e6fa`에서 Java17 전체 `test build --rerun-tasks --max-workers=2 --offline`을 실행했다. 22:31 KST 종료, 소요8분19초, **328개 통과·실패0·오류0·skip0·build 성공**이다. 실제 Supabase SELECT-only 감사3개와 직접/서버 중계 Storage 시험4개를 모두 실행했다. 격리 PostgreSQL에는 최신 북마크/기관 조회 권한 Migration2개를 추가 적용했고 제약133개·공개 역할 차단9개를 확인했다. 공유 DB의 추가 기능 권한은 이 검증으로 적용하지 않았다.
+
+종료 후 로컬 시험 회원/사진0개·임시 서버 역할 NOLOGIN/password null·운영 JAR의 테스트 클래스/fixture0개를 확인하고 시험 DB를 정상 종료했다. 기존6파일만 PR에 포함하고 frontend·제품 코드·적용된 Migration 파일은 변경하지 않는다. 실제 프로젝트 FE 및 게시물 사진 연결이 남아 있으므로 PR은 #13/#30을 참조하며 이슈를 자동 종료하지 않는다. 병합 후에도 Render 자동 배포는 꺼져 있고 현재 Live `4fffb1e`와 개발 브랜치 최신 코드를 구분한다.
+
+### #14 게시물 생성과 서버 권한 (2026-10-08)
+
+최신 `back/develop a9ad5c9`에서 `back/feature/14-createpost`를 준비했다. Java17 `gradlew.bat --no-daemon test build --max-workers=2`는 **341개 중334통과·실패0·오류0·7개 건너뜀, build 성공**. 생략 항목은 선택적인 실제 Supabase/Storage 감사이며 이 시험에서는 opt-in을 끄고 실행하지 않았다. 신규 #14 입력 단위·실제 HTTP/JDBC 통합 테스트 13개는 모두 통과했다.
+
+격리 localhost PostgreSQL에서 전체 Migration 적용, Schema 제약 133개, 공개 API 역할의 접근 차단9개, ERD 대조(27테이블·185컬럼)를 확인했다. LOGIN으로 임시 활성화한 실제 `discushion_server` 역할에서 세 유형 생성·postId 응답·지역 자격 거부·사진 최대10,000,000 bytes 연결·초과/만료/타인 파일 rollback·동일 파일 동시 연결 경합·DDL/물리 삭제 거부를 HTTP로 확인했다. 테스트 이후 합성 회원·지역0건, 서버 역할 NOLOGIN을 확인했다. 이는 공유 Supabase 적용, 실제 Storage 전송 또는 프로젝트 FE 연결을 뜻하지 않는다.
+
+### #15 공통 상세·실제 참여/댓글 원본 연결 (2026-10-08)
+
+기준 `origin/back/develop d1f8bcf`에서 `back/feature/15-detail`을 준비했다. 사용자는 기존 상세 응답, 초기 댓글 LIKES/부모20개·전체 답글·동일 커서, 회원 본인 상태·게스트 생략, 작성자 전용 fileId와 #25 동일 득표율 반올림을 채택했다. 활동 문의 이메일의 회원·유효 공유 게스트 공개도 명시 승인했다. 기존 #29 미커밋 작업과 #16 Draft PR은 별도 작업 공간에 보존했다.
+
+`GET /api/v1/posts/{postId}`가 실제 게시물·사진·활동/투표·기관 채택과 `JdbcParticipationSnapshotReader`/`JdbcPostSummaryReader`, 기존 #22 댓글 초기 조회를 연결한다. 조회는 posts→polls SHARE 잠금과 같은 snapshot을 사용하고 #16용 PostDetailLookup은 호출자의 쓰기 transaction에 참여한다. 프로필 사진은 #10 미완료 범위를 유지해 null이다. 활동 상세 SELECT 누락을 실제 서버 역할로 재현하고 추가 Migration `20261008144530_allow_activity_detail_reads.sql`로 SELECT/RLS만 보완했다. 기존 Migration은 수정하지 않는다.
+
+Java17 `gradlew.bat --no-daemon test build --max-workers=2 --console=plain`은 2026-10-08 23:54 KST에 **352개 중345통과·실패0·오류0·선택형 원격7개 미실행, build 성공**으로 종료했다. #15 신규 실제 HTTP/JDBC11개는 통과했고 같은 DB 역할에서 세 유형 조회·게스트/타회원 개인정보 격리·사진 작성자 fileId·댓글 페이지/전체 답글·기관 배지/채택·종료/삭제 차단·원본 오류의 안전한500·SHARE/삭제 경합·기존 쓰기 transaction 결과/rollback을 확인했다. 기본 Schema 제약133개·공개 역할 차단9개, 추가 SELECT/RLS 검사, ERD27테이블/185컬럼/FK55 대조도 통과했다. 최종 SQL 정리와 북마크/기관 목록 실제 adapter 소비를 포함한 같은11개 대상 재실행도 실패/오류/skip0·build 성공이다. 종료 후 Schema 검사를 다시 통과했으며 합성 회원/지역0개, 서버 역할 NOLOGIN·정책49개·활동 수정/삭제 권한 없음·운영 JAR 테스트 fixture0개를 확인하고 로컬 시험 DB를 정상 종료했다.
+
+FE 기준 `origin/front/develop ad0700c`의 post model/service와 대조했다. 화면용 string ID·시간 표시·활동 UPCOMING/ONGOING/CANCELLED·투표 ENDED는 Backend 안전 정수/절대시간·SCHEDULED/IN_PROGRESS/CANCELED·CLOSED에서 변환해야 한다. 사진은 photoId와 작성자 전용 fileId를 구분하고 본인 상태 생략을 회원의 미선택과 혼동하지 않는다. author model의 id는 현재 공개 DTO에 없으므로 임의 회원 ID를 만들지 않고 capabilities로 소유자 행동을 소비하도록 FE adapter에서 조정해야 한다. 이 문서 대조는 FE 담당자의 실제 확인이나 실제 FE/Privy 사용자 흐름 검증을 대신하지 않는다.
+
+공유 Supabase의 신규 권한 Migration 적용·배포 및 프로젝트 FE 실제 연결은 #30/#31에서 해소한다. 원격/Storage7개 선택형 검사는 이번 localhost 시험에서 opt-in을 끄고 실행하지 않았으며 통과로 표시하지 않는다. #16의 실제 수정/삭제 API 재연결·권한/rollback 검증은 해당 Issue에서 진행한다. 구현과 로컬 검증은 commit/push/PR·병합 또는 공유 DB 적용을 뜻하지 않는다.
+
+### #16 실제 상세 연결·게시물 수정/삭제 검증 (2026-10-09)
+
+기존 Draft PR #186의 Feature에 최신 back/develop `7e0d73f`(#14/#15)를 병합했다. 계약 검토표 충돌은 #14 입력 결정과 #16 삭제/보존 결정을 모두 보존해 해결했다. 공통 PostContextReader는 #14 실제 Bean을 유지하고 #16의 중복 등록을 제거했다. PATCH가 #15 실제 상세를 같은 쓰기 transaction에서 반환하도록 연결했으며 DELETE는 기존 북마크·사진 adapter와 연결한다.
+
+누락된 활동 UPDATE를 추가 Migration `20261008150737_allow_activity_post_updates.sql`에서 이 권한과 서버 전용 UPDATE 정책으로만 보완한다. DELETE·DDL·시퀀스·공개 역할 권한은 추가하지 않고 기존 적용 Migration은 수정하지 않는다. #14 동일 URL/미래 종료시각 규칙을 재검증하고 존재하지 않는 지역 및 반올림될 수 있는 소수 ID를 거부한다.
+
+2026-10-09 00:21 KST 전체 Java17 `test build --max-workers=2 --console=plain`은 **367개 중360통과·실패0·오류0·선택형 원격7개 미실행, build 성공**이다. 서버 역할 실제 HTTP8개와 서비스3개·입력4개를 포함했다. PATCH 최신 상세/생략 필드 보존·동시 부분 수정, 활동 수정/URL, 투표 수정 제한/종료, 작성자/지역 거부, 활성 채택의 지역 변경 차단, 기존 photoId 보존/사진 교체·실패 rollback, 삭제 DB 실패의 북마크/사진/게시물 rollback과 정상 삭제의 이력 보존, 삭제 예약·Storage 실패 재시도 상태를 확인했다. Storage는 시험용 mock 경계이며 실제 외부 버킷 삭제 완료로 기록하지 않는다.
+
+최종 관련11개(HTTP8/서비스3) 재실행도 실패/오류/skip0·build 성공이다. 삭제 후 유효 공유 링크·댓글·반응·북마크·투표 API 차단 및 삭제 투표 내부 summary의 display 비노출을 포함했다. 최종 Schema133개·공개 역할 격리9개와 활동 UPDATE/RLS·ERD27테이블/185컬럼/FK55 검사를 통과했다. 합성 회원/지역0개·서버 역할 NOLOGIN·정책50개·실패 주입 함수0개·운영 JAR 테스트 클래스0개를 확인하고 localhost 시험 DB를 정상 종료했다.
+
+실제 공유 Supabase의 #14/#15/#16 권한 적용·배포·프로젝트 FE/Privy 사용자 흐름은 #30/#31에서 해소한다. #29 코드는 별도 작업 공간에 보존하며 이번 PR에 포함하지 않는다. 최종 PR의 공통 API/DB/삭제/보존 영향은 필수 승인0명 규칙으로 작성자·Codex가 재검토하며 실제 연동과 로컬 시험을 구분한다.

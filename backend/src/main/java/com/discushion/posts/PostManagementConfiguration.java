@@ -1,12 +1,9 @@
 package com.discushion.posts;
 
 import com.discushion.contracts.participation.PostDeletionParticipant;
-import com.discushion.contracts.post.PostContext;
-import com.discushion.contracts.post.PostContextReader;
 import com.discushion.identity.MemberAuthorization;
 import com.discushion.photos.JdbcPhotoStore;
 import com.discushion.photos.PhotoAttachments;
-import java.util.Optional;
 import javax.sql.DataSource;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Bean;
@@ -19,15 +16,6 @@ import org.springframework.transaction.support.TransactionTemplate;
 @Profile("!local")
 class PostManagementConfiguration {
     @Bean PostJdbcStore postJdbcStore(DataSource source) { return new PostJdbcStore(source); }
-
-    @Bean
-    @Profile("!local & !share21-http-test & !comment22-http-test & !bookmark26-http-test & !reaction23-http-test & !vote25-http-test & !evaluation24-http-test")
-    PostContextReader postContextReader(PostJdbcStore store) {
-        return new PostContextReader() {
-            @Override public Optional<PostContext> find(long postId) { return store.find(postId); }
-            @Override public Optional<PostContext> findForUpdate(long postId) { return store.findForUpdate(postId); }
-        };
-    }
 
     @Bean PostManagementService postManagementService(MemberAuthorization members, PostJdbcStore posts,
             PostDeletionParticipant deletion, DataSource source, ObjectProvider<PostDetailLookup> details,
