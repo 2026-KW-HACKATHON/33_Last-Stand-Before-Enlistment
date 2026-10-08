@@ -164,7 +164,7 @@ Privy 이메일 OTP로 인증·로그인한다. 최초 사용자는 필수/선�
 | D04 | 프로필 사진 형식·용량·제거/교체와 실패 보상 | 제품 확인 + BE1·FE, 파일 환경 BE2 | #7·#10, 사진 처리 구현 전 |
 | D05 | 이웃 증빙 제출/접수는 MVP 제외. 완료 지역 조회·시연 계정 상태 준비는 유지 | BE1·BE2·FE | #11·#75 |
 | D06 | 게시물 10MB bytes 환산·직접 업로드·참조·공개 시점·24시간 기준/정리 간격·삭제 보상 | BE1·BE2·FE | #74·#13·#30 |
-| D07 | 실제 금칙어 사전 | 제품 확인 + BE2·BE1 | #22, 댓글 필터 구현 전 |
+| D07 | #22 사용자 위임 초기 금칙어4개(씨발·개새끼·병신·좆같), 동일 literal 포함 검사 | BE1 작성·BE2 최신 PR 정합성 리뷰 | API §6.1. 변형 탐지/AI/관리 UI 제외, 실제 FE 연결 후속 |
 | D08 | 제목/본문/질문/옵션 길이·URL 검증·과거 투표 종료시각·중복 선택지·활동 일정 구조 | 제품 확인 + BE1·BE2·FE | #14·#16·#25, 각 입력 구현 전 |
 | D09 | 사진 저장 파일 삭제 확정. 다른 관계의 물리 보존·소프트 삭제·투표 상태 필터는 미정 | BE1·BE2·FE | #3·#13·#16·#26·#27 |
 | D10 | cursor 형식·size 기본/상한·기본 정렬·ID 동률 정렬·초기 댓글 수/답글 페이지. #9의 사용자 채택·구현/FE 확인 경계는 §14, 다른 목록의 미정 조건 유지 | BE1·BE2·FE | #9·#15·#17·#22·#27·#28, 목록 구현 전 |
@@ -204,11 +204,11 @@ API §11.1의 모든 미정 분류를 위 표에 대응했다. 실제 금칙어�
 | B·BE2 | DELETE | /posts/{postId} | #16 |
 | B·BE2 | GET | /posts/{postId}/summary | #20 |
 | C·BE1 | GET | /posts/{postId}/share-link | #21 |
-| C·BE2 | GET | /posts/{postId}/comments | #22 |
-| C·BE2 | POST | /posts/{postId}/comments | #22 |
-| C·BE2 | POST | /comments/{commentId}/replies | #22 |
-| C·BE2 | PUT | /posts/{postId}/reactions/{reactionType} | #23 |
-| C·BE2 | DELETE | /posts/{postId}/reactions/{reactionType} | #23 |
+| C·BE1 | GET | /posts/{postId}/comments | #22 |
+| C·BE1 | POST | /posts/{postId}/comments | #22 |
+| C·BE1 | POST | /comments/{commentId}/replies | #22 |
+| C·BE1 | PUT | /posts/{postId}/reactions/{reactionType} | #23 |
+| C·BE1 | DELETE | /posts/{postId}/reactions/{reactionType} | #23 |
 | C·BE2 | PUT | /comments/{commentId}/evaluation | #24 |
 | C·BE2 | DELETE | /comments/{commentId}/evaluation | #24 |
 | C·BE2 | PUT | /posts/{postId}/vote | #25 |
@@ -910,29 +910,120 @@ BE2 준비값은 SHARE_TOKEN_SIGNING_KEY(32bytes 이상 전용 무작위 키의 
 2026-10-08 14:43 KST 검증: 기준 back/develop 3c4b6aaf85920b646105849f5386172067927760 + back/feature/21-share 미커밋 구현에서 Java17 `gradlew.bat --no-daemon test build --console=plain --rerun-tasks` 실행. **전체241개/실패0/오류0/skip0·build 성공**이며 신규 공유17개와 실제 원격 Supabase SELECT-only 감사3개를 포함한다. 공유17개는 정책5·토큰6·실제 localhost 서버 LOGIN HTTP6으로, HMAC 변조/만료/재사용, 공통 Bearer filter, 실제 JDBC 게시물 읽기/잠금, 잠금 대기 중 만료·삭제, 회원 무권한 우회 거부 및 게스트 회원 기능 차단을 확인했다.
 게시물 JDBC source와 소비 endpoint는 src/test 전용 fixture이며 실제 BE2 adapter·댓글 저장 구현·FE 연결 완료를 뜻하지 않는다. 운영 JAR에 공유 test fixture 클래스가 없음을 확인했다. 원격 감사는 TLS·Schema/Migration·공개 역할 접근 차단의 SELECT-only 검사이며 실제 원격 서버 LOGIN 사용자 흐름 검증을 대신하지 않는다. 최신 origin/back/develop은 위 기준과 동일하고 diff 공백 검사를 통과했다. API/권한·공통 port 변경이므로 최종 PR에는 상대 리뷰 필요로 분류하고 BE2의 최신 정합성 승인을 받는다. commit·push·PR 및 실제 연결은 별도 진행 조건으로 남긴다.
 
-## 17. #13 삭제·발급 안전성 해결을 위한 서버 중계 검토안 (2026-10-08)
+## 17. #22 댓글·답글 구현 계약과 권한 보완 (2026-10-08)
 
-**상태: 2026-10-08 사용자 팀 합의 확인, 구현·검증 진행.** 사용자가 이 검토안에 “합의했어”라고 확인했다. 새 예약은 서버 중계로 변경하며 API 정본 §13.9를 현재 계약으로 적용한다. 아래 표의 후보/추천/미확정/미구현 표현은 제안 당시 기록이다. 현재 확정 값은 앱 API 상대 경로 PUT/RAW, 앱 origin에만 Privy Bearer 전달, DB 시계 기준 2시간 허용 기한, 파일별 단일 외부 쓰기와 영속 종료 추적이다. 기존 직접 업로드 행은 보수적으로 유지한다. 합의는 GitHub 상대 승인·공유 DB 적용·배포·FE 실제 연동 완료를 뜻하지 않는다.
+### 17.1 사용자 결정과 범위
 
-### 17.1 직접 업로드에서 확인하지 못한 보장
+사용자가 기존 댓글 GET/POST·답글 POST 및 DTO/201, 기본 좋아요순·부모20개/최대100·동률 시각/ID, 답글 전체 오래된 순과 페이지 커서를 채택했다. 권한 보완도 이번 Feature에 포함하도록 허용했으며 실제 Supabase 적용은 BE2와 조율한다. 금칙어는 사용자가 과도하지 않은 초기 목록 선정을 위임해 씨발·개새끼·병신·좆같4개로 최소화했다. 모두 literal 포함 검사이며 초성/띄어쓰기 변형·AI·관리 UI는 추가하지 않는다. 최신 코드·wire의 정본은 API §6.1이다.
+
+회원은 검증된 현재 회원의 가입 완료와 이웃 완료 지역으로 작성한다. 기관 자격·기본 활동 지역만으로 작성 자격을 만들지 않는다. 공유 게스트는 #21의 특정 게시물·현재 공개/삭제 상태·서명/7일·동일 transaction·posts/polls 잠금을 사용하며 마지막 저장 단계에서 만료를 다시 검사한다. 회원 쓰기는 users→posts→polls 순으로 잠그고 새 자격을 조회한다. 답글은 실제 path 댓글의 postId/원 부모를 읽고 같은 대화의 원 부모 또는 답글만 지목한다. 댓글 수정/삭제가 없으므로 행 갱신 권한·추가 댓글 행 잠금은 제공하지 않으며, 보존/원본 수정 경로도 같은 게시물 잠금 규약을 따라야 한다.
+
+생략 가능한 replyToCommentId를 보내면 양의 JSON 안전 정수여야 하고 null/문자열/소수는400이다. 생략하면 path의 실제 대상을 지목한다. 작성자/배지/userId/parentCommentId/postId 등 추가 필드는 거부한다. 공개 작성자 이름·현재 기관 유효 배지는 실제 profiles/institution_credentials에서 조회하며, replyTo.displayName은 작성 시 서버가 조회한 지목 대상 이름을 저장한 표시값이다. 게스트는 정확히 게스트/배지false, 회원별 myEvaluation을 생략한다.
+
+읽기는 같은 read-only REPEATABLE_READ transaction의 공개 원본·댓글/평가/작성자 스냅샷을 사용한다. LIKES는 부모 평가의 LIKE 관계 수만 반영하고 답글 좋아요를 합산하지 않는다. parent 쿼리는 size+1로 제한하고 선택된 부모들의 답글/작성자/평가를 별도 batch 쿼리로 읽어 댓글별 N+1 요청을 만들지 않는다. cursor는 해당 postId/sort/마지막 부모 위치에 결합하고 다음 요청에서 재검증한다. 인가 근거가 아니며 페이지 전체 snapshot·좋아요 변경 중 완전한 중복/누락 방지를 보장하지 않는다. 새로고침 시 처음부터 조회한다. 모든 답글 반환의 데이터 규모 한계는 실제 데이터 연결 때 확인하고 임의로 답글을 잘라 전체라고 표시하지 않는다.
+
+사용자 #5 건너뜀 지시를 유지해 activity_events/+1은 구현하지 않았다. 기존 제품 규칙을 삭제하지 않고 해당 미완료를 유지한다. 회원 댓글 관계 자체는 참여 기록 원본이며 게스트 자동 회원 이관은 없다. 별도 POST 멱등 키 계약이 없으므로 성공 POST마다 새 원본이 생성된다. FE 전송 중 중복 클릭 차단·응답 유실 후 목록 확인/명시적 재시도는 실제 연결 검증 대상이다.
+
+### 17.2 서버 권한과 Migration
+
+신규 20261008070000_allow_comment_reads_and_creation.sql은 기존 적용6파일을 유지하고 comments SELECT/INSERT 및 comment_evaluations SELECT만 추가한다. RLS 활성화/서버 역할 전용 정책3개, public/anon/authenticated/service_role의 접근 차단과 DDL/평가 쓰기·댓글 UPDATE/DELETE 거부를 유지한다. 기존 identity 댓글 ID 생성은 테이블 INSERT로 시험하며 직접 nextval/setval 시퀀스 권한은 확대하지 않는다. 서버 권한 회귀 기대값은 로컬14테이블·정책30개로 갱신하고 Supabase 감사의 원격12테이블·27정책/이력6개 기대값은 그대로 유지한다. 신규 권한은 원격 미적용이다. 실제 Schema 컬럼/FK·보존 구조 변경은 없다.
+
+DB 권한은 서버 기능의 작업 범위이며 회원별 권한을 대신하지 않는다. 이번 변경은 사용자 승인 범위 내 공통 권한/API 영향이므로 PR에서 BE2 최신 정합성 승인을 받아야 한다. 로컬 검증만으로 공유 DB rollout/실제 서버 환경 완료로 기록하지 않는다.
+
+### 17.3 FE 대조와 후속
+
+대조 기준 front/develop 5fc0bc755ae2205540ec4d1cc619d983b0f47eca의 frontend/src/features/comment/model.ts·service.ts·CommentPanel.tsx. 최초 대조 e98a20a 이후 최신 fetch에서도 해당 댓글 파일 변경이 없음을 확인했다. CommentDisplay는 문자열 ID·작성시각 label/order·평면 authorName을 사용하는 표시 port이며 Backend wire DTO가 아니다. adapter는 JSON 안전 정수 id/postId/parentCommentId/replyTo.commentId를 검증 후 문자열로 변환하고 createdAt을 표시 label/order로 변환하며 author.displayName/replyTo.displayName을 연결한다. Backend data의 각 부모/replies를 CommentThread로 분리한다. myEvaluation/LIKE·DISLIKE 수와 기관 배지 표시는 서버 응답을 사용하고 FE 로컬 성공 상태만으로 DB 저장/자격을 승인하지 않는다.
+
+현재 FE ReplyTarget/CommentReplyInput은 parentCommentId와 targetAuthorName만 보존해 기존 답글을 고유하게 지목할 수 없다. 통합 시 FE가 실제 targetCommentId를 보존하도록 자기 port/화면을 보완하고 그 ID를 API path 또는 replyToCommentId로 전달해야 한다. 이름으로 대상 ID를 추정하거나 targetAuthorName을 서버 권한 근거/요청 필드로 보내지 않는다. 서버는 실제 원 부모와 이름을 결정한다. FE list port도 정렬·커서/다음 페이지 상태를 연결해야 한다. 이번 Feature에서 FE 코드를 변경하거나 FE 확인자 승인을 대신하지 않는다.
+
+BE2는 실제 PostContextReader의 동일 DataSource/transaction·posts→polls 잠금 및 삭제/수정 경합 규약을 연결한다. #22는 테스트 전용 JDBC post source로 독립 검증하며 실제 BE2 adapter/Privy/FE 연결 완료를 뜻하지 않는다. FE 실제 사용자 흐름은 사용자 결정대로 통합 #30/#31에서 해소한다. 게시물 초기 댓글 소비도 이 부모/replies·meta 계약으로 연결하되 BE2 상세 구현을 임의 변경하지 않는다. 실제 Supabase 권한 적용은 BE2 조율/승인 후 시행하고 원격 감사 기대값은 적용 이력과 함께 갱신한다.
+
+### 17.4 독립 검증 결과와 현재 상태
+
+기준 back/develop 04d60fa693c5fb1c0dbbe0d70f9826df351c938a(PR #162 병합), Feature back/feature/22-comments의 미커밋 변경을 검증했다.
+
+- 2026-10-08 15:55 KST Java17 `gradlew.bat --no-daemon test build --console=plain --rerun-tasks`: 전체261개/실패0/오류0/skip0·build 성공. 신규 댓글20개(입력3·커서/사전4·실제 localhost 서버 LOGIN HTTP13), 기존 권한 회귀8개 및 실제 원격 Supabase SELECT-only 감사3개 포함.
+- 최종 커서 anchor(실제 같은 게시물의 원 부모·작성시각) 검증 및 NUL 입력 거부 보완 후 15:58 KST 관련28개(댓글20+권한8)/실패0/오류0/skip0·build 재통과. 해당 최종 수정 뒤 전체261개를 다시 실행한 것으로 표시하지 않는다.
+- 실제 production 댓글 Controller/JDBC store와 공통 인증·HMAC 공유 guard를 native PostgreSQL의 discushion_server LOGIN으로 실행했다. 회원/게스트 생성·조회, 미가입/미완료/타지역·무효 Bearer·다른 공유 원본 거부, 답글의 답글 평탄화/다른 대화 지목 거부, 부모 정렬·모든 답글·커서, 최신 이름/기관 만료 배지, 응답 실패 rollback, 실제 posts 잠금 대기 중 삭제/만료 및 users 잠금 대기 중 지역 자격 철회 거부를 확인했다. PostContextReader만 test-only JDBC source이며 실제 BE2 adapter 연결 완료는 아니다.
+- 댓글 identity ID 생성 성공과 직접 시퀀스 접근·댓글 UPDATE/DELETE·평가 INSERT·DDL/TRUNCATE 거부를 확인했다. 신규 Migration의 로컬 재실행과 Schema SQL128개, API 역할 이름 모의 격리9개(3역할×Schema/테이블/시퀀스) 통과. 역할 모의는 rollback하며 실제 Supabase 역할 시험으로 표시하지 않는다. 원격 감사3개는 별도 실제 TLS/Schema/Migration/공개 역할 SELECT-only 확인이다.
+- 초기 테스트 fixture의 verified_at 컬럼 및 로컬 anon 역할 이름 부재 오류를 수정한 뒤 통과했다. 테스트 결과를 위해 실제 Schema·실제 원격 계정 검사 기준을 완화하지 않았다.
+- 운영 JAR의 댓글 test fixture0, diff 공백 검사 통과. 로컬 새 Migration 적용 외 원격 DB/배포/비밀 설정/FE 변경은 없다. 실제 기본6개 원격 Migration과 로컬 추가1개 차이는 승인 전 rollout 대기로 명시하며 원격 이력 기대값을 미리 바꾸지 않았다.
+
+변경은 Feature 작업 트리에 보존한다. 이번 #22 commit/push/PR·병합은 아직 수행하지 않았으며 이후 요청 시 최종 diff·최신 base·필수 CI·BE2 상대 리뷰 조건을 확인한다. 실제 BE2 adapter·권한 rollout·FE/Privy 연동과 사용자 지시로 미구현인 #5 활동 횟수는 후속으로 유지하고 #22 전체 완료로 기록하지 않는다.
+
+## 18. #23 독립 반응 등록·취소·집계 계약 (2026-10-08)
+
+사용자가 기존 PUT/DELETE와 재시도 멱등·3종 독립 선택·200 count/본인 선택 응답 및 필요한 최소 DB 권한 추가를 채택했다. 정본은 API §6.2다. #5 활동 횟수 건너뜀 지시를 유지하며 원본 반응 관계는 실제 DB에 기록하지만 activity_events/+1은 구현하지 않는다. 제품 규칙 자체를 삭제하거나 미구현을 완료로 표시하지 않는다.
+
+초기 독립 착수 기준은 back/develop 04d60fa693c5fb1c0dbbe0d70f9826df351c938a이고 당시 #166 댓글 PR은 미병합이었다. back/feature/23-reactions는 이 기준에서 별도로 시작해 #22 로컬 DB를 보존하고 별도 PostgreSQL cluster에 기준6개 Migration만 적용한 기본241개/실패0/오류0/skip0·build 및 원격 SELECT-only3개 통과를 확인했다. 현재는 #166이 병합된 bf98ecd11a73b6b3790e5e2707182e9b4b406e98을 반영했으며 최신 통합 상태는 §18.4를 따른다.
+
+### 18.1 실행·권한 규약
+
+현재 가입 완료·이웃 완료 지역만 회원 guard로 검사한다. 공유 게스트는 반응을 쓰지 못하고 유효 공유 토큰도 회원 자격을 대체하지 않는다. 같은 transaction에서 users→posts→polls 잠금을 사용하고 현재 공개/삭제 상태·지역을 검증한다. 본인 ID는 검증된 서버 주체만 사용한다. PUT의 기존 복합 PK와 ON CONFLICT DO NOTHING은 중복 등록/최초 created_at 덮어쓰기를 막는다. DELETE는 본인의 해당 유형만 취소하며 다른 유형·다른 회원을 건드리지 않는다. 집계/본인 상태는 같은 post_reactions 원본을 한 SQL로 조회한다.
+
+신규 20261008080000_allow_reaction_reads_and_transitions.sql은 post_reactions SELECT/INSERT/DELETE·역할 전용 정책3개만 추가한다. UPDATE·직접 시퀀스·활동/댓글/다른 테이블 권한은 추가하지 않는다. 초기 독립 Feature 로컬은13테이블/30정책이었고, #166 반영 후 로컬 합계는15테이블/33정책이다. 원격은 적용된 기존12테이블/27정책·이력6개를 유지하며 원격 미적용을 숨기거나 감사 기대값을 미리 바꾸지 않는다. BE2 최신 리뷰 및 실제 적용 조율이 필요하다.
+
+#166이 먼저 병합되면 #23 최종 PR 전에 최신 base를 반영하고 댓글 권한2테이블/3정책과 반응 권한1테이블/3정책을 모두 유지해야 한다(공통 합계15테이블/33정책). 반대 순서도 같은 원칙이다. ServerRuntimePermissionsIntegrationTests·API 역할 SQL·API/검토표 문서의 겹치는 변경은 한쪽으로 버리지 않고 실제 합계를 검증한다. 실제 공유 DB 적용된 파일은 수정하지 않는다.
+
+### 18.2 FE·공통 adapter와 미완료 경계
+
+현재 FE frontend/src/features/reaction/model.ts·service.ts·ReactionControls.tsx를 대조했다. ReactionSnapshot은 counts/selected/total 표시 port다. Backend의 data.postId를 요청 대상과 대조한 뒤 JSON 안전 정수 ID를 FE 문자열 ID와 연결하고 reactionCounts.EMPATHY/NEEDED/CURIOUS 및 total·myReactions를 변환한다. 본인 선택을 타 회원에게 캐시/표시하지 않는다. set은 selected를 PUT/DELETE로 변환하고 body 없이 보내며 오류를 성공 선택 상태로 바꾸지 않는다.
+
+초기 get은 기존 상세 조회의 공개 집계/회원 myState와 연결해야 한다. 새 GET 반응 API를 임의로 만들지 않는다. 실제 ParticipationSnapshotReader batch adapter의 반응 부분이 같은 post_reactions 원본을 사용하도록 연결·검증해야 하며, 아직 없는 댓글/표/북마크 값을0으로 채우는 운영 fallback bean은 만들지 않는다. 이 adapter 전체 완료를 현재 반응 저장/집계 테스트 통과로 대신하지 않는다. 실제 PostContextReader/게시물 삭제·수정 경합의 통합은 BE2와 확인한다. FE/Privy 연결은 사용자 지시에 따라 통합 #30/#31에서 확인하며 문서 대조는 FE 담당자 승인이나 실제 연동 성공을 의미하지 않는다.
+
+현재 변경은 BE1 API·반응 구현·필요 권한 Migration과 검증 준비다. 실제 원격 권한 적용·adapter/FE 연결·#5 활동은 미완료로 유지하고 #23 전체 완료로 기록하지 않는다. commit/push/PR은 이번 Issue의 별도 요청 때 수행한다.
+
+### 18.3 #23 독립 검증 결과 (2026-10-08)
+
+기준 back/develop 04d60fa693c5fb1c0dbbe0d70f9826df351c938a,Feature back/feature/23-reactions의 미커밋 변경을 검증했다. FE 대조 기준은 front/develop 5fc0bc755ae2205540ec4d1cc619d983b0f47eca다.
+
+- 16:27 KST Java17 gradlew.bat --no-daemon test build --console=plain --rerun-tasks: 전체250개/실패0/오류0/skip0·build 성공. 당시 신규 입력2/실제 서버 LOGIN HTTP7 및 기존 권한8, 실제 원격 Supabase SELECT-only 감사3개 포함.
+- DB 집계 읽기 실패 rollback·users 잠금 중 자격 철회 검사2개를 추가한 뒤 16:28 KST 관련19개(입력2/실제 HTTP9/권한8) 전부 통과·실패0/오류0/skip0·build 재통과. 최종 추가 테스트를 포함한 전체252개를 재실행한 것으로 표시하지 않는다. 운영 코드에는 이 두 테스트 추가 시 변경이 없다.
+- production 반응 Controller/store·공통 서명 filter·실제 localhost discushion_server LOGIN을 사용했다. PostContextReader만 test-only JDBC source다. 세 반응 독립성·중복 PUT 최초 시각 유지·중복 DELETE/재등록·다른 사용자/유형 보존·전체 수와 본인 선택 분리, 동시12개 등록, 삭제 원본/게스트/미가입/미완료/타지역/무효 Bearer 거부를 확인했다.
+- 실제 posts 잠금 대기 중 삭제와 users 잠금 중 지역 자격 철회는 저장 전에 거부했다. 실제 SQL 집계 실패의500·DB 원문 비노출·새 관계 rollback, UPDATE/TRUNCATE/DDL 및 미병합 댓글 읽기 거부를 확인했다. 테스트용 실패 정책/함수는 localhost fixture에서만 생성하고 제거하며 운영 Migration에 넣지 않는다.
+- 추가 Migration의 재실행, Schema SQL128개, API 역할 이름 모의 격리9개 통과. 운영 JAR의 반응 테스트 fixture0, diff 공백 검사 통과. 실제 원격 감사3개는 기존6개 Migration/12테이블 권한·27정책 및 TLS/공개 역할 SELECT-only 감사다. 신규 반응 권한 적용·원격 runtime 사용자 흐름 완료를 뜻하지 않는다.
+- 최신 origin/back/develop은 동일하다. #166 댓글 변경/데이터/브랜치를 보존했고 이 Feature에 합치지 않았다. 별도 테스트 cluster의 역할은 NOLOGIN/password null로 복구하고 이번에 시작한 PostgreSQL을 종료했다. 원격 DB/배포/실제 secret·FE 코드를 변경하지 않았다.
+
+실제 PostContextReader/ParticipationSnapshotReader 소비 연결·공유 DB 권한 rollout·FE/Privy·#5 활동 기록은 후속이다. 변경은 작업 트리에 보존하고 이번 Issue commit/push/PR·병합은 아직 수행하지 않았다. PR 분류는 API/권한·Migration 영향에 따른 상대 리뷰 필요이며 최신 BE2 승인/필수 CI/최신 base·충돌/미해결 리뷰 없음 조건을 적용한다.
+
+### 18.4 #166 병합 기준 반영·충돌 해결 (2026-10-08)
+
+사용자가 최신 develop pull 및 #23 반영/수정을 요청했다. #166은 BE2 최신 승인 후 병합되어 origin/back/develop bf98ecd11a73b6b3790e5e2707182e9b4b406e98에 통합된 상태였다. 작업 트리 clean을 확인한 뒤 로컬 back/develop을 git pull --ff-only로 갱신하고 #23 Feature에 origin/back/develop을 merge했다. 직접 develop/main push·force/rebase·원격 DB 적용은 수행하지 않는다.
+
+충돌3파일은 각 변경의 의미를 대조해 다음과 같이 해결했다.
+- ServerRuntimePermissionsIntegrationTests: 기존 댓글 SELECT/INSERT·평가 SELECT를 보존하고 반응 SELECT/INSERT/DELETE를 더해15테이블·33정책으로 검증한다. 동일하게30으로 자동 합쳐지는 정책 수를 그대로 두지 않았다.
+- api-role-isolation.sql: 두 추가 Migration을 시간 순서로 모두 포함하고 공개 API 역할 접근 차단 검사 유지.
+- 계약 검토표: #166 댓글 §17을 보존하고 반응을 §18로 옮겼다. 댓글/반응 API 작성자는 모두 BE1로 표시하고 기존 정책·실제 연결/원격 적용/FE·#5 후속을 유지했다.
+
+반응 HTTP 권한 회귀의 이전 '미병합 댓글 SELECT 거부' 기대는 새 기준과 충돌하므로 댓글 SELECT 허용을 확인하고, 여전히 미허용인 activity_events SELECT 거부로 갱신했다. 반응 UPDATE/TRUNCATE/DDL 거부는 그대로 유지한다. #166 댓글 운영 코드·테스트·Migration과 #23 반응 운영 코드·Migration은 변경하지 않았다. 최신 develop과 댓글 파일 차이가 없음을 확인했다.
+
+검증은 같은 격리 #23 로컬 DB에 통합된 댓글 권한을 추가해8개 Migration·15테이블/33정책으로 실행한다. 원격은 적용된 기존6개/12테이블·27정책의 SELECT-only 감사를 유지하고 댓글/반응의 실제 공유 DB 적용은 BE2 조율 후로 남긴다. 통합 전체 test/build와 최종 PR diff·CI·BE2 최신 재검토 결과는 이어 기록한다. 기존 독립 검증 기록을 통합 전체 검증으로 대신하지 않는다.
+
+통합 검증 완료 — 2026-10-08 17:19 KST: 기준 bf98ecd + 이번 #23 병합 해결 작업 트리에서 Java17 gradlew.bat --no-daemon test build --console=plain --rerun-tasks 실행. 전체272개/실패0/오류0/skip0·build 성공. 댓글20개·반응11개·통합 최소 권한 회귀8개·실제 Supabase SELECT-only 감사3개 포함. Schema SQL128개·모의 API 역할 격리9개 통과, 두 추가 Migration의 로컬 적용/재실행과 runtime 권한15테이블·33정책을 확인했다. 댓글·반응 test fixture의 운영 JAR 포함0, 미해결 충돌0·공백 검사 통과. 새 통합 commit/push는 기존 PR #167에 반영하고 최종 head에 대한 BE2 재검토/필수 CI를 확인한다. #166 승인이나 기존 #167 CI를 새 head의 승인/CI로 대신하지 않는다. 공유 DB 적용·실제 adapter/FE·#5 후속은 유지한다.
+
+## 19. #13 서버 중계 사진 업로드·안전 삭제 결정과 검증 (2026-10-08)
+
+**상태: 사용자 합의에 따라 구현했고 최신 back/develop 통합 검증을 마쳤다.** 이 절은 최초 검토안을 보존한 작업 결정 기록이다. 현재 정본은 API 명세 §13.9와 Migration `20261008071616_track_server_photo_uploads.sql`이다. 새 예약은 앱 API 상대 경로 PUT/RAW, 앱 origin에만 Privy Bearer 전달, DB 시계 기준 2시간 허용 기한, 파일별 단일 외부 쓰기와 영속 종료 추적을 사용한다. 기존 직접 업로드 행은 보수적으로 유지한다. 구현 완료는 GitHub 상대 승인·공유 DB 적용·배포·FE 실제 연동 완료를 뜻하지 않는다.
+
+### 19.1 직접 업로드에서 확인하지 못한 보장
 
 [공식 서명 업로드 안내](https://supabase.com/docs/reference/javascript/storage-from-createsigneduploadurl)는 URL의 2시간 유효성을 명시한다. 이는 발급 요청이 timeout된 뒤 공급자가 처리를 언제 마치는지, 만료 전에 시작한 전송이 언제 종료되는지를 보장하지 않는다. 이번 실제 시험은 삭제한 key가 같은 유효 URL의 PUT으로 다시 생성됨을 확인했다. 두 번 삭제·시간 경과·lease 만료를 업로드 종료 증거로 사용할 수 없다. 현 방식의 uploadsDrained=false·DELETE_PENDING 유지가 필요한 이유다.
 
-### 17.2 추천 변경: FE → Spring → Supabase
+### 19.2 합의된 구현 방식: FE → Spring → Supabase
 
 Supabase 공개 사진 저장과 관리 키의 서버 보관을 유지하되 새 예약에서는 Supabase signed upload URL을 발급하지 않는다. FE는 사진 bytes를 Spring으로 보내고, Spring만 예약 key에 Storage 쓰기를 수행한다. 서버 중계만으로 모든 장애를 해결했다고 취급하지 않는다. 전송 종료의 확인이 없는 쓰기 시도는 영속 추적하고 최종 삭제를 보류한다.
 
 | 접점 | 제안 | 기존 계약 대비 영향 |
 | --- | --- | --- |
-| 예약 | 기존 POST /api/v1/photo-uploads와 fileId·수량/용량·빈도 제한 유지. upload.url은 앱 API origin의 신규 PUT /api/v1/photo-uploads/{fileId}/content 후보, method=PUT·bodyMode=RAW 유지 | 업로드 대상이 Storage에서 앱 서버로 바뀜. 신규 endpoint는 확정 전 미구현 |
+| 예약 | 기존 POST /api/v1/photo-uploads와 fileId·수량/용량·빈도 제한 유지. upload.url은 앱 API origin의 PUT /api/v1/photo-uploads/{fileId}/content, method=PUT·bodyMode=RAW | 업로드 대상은 Storage에서 앱 서버로 변경했고 신규 endpoint를 구현했다. 정본은 API 명세 §13.9 |
 | 업로드 인증 | 공통 Privy Bearer 검증과 현재 가입 완료 회원·소유권 검사. 반환 headers에는 관리 키·Privy 토큰을 넣지 않음. FE가 앱 origin에만 현재 access token을 전달 | 기존 Storage 전송의 Bearer 금지/별도 client 규칙을 앱 서버 전송 규칙과 다시 합의해야 함. Storage 주소에 Bearer를 보내지 않음 |
-| 권한 만료 | 외부 URL 발급을 없애고 예약 DB에 서버 업로드 허용 종료시각 기록. 기존 정상 URL의 명목 TTL과 같은 2시간을 추천하되 공동 확인 전 미확정. 발급·PUT 허용 판정은 같은 DB 시간 기준을 사용 | 공급자 발급 지연 여유 설정 제거 가능. 취소/24시간 정리/회원 자격은 TTL과 별도로 최종 재검사 |
+| 권한 만료 | 외부 URL 발급 없이 예약 DB에 서버 업로드 허용 종료시각을 기록한다. 유효 시간은 DB 시계 기준 2시간이다. 발급·PUT 허용 판정은 같은 DB 시간 기준을 사용 | 공급자 발급 지연 여유 설정을 제거했다. 취소/24시간 정리/회원 자격은 TTL과 별도로 최종 재검사 |
 | 전송 입력 | JPG/PNG bytes를 최대10,000,000 bytes로 제한해 읽고 내용 검사. 명세상 게시물 합계·10장 제한과 최초 24시간 기준 유지 | FE raw body 전송 지원 및 실제 배포의 요청 크기·메모리·동시 전송 한도를 #30에서 확인. 10MB 수용을 가정하지 않음 |
 | 완료·조회·취소 | 기존 complete/GET/DELETE와 photoFileIds·202 삭제 대기·deletionCompleted 유지. 취소 이후 새 쓰기 시도는 거부 | 삭제 완료의 의미를 완화하지 않음. 완료 호출/검증 재시도로 최초 보관 기한을 늘리지 않음 |
 
-### 17.3 영속 쓰기 추적과 삭제 장벽
+### 19.3 영속 쓰기 추적과 삭제 장벽
 
-다음은 내부 상태/컬럼 후보이며 적용된 Migration을 수정하지 않는다. 합의 뒤 새 Migration으로 작성하고 BE1 정합성 리뷰 및 BE2 조율 후 지정 담당자가 공유 DB에 적용한다.
+내부 상태는 Migration `20261008071616_track_server_photo_uploads.sql`에 추가했다. 적용된 Migration 파일은 수정하지 않았다. 현재 Migration은 Feature PR에 포함하며, 공유 DB 적용은 상대 검토·승인과 BE2 조율 이후 진행한다.
 
 - 파일별 전송 방식 구분이 필요하다. 기존 행은 직접 업로드 또는 안전성 미확인으로 보존하고 서버 중계 완료 행으로 임의 backfill하지 않는다. 새 서버 중계 예약만 외부 업로드 권한이 발급되지 않았다는 사실을 보장한다.
 - 각 Storage 쓰기에 재사용하지 않는 시도 ID·파일/key·시작시각·종료 확인·불명확 결과를 영속 기록한다. users→media_files 잠금 아래 가입/소유권·허용기한·UPLOADING·미완료 시도 여부를 확인하고, 쓰기 시작 기록을 commit한 뒤에만 외부 호출한다. 동일 key 동시 전송·중복 외부 쓰기는 허용하지 않는다.
@@ -942,12 +1033,12 @@ Supabase 공개 사진 저장과 관리 키의 서버 보관을 유지하되 새
 - 최종 삭제는 새 쓰기 차단·모든 쓰기 시도 종료 확인·활성 참조 없음이 충족된 파일만 가능하다. 이어 Storage 삭제와 실제 부재를 확인하고 최신 파일 잠금/삭제 claim 아래 같은 조건을 다시 검사해 DELETED를 저장한다. 늦은 작업자 결과는 새 쓰기 시작을 허용하지 않는다.
 - 정상 전송의 종료가 확인된 새 서버 중계 파일은 위 절차로 최종 삭제할 수 있다. 결과 불명확 시도 및 기존 직접 업로드 파일은 종료 증거를 확보할 때까지 DELETE_PENDING을 유지한다. **장애가 있어도 반드시 유한 시간 안에 DELETED가 된다는 보장은 이 안에 없다.** 공급자 종료 확인 기능이 없는 경우 운영 조치/추가 계약이 필요하며, 삭제 대기만으로 #13 인수를 완료하지 않는다.
 
-### 17.4 합의 및 검증 기준
+### 19.4 합의 및 검증 기준
 
 BE1 확인: 새 시도 추적 Schema/권한/RLS, 기존 직접 업로드와의 구분, 잠금·종료 기록·삭제 장벽·장애 복구. FE 확인: 앱 origin 업로드 경로·Bearer 전달·RAW client·complete 호출·202/오류 처리. BE2 확인: 실제 배포의 10MB 요청 수용과 메모리/동시 전송 제한, 관리 키 서버 보관, 실제 Storage 성공/실패 의미.
 
 합의 뒤 구현 검증은 정상 업로드→공개 조회→완료→취소→DELETED, 취소 후 PUT 차단, 업로드 중 취소 및 마지막 쓰기 종료 후 삭제, timeout/서버 재시작/종료 commit 유실의 삭제 대기 보존, lease 만료 뒤 늦은 작업자, 중복 PUT·타인 소유·회원 상태 변경, 최초24시간 경계, 기존 직접 업로드 행의 보수적 처리를 포함한다. 실제 Supabase와 격리 DB 검증을 실제 Privy OTP/FE 사용자 흐름과 구분해 기록한다. 공급자 응답 의미나 배포 제약이 확인되지 않으면 해당 완료 판정을 보류한다.
 
-2026-10-08 16:48 KST 최종 검증: 기준 back/develop `04d60fa`와 현재 `back/feature/13-storage-verification`의 미커밋 서버 중계 구현으로 Java17 test/build를 새로 실행했다. **전체256개 통과·실패0·오류0·skip0·build 성공(7분6초)**. 관리자 원격 감사3개, 기존 직접 Storage 회귀2개, 새 서버 중계 실제 Storage2개와 JDBC 안전성9개를 포함한다. 새 실제 시험은 합성 인증·격리된 최소 권한 서버 LOGIN으로 Spring PUT→실제 Storage 쓰기/익명 공개 조회→complete→취소→최종 DELETED→늦은 PUT 거부를 확인했으며 정확히10,000,000 bytes PNG도 같은 흐름을 통과했다. JPG 내용 검사 등 기존 검증은 유지한다. 실제 Privy OTP·FE 화면·배포 환경의10MB 수용 시험을 대신하지 않는다.
+2026-10-08 KST 최신 통합 검증: 최신 `origin/back/develop` `ff922f1`을 Feature에 병합하고 #166 댓글·#167 반응 변경 및 세 권한 Migration과 함께 검증했다. Java17 `gradlew.bat --no-daemon test build --console=plain --rerun-tasks --max-workers=2 --offline` 결과 **287개 통과·실패0·오류0·skip0, build 성공(6분20초)**. 실제 Supabase SELECT-only 감사3개, 실제 Storage direct 회귀2개, 서버 중계 Storage2개, 서버 중계 JDBC 안전성9개가 포함됐다. 실제 사진 시험은 합성 회원과 격리된 서버 LOGIN으로 Spring PUT→Storage 저장→익명 공개 조회→완료·취소·DELETED 및 늦은 PUT 차단을 확인했고 10,000,000 bytes PNG도 통과했다. 실제 Privy OTP·FE 화면·배포 환경의10MB 수용 검증은 별도다.
 
-로컬 PostgreSQL 제약133개, 공개 역할 차단9개, 전체7 Migration의 적용/재실행 불변성, ERD27테이블/185컬럼 일치를 검증했다. 시험 Storage object 삭제·부재, 로컬 사진 회원/파일0개, 임시 서버 역할 NOLOGIN/비밀번호 제거, 운영 JAR의 테스트 fixture0개를 확인했다. 문서 상대 링크와 diff 공백 검사를 통과했다. 공유 Supabase에는 새 Migration을 적용하지 않았으며 PHOTO_* 활성화·FE 연결·GitHub 상대 승인·commit/push/PR은 별도다. 결과 불명확 전송과 기존 직접 전송 파일은 삭제 대기를 유지하고 시간 경과로 최종 삭제하지 않는다.
+깨끗한 localhost PostgreSQL에서 전체 Migration을 적용한 뒤 스키마 무결성133개, API 역할 격리9개, ERD 대조 27테이블/185컬럼·단일 FK47·복합 FK8을 통과했다. 시험용 댓글·반응 Migration은 별도 localhost 통합 DB에만 적용했으며 공유 Supabase에는 새 Migration을 적용하지 않았다. 테스트 Storage 파일 정리와 운영 JAR의 test fixture 비포함을 확인했다. 사용자 자격·공유 DB 적용·PHOTO 활성화·BE1 상대 승인·GitHub 필수 CI·FE 실제 연결은 남아 있다. 결과 불명확한 쓰기와 기존 직접 업로드 행은 종료 증거 전까지 삭제 대기로 유지한다.
