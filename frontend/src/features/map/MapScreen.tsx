@@ -27,7 +27,7 @@ export function MapScreen({ context, service, renderer: Renderer = MockMapRender
   const navigation = useNavigation();
   const restored = readMapSnapshot(snapshotReference(navigation.state, { id: "map" }, "map"));
   const [viewport, setViewport] = useState<MapViewport>(() => restored?.viewport ?? { centerRegionId: context.defaultActivityRegion.id, zoom: 13 });
-  const [state, setState] = useState<MapLoadState>(() => service ? { kind: "loading" } : { kind: "error", message: "Map data is waiting for a service connection." });
+  const [state, setState] = useState<MapLoadState>(() => service ? { kind: "loading" } : { kind: "error", message: "지도 데이터를 연결할 서비스를 준비 중입니다. 실제 API 연동 전에는 표시할 수 없습니다." });
   const [selectedDongId, setSelectedDongId] = useState<string | null>(() => restored?.selectedDongId ?? null);
   const latestRequest = useRef(0);
   const request = async (nextViewport = viewport) => {
@@ -41,7 +41,7 @@ export function MapScreen({ context, service, renderer: Renderer = MockMapRender
       setSelectedDongId((current) => data.dongs.some((dong) => dong.region.id === current) ? current : data.dongs[0]?.region.id ?? null);
     } catch {
       if (requestId !== latestRequest.current) return;
-      setState({ kind: "error", message: "Map data could not be loaded. Please retry." });
+      setState({ kind: "error", message: "지도 데이터를 불러오지 못했습니다. 다시 시도해 주세요." });
     }
   };
   useEffect(() => {
@@ -63,11 +63,11 @@ export function MapScreen({ context, service, renderer: Renderer = MockMapRender
     navigation.navigate({ destination: { id: "post", params: { postId: post.id } }, origin: { id: "map" }, sharedContextRef: ref });
   };
 
-  return <MobileLayout header={<Header title="Issue map" />} bottomNavigation={<BottomNavigation activeItem="map" onNavigate={(item) => navigation.navigate({ destination: bottomNavigationDestinations[item], origin: { id: "map" } })} />}>
-    <section className="rounded-card bg-soft p-section"><p className="text-caption text-secondary">Initial center</p><h1 className="text-section">{context.defaultActivityRegion.name}</h1><p className="mt-1 text-caption text-secondary">Changing the explore region does not change this map center.</p></section>
-    {rendererError && <Notice tone="error" role="alert"><p>{rendererError}</p><Button className="mt-3" onClick={() => void request()}>Retry</Button></Notice>}
+  return <MobileLayout header={<Header title="이슈 지도" />} bottomNavigation={<BottomNavigation activeItem="map" onNavigate={(item) => navigation.navigate({ destination: bottomNavigationDestinations[item], origin: { id: "map" } })} />}>
+    <section className="rounded-card bg-soft p-section"><p className="text-caption text-secondary">기본 활동 지역</p><h1 className="text-section">{context.defaultActivityRegion.name}</h1><p className="mt-1 text-caption text-secondary">탐색 지역을 변경해도 지도 중심은 바뀌지 않습니다.</p></section>
+    {rendererError && <Notice tone="error" role="alert"><p>{rendererError}</p><Button className="mt-3" onClick={() => void request()}>다시 시도</Button></Notice>}
     {state.kind === "loading" && <div aria-busy="true" className="space-y-3"><div className="h-72 animate-pulse rounded-card bg-disabled" /><div className="h-24 animate-pulse rounded-card bg-disabled" /></div>}
-    {state.kind === "error" && <Notice tone="error" role="alert"><p>{state.message}</p><Button className="mt-3" onClick={() => { onRetry?.(); void request(); }}>Retry</Button></Notice>}
-    {state.kind === "success" && <><Renderer viewport={viewport} dongs={state.data.dongs} selectedDongId={selectedDongId} onSelectDong={setSelectedDongId} onViewportChange={changeViewport} />{selected && <section aria-live="polite"><h2 className="text-section">{selected.region.name}</h2>{selected.representativePost ? <PostCard className="mt-2" post={selected.representativePost} onOpen={openPost} /> : <Notice className="mt-2">No posts have been registered for this dong.</Notice>}</section>}</>}
+    {state.kind === "error" && <Notice tone="error" role="alert"><p>{state.message}</p><Button className="mt-3" onClick={() => { onRetry?.(); void request(); }}>다시 시도</Button></Notice>}
+    {state.kind === "success" && <><Renderer viewport={viewport} dongs={state.data.dongs} selectedDongId={selectedDongId} onSelectDong={setSelectedDongId} onViewportChange={changeViewport} />{selected && <section aria-live="polite"><h2 className="text-section">{selected.region.name}</h2>{selected.representativePost ? <PostCard className="mt-2" post={selected.representativePost} onOpen={openPost} /> : <Notice className="mt-2">이 동에 등록된 게시물이 없습니다.</Notice>}</section>}</>}
   </MobileLayout>;
 }

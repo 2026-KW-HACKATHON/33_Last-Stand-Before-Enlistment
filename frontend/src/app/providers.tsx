@@ -68,14 +68,14 @@ function AppProvidersContent({ children, retrySession, apiClient, loginService, 
   const { session, retry } = useSession();
   const currentDestination = useMemo(() => destinationFromPathname(pathname), [pathname]);
   const page = apiClient ? <ApiClientProvider client={apiClient}>{children}</ApiClientProvider> : children;
-  const screen = pathname.startsWith("/dev/") ? page : <PhoneFrame>{page}</PhoneFrame>;
-  return <LogoutSessionProvider session={session} retry={retrySession ?? retry} subjectKey={subjectKey} service={logoutService}>
+  const content = <LogoutSessionProvider session={session} retry={retrySession ?? retry} subjectKey={subjectKey} service={logoutService}>
     <WithdrawalSessionProvider subjectKey={subjectKey} service={withdrawalService}><PushPreferenceHost subjectKey={subjectKey} service={pushPreferenceService}><InterestKeywordsHost subjectKey={subjectKey} service={interestKeywordService}><BookmarksProvider subjectKey={subjectKey} service={bookmarkService}><MyVotesProvider subjectKey={subjectKey} service={myVotesService}><PersonalListsProvider subjectKey={subjectKey} service={personalListsService}><SettingsNavigation renderBookmarkDetail={renderBookmarkDetail} renderPersonalDetail={renderPersonalDetail} accountInfoService={accountInfoService} renderEmailChange={renderEmailChange ?? (request => <EmailChangeScreen key={subjectKey} request={request} account={accountInfoService ?? null} service={emailChangeService ?? null} subjectKey={subjectKey}/>)} notificationService={notificationService} onNotificationTarget={onNotificationTarget} subjectKey={subjectKey} onMenu={onSettingsMenu} currentDestination={currentDestination} onNavigate={(href, replace) => replace ? router.replace(href) : router.push(href)}>
       <LoginProvider service={loginService} subjectKey={subjectKey}>
         <InterestRegionsHost subjectKey={subjectKey} service={interestRegionService}><MyPageProvider subjectKey={subjectKey} service={activityService} onMenu={onMyMenu}><InstitutionProvider subjectKey={subjectKey} service={institutionService}><OfficerAgendasProvider subjectKey={subjectKey} service={adoptionService}><OfficerAgendasHost destination={currentDestination}><NeighborProvider subjectKey={subjectKey} service={neighborService}><ProfileProvider service={profileService}><SignupProvider service={signupService} editors={signupEditors ?? profileSignupEditors}>
-          {screen}
+          {page}
         </SignupProvider></ProfileProvider></NeighborProvider></OfficerAgendasHost></OfficerAgendasProvider></InstitutionProvider></MyPageProvider></InterestRegionsHost>
       </LoginProvider>
     </SettingsNavigation></PersonalListsProvider></MyVotesProvider></BookmarksProvider></InterestKeywordsHost></PushPreferenceHost></WithdrawalSessionProvider>
   </LogoutSessionProvider>;
+  return pathname.startsWith("/dev/") ? content : <PhoneFrame>{content}</PhoneFrame>;
 }
