@@ -64,7 +64,7 @@ final class PersonalService {
         meta.put("nextCursor",hasNext?PersonalCursor.encode(viewer,query.filter(),new PersonalCursor.Position(rows.get(rows.size()-1).at(),rows.get(rows.size()-1).postId())):null);
         return Map.<String,Object>of("data",items,"meta",meta);
     }); }
-    private Map<String,Object> card(PostSummary post,JdbcPersonalStore.Base base,ParticipationSnapshot snapshot,
+    Map<String,Object> card(PostSummary post,JdbcPersonalStore.Base base,ParticipationSnapshot snapshot,
             List<JdbcPersonalStore.Option> options,MemberQualification member,Instant now){
         var display=post.display().orElseThrow();var out=new LinkedHashMap<String,Object>();
         out.put("id",post.postId());out.put("type",post.type());out.put("topic",display.topic());out.put("title",display.title());out.put("excerpt",base.excerpt());

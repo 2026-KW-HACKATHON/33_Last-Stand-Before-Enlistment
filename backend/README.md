@@ -355,3 +355,13 @@ GET `/api/v1/users/me/posts`, `/participations`, `/votes`는 검증된 Privy sub
 최신 back/develop85cb888(#18·#19 및 BE1 #14~#16)을 반영한3cc1829에서 지도·서버 권한·실제 감사3/Storage4 관련24개 통과·실패0·오류0·skip0·build 성공(01:02 KST, 1분48초). Schema133/공개 역할 차단9 통과. 앞선 요약/게시물71개 및 메인/요약42개(실제 Gemini2개 포함)와 구분한다. 최종 code/API/DB/권한 검토에서 frontend 변경0·secret 유출0·차단 지적 없음. 실제 공유 DB 적용·Render 키/활성화·프로젝트 FE/공유 사용자 흐름은 #30/#31에 유지한다.
 
 #29 추가 병합 후 최종 재검증: 최신86cc67a를 반영한 ab511fc에서 요약·기관 채택·서버 권한·실제 감사3/Storage4/Gemini2 관련45개 통과·실패0·오류0·skip0, build 성공(01:09 KST, 2분3초). 기존 기관 채택 권한52개와 AI 요약3개를 모두 보존해55개 정책으로 검증했다. Schema133/공개 역할 차단9 통과. 공유 DB에 적용한 결과가 아닌 격리 DB 검증이며 배포/FE 잔여 조건은 유지한다.
+
+### #17 통합 게시판 목록 (2026-10-09)
+
+최신 `origin/back/develop eb9a7d4`(#27 병합)에서 `back/feature/17-list`를 시작했다. `GET /api/v1/posts`는 가입 완료 회원만 접근하며 프로필 기본 지역/명시한 임시 지역·유형·주제 필터, 최신 작성시각/postId 내림차순, 기본20/최대100 cursor 페이지를 사용한다. 필터·본인·실제 지역에 cursor를 귀속시키고 기본 지역이 바뀌면 이전 cursor를 거부한다. 자유 검색·인기도 정렬·상태 필터는 추가하지 않는다. 계약은 기존 API §5.3/검토표 D10에 기록했다.
+
+기존 #27의 실제 batch PostSummaryReader/ParticipationSnapshotReader·원본 조회와 카드 조합기를 package 내부에서 재사용한다. #27 응답/동작은 보존하며 새 DTO·port·Migration·권한 확대는 없다. 같은 REPEATABLE READ/read-only transaction에서 공개 게시물·사진·작성자 공개명/현재 기관 배지·반응/댓글·투표를 조합한다. 신규 게시/수정/삭제/참여 변경은 복제 없이 반영하고 사진 없는 카드는 thumbnailUrl=null, 유효 LINKED 사진은 첨부 순서의 첫 공개 URL만 제공한다. 목록에 내부 fileId/이메일은 반환하지 않는다.
+
+신규11개(입력2·실제 HTTP/JDBC9)와 #27 회귀15개·서버 권한8개, 총 **34개 모두 통과·실패/오류/skip0·build 성공(1분22초)**. 기본 지역/임시 지역 비저장·세 유형/주제·페이지·cursor 격리/기본 지역 변경·생성/수정/삭제/반응 재조회·사진 없음/공개 URL·게스트/미가입/미완료 거부·읽기 중 삭제 snapshot·안전한500을 실제 서버 역할로 확인했다. 첫 사진 fixture의 컬럼명과 LINKED 연결시각 누락은 시험 데이터만 보완했으며 운영 제약은 변경하지 않았다. Schema133/공개 역할 차단9/ERD27테이블185컬럼/FK55 통과, 정책55개·합성 회원/지역0·NOLOGIN/password null 및 로컬 DB 정상 종료 확인.
+
+최신 FE ad0700c의 post display model과 대조했다. 기존 #15/#27처럼 숫자 ID·활동/투표 상태·기관 배지 및 권한의 표시 변환은 FE adapter에서 확인한다. API 원본을 사용하고 사진 없는 영역은 생략하며 기본 이미지/다른 콘텐츠 fallback을 만들지 않는다. 실제 FE 필터/스크롤 복귀, 공유 DB 기존 권한 rollout·실제 서버 역할/Privy 흐름·배포는 #30/#31에서 해소한다. 이번 localhost 시험은 원격 Supabase/Storage/Gemini를 실행한 결과가 아니다. PR의 최종 diff·필수 CI·최신 base·미해결 대화·충돌 조건을 확인한 뒤 사용자 요청대로 병합한다.

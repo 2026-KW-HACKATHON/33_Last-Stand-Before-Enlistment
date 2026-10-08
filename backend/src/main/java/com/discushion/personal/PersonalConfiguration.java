@@ -14,6 +14,13 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 @Configuration(proxyBeanMethods = false) @Profile("!local")
 class PersonalConfiguration {
+    @Bean BoardService boardService(CurrentActorProvider actors,JdbcMemberStore members,PersonalService composer,
+            ObjectProvider<PostSummaryReader> summaries,ObjectProvider<ParticipationSnapshotReader> participation,
+            DataSource source,PlatformTransactionManager manager,Clock clock){
+        var reads=new TransactionTemplate(manager);reads.setReadOnly(true);reads.setIsolationLevel(TransactionDefinition.ISOLATION_REPEATABLE_READ);
+        return new BoardService(actors,members,new JdbcBoardStore(source),new JdbcPersonalStore(source),composer,
+                summaries::getObject,participation::getObject,reads,clock);
+    }
     @Bean PersonalService personalService(CurrentActorProvider actors, JdbcMemberStore members,
             ObjectProvider<PostSummaryReader> summaries, ObjectProvider<ParticipationSnapshotReader> participation,
             ObjectProvider<PhotoStorage> photos, DataSource source, PlatformTransactionManager manager, Clock clock) {
