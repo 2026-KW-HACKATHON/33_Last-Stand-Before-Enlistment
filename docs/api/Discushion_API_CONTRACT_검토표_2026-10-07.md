@@ -1098,3 +1098,13 @@ EvaluationService.list는 기존 댓글 GET의 부모/replies에 있는 본인 �
 ## #20 요약 계약 확정 (2026-10-08)
 
 사용자가 최초 요청 생성·원문 revision별 DB 재사용·수정 후 새 revision 생성·실패 자동 재시도 없음·정보 부족 SOURCE_TOO_SHORT를 채택했다. API 정본 §5.6을 따른다. 네트워크 밖의 transaction에서 원문/권한 재검사, PENDING/revision/requested_at 저장 조건으로 중복/늦은 결과를 차단한다. ai_agenda_summaries 서버 S/I/U와 RLS만 새 Migration으로 준비하며 DELETE·공개 역할 권한은 추가하지 않는다. 공식 모델/REST/구조화 출력 문서는 https://ai.google.dev/gemini-api/docs/models/gemini-3.5-flash-lite 와 https://ai.google.dev/api/generate-content 를 확인했다. 실제 키/provider 및 공유 원본 adapter·FE 연동은 별도 확인한다.
+
+## #8 로그인 API 복원 결정 — 2026-10-09
+
+사용자가 #8 복원 및 back/develop 병합을 요청했다. PR #137의 로그인 계약을 다시 채택하며 PR #140 이후 추가된 가입·인증·프로필·사진·게시물 구현은 유지한다. back/feature/8-login-restore는 최신 back/develop e81c8d5에서 시작했다.
+
+POST /api/v1/auth/login은 검증된 Privy access token Bearer와 빈 JSON {}을 받아 로컬 가입 상태 NOT_REGISTERED/INCOMPLETE/COMPLETED, nullable member(id·registrationCompletedAt)를 반환한다. filter 시점 이후 가입 완료도 현재 JDBC 조회로 반영한다. 로그인은 회원 생성/갱신·이메일 자동 연결·자체 세션/토큰 발급·자격 부여·redirect·원 행동 재실행을 하지 않는다. 기존 400/401/500/503 오류 envelope와 ID/time 규약을 유지하며 새 Migration·권한·공통 port 변경은 없다.
+
+origin/front/develop 108cb47의 auth Service/README를 대조했다. FE의 resolveSession에 세 가입 상태를 변환할 실제 adapter가 필요하며 이 문서 대조는 FE 담당자의 확인이나 실제 Privy/FE 사용자 흐름 검증이 아니다. 배포·실제 서버 역할·OTP/FE 상태 분기·returnTo·갱신/로그아웃은 #30/#31 및 #8 잔여 조건으로 유지한다. Backend 필수 승인0명 정책을 적용하되 최종 diff·관련 테스트/build·필수 CI·최신 base·충돌/미해결 지적 없음을 확인한 뒤 PR로 통합한다.
+
+검증(2026-10-09 04:13 KST): Java17·격리 localhost PostgreSQL에서 gradlew.bat --no-daemon test build --rerun-tasks --max-workers=2 --console=plain 성공(8분2초). 전체456개 중447개 통과, 실패0/오류0, opt-in 원격9개(Supabase 읽기3·Storage4·Gemini2) 미실행. 복원 로그인14개는 모두 실행·통과했고 실제 HTTP/ES256 filter/JDBC·세 가입 상태·가입 후 전환·재요청 무변경·400/401/500/503을 확인했다. 기준 상태의 가입·인증99개도 먼저 통과했다. 최신 가입 코드 변경0, Migration/권한 변경0, 복원8파일은 기존 #137 최종 버전과 동일하며 diff 공백 오류0이다. 실제 원격 서버 계정·Privy OTP·FE 연결은 이번 검증에 포함하지 않는다.
