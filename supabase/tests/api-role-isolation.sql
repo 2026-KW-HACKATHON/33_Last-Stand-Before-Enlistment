@@ -22,6 +22,7 @@ create role service_role nologin bypassrls;
 \ir ../migrations/20261008070000_allow_comment_reads_and_creation.sql
 \ir ../migrations/20261008071616_track_server_photo_uploads.sql
 \ir ../migrations/20261008080000_allow_reaction_reads_and_transitions.sql
+\ir ../migrations/20261008090000_allow_comment_evaluation_transitions.sql
 \ir ../migrations/20261008100000_allow_vote_selection_writes.sql
 do $checks$
 declare r text;

@@ -195,11 +195,12 @@ class CommentHttpIntegrationTests {
         for(String token:Arrays.asList(null,memberToken(subject)))assertThat(request("GET","/api/v1/posts/"+post+"/comments",token,share,null).statusCode()).isEqualTo(404);
         assertThat(create(post,null,share,"의견").statusCode()).isEqualTo(404);
     }
-    @Test void serverCanGenerateIdentityButCannotModifyDeleteOrWriteEvaluations() throws Exception {
+    @Test void serverCanGenerateIdentityButCannotModifyOrDeleteComments() throws Exception {
         long id=root("권한 확인");var jdbc=new JdbcTemplate(source);
         assertThat(jdbc.queryForObject("select has_sequence_privilege(current_user,pg_get_serial_sequence('discushion.comments','id'),'USAGE,SELECT,UPDATE')",Boolean.class)).isFalse();
+        assertThat(jdbc.queryForObject("select has_table_privilege(current_user,'discushion.comment_evaluations','INSERT')",Boolean.class)).isTrue();
         for(String sql:List.of("update discushion.comments set content='changed' where id="+id,"delete from discushion.comments where id="+id,
-            "insert into discushion.comment_evaluations values("+id+","+user+",'LIKE',now(),now())","truncate discushion.comments","create table discushion.comment22_forbidden(id int)"))
+            "truncate discushion.comments","create table discushion.comment22_forbidden(id int)"))
             assertThatThrownBy(()->jdbc.execute(sql)).isInstanceOf(org.springframework.dao.DataAccessException.class);
     }
     @Test void localMockPublicRoleNamesReceiveNoCommentAccess() {

@@ -935,9 +935,15 @@ PUT /api/v1/comments/{commentId}/evaluation
 DELETE /api/v1/comments/{commentId}/evaluation
 ```
 
-대상 소속 지역 이웃 완료 회원. PUT body `{ "type": "LIKE" }` 또는 DISLIKE, DELETE body 없음. 응답 200 `{ "data": { "commentId": 301, "myEvaluation": "LIKE", "likeCount": 4, "dislikeCount": 1 } }`. 취소면 myEvaluation=null.
+2026-10-08 #24 사용자 채택: 대상 소속 지역 이웃 완료·가입 완료 회원. PUT body `{ "type": "LIKE" }` 또는 DISLIKE, DELETE body 없음. 응답200 `{ "data": { "commentId": 301, "myEvaluation": "LIKE", "likeCount": 4, "dislikeCount": 1 } }`, 취소면 myEvaluation=null. PUT은 type1개 필드만 받고 NONE/미지값/다른 타입은400 COMMENT_EVALUATION_TYPE_INVALID, 추가 필드·잘못된 JSON/ID·DELETE body는400 VALIDATION_ERROR다. 없는 댓글/답글은404 COMMENT_NOT_FOUND, 소속 원본 없음/삭제는404 POST_NOT_FOUND. commentId는 기존 양의 JSON 안전 정수 규약을 유지하고 클라이언트 postId/userId/배지/역할을 받지 않는다.
 
-평가는 상호배타. 반대 버튼은 PUT으로 전환, 같은 버튼은 DELETE로 취소. 최초 평가 +1, 직접 전환/취소/같은 desired state 재시도 +0, 취소 후 새 등록 +1. 댓글/답글 모두 적용하고 참여한 게시물에 `댓글 좋아요·싫어요` 표시. 게스트 평가 401, 답글 like는 부모 정렬에 합산하지 않음.
+평가는 상호배타. 반대 버튼은 PUT으로 전환, 같은 버튼은 DELETE로 취소한다. 동일 PUT 재시도는 현재 관계·created_at/updated_at을 유지하고, 반대 평가 전환은 기존created_at을 보존하며 updated_at만 갱신한다. 없는 관계의 DELETE 재시도도200/null로 성공한다. 성공 변경·집계·본인 상태를 같은 transaction에서 반환한다. 최초 평가 +1, 직접 전환/취소/같은 desired state 재시도 +0, 취소 후 새 등록 +1이라는 기존 활동 규칙은 유지하되 사용자 #5 건너뜀 결정으로 activity_events/+1은 미구현이다. 댓글/답글 모두 적용하고 실제 평가 관계는 참여 기록 원본으로 유지한다. 게스트 평가401, 미가입/가입 미완료403 USER_REGISTRATION_REQUIRED, 지역 자격 없음403 NEIGHBOR_VERIFICATION_REQUIRED, 무효 Bearer401 및 내부/DB 실패500은 기존 공통 envelope를 사용한다. 유효 공유 토큰은 회원 자격을 대신하지 않는다. 답글 like는 부모 정렬에 합산하지 않는다.
+
+회원의 동일 writable JDBC transaction에서 users 잠금·현재 자격 조회→실제 댓글의 postId 조회→posts/polls 잠금·현재 공개/지역 검사→댓글 귀속 재검사→평가 관계 변경/집계 순으로 처리한다. 댓글 원본은 기존 SELECT만 사용하고 본문 수정/삭제 권한·API는 추가하지 않는다. 평가 변경은 기존(comment_id,user_id) 복합 PK에서 저장되며 다른 회원·다른 댓글의 평가는 변경하지 않는다. 반복 취소/등록의 동시 최종 상태는 DB 잠금 처리 순서에 따른다. DB 실패를 성공/null 선택으로 숨기지 않고 저장·응답 실패는 rollback한다.
+
+신규 `20261008090000_allow_comment_evaluation_transitions.sql`은 기존 평가 SELECT를 보존하고 comment_evaluations INSERT/UPDATE/DELETE·서버 전용 RLS3개만 추가한다. 댓글 본문 수정/삭제·다른 테이블/시퀀스·DDL 권한은 확대하지 않는다. 로컬 검증 후 Feature PR에서 BE2 정합성 리뷰를 받으며 실제 Supabase 적용은 BE2 조율 후로 유지한다. 실제 PostContextReader의3유형·같은 DataSource/transaction·삭제 경합 및 공통 참여 기록/집계·FE/Privy 연결은 별도 완료 조건이다.
+
+FE EvaluationService.set의 LIKE/DISLIKE는 PUT, NONE은 DELETE로 변환한다. 응답 myEvaluation=null은 FE NONE이며 수와 안전 정수commentId를 검증하고 요청 대상과 대조한다. list는 기존 댓글 GET의 각 부모/replies에 있는 myEvaluation·likeCount/dislikeCount를 연결하며 별도 GET 평가 API를 임의 추가하지 않는다. 게스트의 생략된 myEvaluation을 회원의 NONE 조회로 취급하거나 타 회원의 평가를 캐시하지 않는다. 낙관적 화면 상태는 서버 응답으로 확정하고 실패/Session 전환·늦은 응답은 실제 연동에서 검증한다.
 
 ### 6.4 실제 투표 제출·변경
 
