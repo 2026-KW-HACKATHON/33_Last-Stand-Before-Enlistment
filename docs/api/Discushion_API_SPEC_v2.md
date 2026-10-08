@@ -972,6 +972,8 @@ DELETE /api/v1/posts/{postId}/bookmark
 
 로그인 회원, 지역 이웃 인증 불필요, 공개 게시물만. 200 `{ "data": { "postId": 101, "isBookmarked": true } }`, 해제 false. desired state 재시도 멱등 **[설계 제안]**.
 
+BE1 #26 구현 제안은 같은 PUT을 반복해도 북마크 관계 1개와 최초 `bookmarkedAt`을 유지하고, 이미 해제된 관계의 DELETE도 200 `isBookmarked:false`로 응답하는 것이다. 목록은 `GET /api/v1/users/me/bookmarks?type=&topic=&cursor=&size=`로 본인의 현재 북마크 중 공개 게시물만 반환한다. type은 `LOCAL_AGENDA`·`LOCAL_ACTIVITY`·`VOTE`, topic은 저장된 주제 Enum을 사용한다. 기본 size 20, 최대 100이며 최근 저장시각 내림차순·postId 내림차순으로 커서 페이지를 제공한다. 항목은 postId·type·regionId·title·topic·createdAt·bookmarkedAt을 포함해 기존 상세로 이동할 수 있게 한다. 커서는 type/topic 필터에 결합한다. 삭제 게시물은 목록에서 제외한다. **FE wire 확인 전 구현 제안이며 최종 FE/BE 계약 승인을 뜻하지 않는다.**
+
 상세 버튼 하나에서 회원 저장 성공 시 `저장되었습니다` 팝업, 현재 상세 유지. 게스트는 저장 API/성공 팝업 없이 로그인 안내·returnTo 보존. 가입/로그인 뒤 복귀만 하며 재클릭 전 자동 저장 금지. 목록 카드에 등록/해제 버튼 추가 없음.
 
 실제 등록 +1, 해제 +0, 해제 후 재등록 +1. 북마크만 한 글은 참여 게시물 목록에서 제외. 게시물 삭제 시 관계 자동 해제·북마크 목록 제거, 삭제에 따른 해제도 +0.

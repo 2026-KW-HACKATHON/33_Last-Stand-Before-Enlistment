@@ -24,6 +24,7 @@ create role service_role nologin bypassrls;
 \ir ../migrations/20261008080000_allow_reaction_reads_and_transitions.sql
 \ir ../migrations/20261008090000_allow_comment_evaluation_transitions.sql
 \ir ../migrations/20261008100000_allow_vote_selection_writes.sql
+\ir ../migrations/20261008104330_bookmarks_server_runtime_permissions.sql
 do $checks$
 declare r text;
 begin
@@ -76,6 +77,26 @@ begin
       and tablename='poll_options' and policyname='server_select'
       and roles=array['discushion_server']::name[] and cmd='SELECT' and qual='true') then
     raise exception 'Unexpected poll_options server access';
+  end if;
+  if not has_table_privilege('discushion_server','discushion.bookmarks','SELECT')
+    or not has_table_privilege('discushion_server','discushion.bookmarks','INSERT')
+    or not has_table_privilege('discushion_server','discushion.bookmarks','DELETE')
+    or has_table_privilege('discushion_server','discushion.bookmarks','UPDATE,TRUNCATE,REFERENCES,TRIGGER')
+    or has_table_privilege('anon','discushion.bookmarks','SELECT,INSERT,UPDATE,DELETE')
+    or has_table_privilege('authenticated','discushion.bookmarks','SELECT,INSERT,UPDATE,DELETE')
+    or has_table_privilege('service_role','discushion.bookmarks','SELECT,INSERT,UPDATE,DELETE') then
+    raise exception 'Unexpected bookmarks access for server or API roles';
+  end if;
+  if not exists(select 1 from pg_policies where schemaname='discushion'
+      and tablename='bookmarks' and policyname='server_select'
+      and roles=array['discushion_server']::name[] and cmd='SELECT' and qual='true')
+    or not exists(select 1 from pg_policies where schemaname='discushion'
+      and tablename='bookmarks' and policyname='server_insert'
+      and roles=array['discushion_server']::name[] and cmd='INSERT' and with_check='true')
+    or not exists(select 1 from pg_policies where schemaname='discushion'
+      and tablename='bookmarks' and policyname='server_delete'
+      and roles=array['discushion_server']::name[] and cmd='DELETE' and qual='true') then
+    raise exception 'Missing or unexpected bookmarks server RLS policies';
   end if;
 end $server_checks$;
 select 'PASS: 3 API role names x schema/table/sequence denial = 9 checks' as result;
