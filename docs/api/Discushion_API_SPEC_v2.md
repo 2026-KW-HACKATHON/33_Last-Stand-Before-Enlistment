@@ -652,7 +652,7 @@ GET /api/v1/posts/{postId}
 
 목록은 회원 전용이며 지역 → 유형 → 주제 조건을 적용하고 목록 응답은 PostCard 배열이다. 전체 유형/주제는 query 생략. regionId 미지정 기본은 프로필 활동 지역 **[설계 제안]**. q 자유 게시물 검색은 MVP 계약에 포함하지 않는다. 상세는 회원 또는 유효 공유 게스트에게만 공개한다.
 
-상세 응답 제안(기관 채택은 지역 안건에서만 표시):
+상세 응답은 2026-10-08 #15 사용자 채택 계약을 따른다(기관 채택은 지역 안건에서만 표시). `GET /api/v1/posts/{postId}`는 가입 완료 회원 또는 해당 게시물의 유효 공유 게스트에게 200 `data`로 아래 정보를 반환한다. 다른 query 필드는 받지 않으며 양의 안전 정수 postId를 사용한다.
 
 ```json
 {
@@ -669,7 +669,7 @@ GET /api/v1/posts/{postId}
     "reactionCounts": { "EMPATHY": 3, "NEEDED": 2, "CURIOUS": 1, "total": 6 },
     "commentCount": 0,
     "comments": [],
-    "commentsMeta": { "sort": "LATEST", "nextCursor": null, "hasNext": false },
+    "commentsMeta": { "sort": "LIKES", "nextCursor": null, "hasNext": false },
     "adoptions": [{ "institutionName": "노원구청", "adoptedAt": "2026-10-06T14:00:00+09:00" }],
     "myState": { "reactions": ["EMPATHY"], "isBookmarked": true },
     "capabilities": {
@@ -689,7 +689,11 @@ GET /api/v1/posts/{postId}
 }
 ```
 
-comments 초기 페이지와 후속 GET comments는 동일 구조/정렬을 사용한다. 초기 기본 정렬/건수는 합의해야 한다. 게스트는 myState·vote.myOptionId·댓글 myEvaluation 필드를 생략한다. capabilities는 공유 대상 댓글/답글만 true, 회원 행동은 false로 반환한다. UI 가드는 서버의 매 요청 재검증을 대체하지 않는다.
+comments 초기 페이지는 #22와 같은 `LIKES` 정렬·부모 20개 및 각 부모의 모든 답글을 반환하며 후속 GET comments의 동일 구조/커서를 사용한다. likes→최신 생성시각→큰 ID 순이고 답글은 오래된 순이다. commentCount는 부모+답글 전체 합계다. 게스트는 myState·vote.myOptionId·댓글 myEvaluation 필드를 생략한다. capabilities는 공유 대상 댓글/답글만 true, 회원 행동은 false로 반환한다. UI 가드는 서버의 매 요청 재검증을 대체하지 않는다. 사진 fileId는 검증된 작성자에게만 제공하고 다른 회원/게스트에는 생략하며 §13.8의 photoId/url/contentType/sizeBytes·첨부 순서를 유지한다.
+
+회원의 조회·북마크에는 해당 지역 이웃 자격을 요구하지 않으며 댓글/반응/평가와 진행 중 투표에는 자격을 표시한다. 작성자 수정·삭제는 지역 자격과 투표 종료 여부도 반영한다. 기관 채택 capability는 현재 유효 기관 인증·담당 지역·현재 기관 관계로 계산한다. 공개 adoptions에는 취소되지 않은 기관명·채택시각만 담고 담당자·증빙·연락처·취소용 ID는 넣지 않는다. 프로필 사진 계약은 #10의 미완료 범위를 유지해 현재 profileImageUrl은 null이다.
+
+상세는 하나의 JDBC transaction에서 posts→polls SHARE 잠금으로 수정/삭제와 직렬화하고 실제 참여 batch 원본·댓글 초기 페이지를 같은 snapshot으로 읽는다. #16의 `PostDetailLookup.read(postId, verifiedViewerUserId)`는 호출자의 쓰기 transaction에 참여하여 커밋 전 수정 결과를 읽으며 viewer는 검증된 주체와 같아야 한다. 없는/삭제 원본은 404 POST_NOT_FOUND, 무효 공유·Bearer는 기존 공유/공통 오류를 사용하고 유형 원본 누락·DB/adapter 실패는 INTERNAL_ERROR로 처리한다. 실제 FE 연결은 사용자 결정에 따라 #30/#31에서 검증하며 Backend HTTP 시험으로 완료 표시하지 않는다.
 
 LOCAL_ACTIVITY는 activity를 추가:
 
@@ -705,7 +709,7 @@ LOCAL_ACTIVITY는 activity를 추가:
 }
 ```
 
-schedule 저장 형식은 **[설계 제안]**인 문자열이며 상세 일정 구조/길이는 실제 계약에서 합의한다. 문의 이메일은 작성자 현재 등록 로그인 이메일에서 조회하고 회원·공유 게스트에게 표시한다. 없으면 null과 `주최자 문의 정보를 확인할 수 없습니다.` 표시. 외부 링크가 없거나 유효하지 않은 경우와 문의 이메일 없음은 별개다. 종료/취소 상태면 링크를 비활성화하고 예정/진행으로 되돌리면 유효한 링크가 있을 때 재활성화한다. 링크 허용 protocol·유효성 검사는 **[설계 제안]**, 내부 신청/결제 API는 없음.
+schedule은 #14 사용자 결정에 따라 필수 비공백 문자열을 저장한 그대로 반환하며 임의 일정 구조/길이를 추가하지 않는다. 문의 이메일은 작성자 현재 등록 로그인 이메일에서 조회하고 회원·유효 공유 게스트에게 표시한다. 이 공개 범위는 F-UCDVNA와 2026-10-08 #15 사용자의 별도 명시 승인으로 확인했다. 이메일은 활동 문의 항목에만 포함하고 작성자/기관 채택 DTO에는 포함하지 않는다. 없으면 null과 `주최자 문의 정보를 확인할 수 없습니다.` 표시. 외부 링크는 절대 http/https 주소만 활성화하고 유효하지 않으면 null/disabled로 반환한다. 외부 링크의 유무/오류와 문의 이메일 없음은 별개다. 종료/취소 상태면 링크를 비활성화하고 예정/진행으로 되돌리면 유효한 링크가 있을 때 재활성화한다. 내부 신청/결제 API는 없음.
 
 VOTE는 vote를 추가:
 
@@ -723,7 +727,7 @@ VOTE는 vote를 추가:
 }
 ```
 
-회원 myOptionId는 실제 본인 선택이며 미참여면 null, 게스트는 필드 생략. 다른 참여자의 개인 선택/이름/식별자별 선택은 반환하지 않는다. 득표율 소수 자릿수·반올림은 **[설계 제안]**이며 합의해 통일한다. 참여 0명일 때 각 득표율 0을 반환하는 안을 사용한다. 지역 안건에는 활동/투표 진행 상태를 만들지 않고 기관 채택도 PostStatus에 넣지 않는다.
+회원 myOptionId는 실제 본인 선택이며 미참여면 null, 게스트는 필드 생략. 다른 참여자의 개인 선택/이름/식별자별 선택은 반환하지 않는다. 2026-10-08 #15 사용자 채택에 따라 #25와 동일하게 득표율은 소수 둘째 자리 HALF_UP 반올림이며 참여 0명일 때 0.00이다. 서버 시각이 endsAt 이상이면 CLOSED, 이전이면 OPEN이다. 지역 안건에는 활동/투표 진행 상태를 만들지 않고 기관 채택도 PostStatus에 넣지 않는다.
 
 ### 5.4 게시물 생성·사진
 

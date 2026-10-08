@@ -10,7 +10,7 @@ import java.util.*;
 import java.util.function.Supplier;
 import org.springframework.transaction.support.TransactionTemplate;
 
-final class CommentService {
+final class CommentService implements com.discushion.contracts.participation.PostCommentPageReader {
     private final CurrentActorProvider actors;
     private final JdbcMemberStore members;
     private final MemberAuthorization guard;
@@ -23,6 +23,9 @@ final class CommentService {
                    Supplier<PostContextReader> posts, JdbcCommentStore store, TransactionTemplate reads, TransactionTemplate writes, Clock clock) {
         this.actors = actors; this.members = members; this.guard = guard; this.sharing = sharing; this.posts = posts;
         this.store = store; this.reads = reads; this.writes = writes; this.clock = clock;
+    }
+    @Override public Map<String, Object> initialPage(long postId) {
+        return list(postId, new CommentQuery(CommentQuery.Sort.LIKES, 20, null));
     }
     Map<String, Object> list(long postId, CommentQuery query) {
         return reads.execute(status -> {

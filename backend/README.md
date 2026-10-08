@@ -263,3 +263,15 @@ Storage object0개·초기 최종 DELETED 검증 이력2행·시연 회원1명·
 최신 `back/develop a9ad5c9`에서 `back/feature/14-createpost`를 준비했다. Java17 `gradlew.bat --no-daemon test build --max-workers=2`는 **341개 중334통과·실패0·오류0·7개 건너뜀, build 성공**. 생략 항목은 선택적인 실제 Supabase/Storage 감사이며 이 시험에서는 opt-in을 끄고 실행하지 않았다. 신규 #14 입력 단위·실제 HTTP/JDBC 통합 테스트 13개는 모두 통과했다.
 
 격리 localhost PostgreSQL에서 전체 Migration 적용, Schema 제약 133개, 공개 API 역할의 접근 차단9개, ERD 대조(27테이블·185컬럼)를 확인했다. LOGIN으로 임시 활성화한 실제 `discushion_server` 역할에서 세 유형 생성·postId 응답·지역 자격 거부·사진 최대10,000,000 bytes 연결·초과/만료/타인 파일 rollback·동일 파일 동시 연결 경합·DDL/물리 삭제 거부를 HTTP로 확인했다. 테스트 이후 합성 회원·지역0건, 서버 역할 NOLOGIN을 확인했다. 이는 공유 Supabase 적용, 실제 Storage 전송 또는 프로젝트 FE 연결을 뜻하지 않는다.
+
+### #15 공통 상세·실제 참여/댓글 원본 연결 (2026-10-08)
+
+기준 `origin/back/develop d1f8bcf`에서 `back/feature/15-detail`을 준비했다. 사용자는 기존 상세 응답, 초기 댓글 LIKES/부모20개·전체 답글·동일 커서, 회원 본인 상태·게스트 생략, 작성자 전용 fileId와 #25 동일 득표율 반올림을 채택했다. 활동 문의 이메일의 회원·유효 공유 게스트 공개도 명시 승인했다. 기존 #29 미커밋 작업과 #16 Draft PR은 별도 작업 공간에 보존했다.
+
+`GET /api/v1/posts/{postId}`가 실제 게시물·사진·활동/투표·기관 채택과 `JdbcParticipationSnapshotReader`/`JdbcPostSummaryReader`, 기존 #22 댓글 초기 조회를 연결한다. 조회는 posts→polls SHARE 잠금과 같은 snapshot을 사용하고 #16용 PostDetailLookup은 호출자의 쓰기 transaction에 참여한다. 프로필 사진은 #10 미완료 범위를 유지해 null이다. 활동 상세 SELECT 누락을 실제 서버 역할로 재현하고 추가 Migration `20261008144530_allow_activity_detail_reads.sql`로 SELECT/RLS만 보완했다. 기존 Migration은 수정하지 않는다.
+
+Java17 `gradlew.bat --no-daemon test build --max-workers=2 --console=plain`은 2026-10-08 23:54 KST에 **352개 중345통과·실패0·오류0·선택형 원격7개 미실행, build 성공**으로 종료했다. #15 신규 실제 HTTP/JDBC11개는 통과했고 같은 DB 역할에서 세 유형 조회·게스트/타회원 개인정보 격리·사진 작성자 fileId·댓글 페이지/전체 답글·기관 배지/채택·종료/삭제 차단·원본 오류의 안전한500·SHARE/삭제 경합·기존 쓰기 transaction 결과/rollback을 확인했다. 기본 Schema 제약133개·공개 역할 차단9개, 추가 SELECT/RLS 검사, ERD27테이블/185컬럼/FK55 대조도 통과했다. 최종 SQL 정리와 북마크/기관 목록 실제 adapter 소비를 포함한 같은11개 대상 재실행도 실패/오류/skip0·build 성공이다. 종료 후 Schema 검사를 다시 통과했으며 합성 회원/지역0개, 서버 역할 NOLOGIN·정책49개·활동 수정/삭제 권한 없음·운영 JAR 테스트 fixture0개를 확인하고 로컬 시험 DB를 정상 종료했다.
+
+FE 기준 `origin/front/develop ad0700c`의 post model/service와 대조했다. 화면용 string ID·시간 표시·활동 UPCOMING/ONGOING/CANCELLED·투표 ENDED는 Backend 안전 정수/절대시간·SCHEDULED/IN_PROGRESS/CANCELED·CLOSED에서 변환해야 한다. 사진은 photoId와 작성자 전용 fileId를 구분하고 본인 상태 생략을 회원의 미선택과 혼동하지 않는다. author model의 id는 현재 공개 DTO에 없으므로 임의 회원 ID를 만들지 않고 capabilities로 소유자 행동을 소비하도록 FE adapter에서 조정해야 한다. 이 문서 대조는 FE 담당자의 실제 확인이나 실제 FE/Privy 사용자 흐름 검증을 대신하지 않는다.
+
+공유 Supabase의 신규 권한 Migration 적용·배포 및 프로젝트 FE 실제 연결은 #30/#31에서 해소한다. 원격/Storage7개 선택형 검사는 이번 localhost 시험에서 opt-in을 끄고 실행하지 않았으며 통과로 표시하지 않는다. #16의 실제 수정/삭제 API 재연결·권한/rollback 검증은 해당 Issue에서 진행한다. 구현과 로컬 검증은 commit/push/PR·병합 또는 공유 DB 적용을 뜻하지 않는다.
