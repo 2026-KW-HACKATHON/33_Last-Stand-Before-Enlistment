@@ -257,3 +257,9 @@ Storage object0개·초기 최종 DELETED 검증 이력2행·시연 회원1명·
 최신 `origin/back/develop 26cb5e8`을 Feature에 반영한 `1d6e6fa`에서 Java17 전체 `test build --rerun-tasks --max-workers=2 --offline`을 실행했다. 22:31 KST 종료, 소요8분19초, **328개 통과·실패0·오류0·skip0·build 성공**이다. 실제 Supabase SELECT-only 감사3개와 직접/서버 중계 Storage 시험4개를 모두 실행했다. 격리 PostgreSQL에는 최신 북마크/기관 조회 권한 Migration2개를 추가 적용했고 제약133개·공개 역할 차단9개를 확인했다. 공유 DB의 추가 기능 권한은 이 검증으로 적용하지 않았다.
 
 종료 후 로컬 시험 회원/사진0개·임시 서버 역할 NOLOGIN/password null·운영 JAR의 테스트 클래스/fixture0개를 확인하고 시험 DB를 정상 종료했다. 기존6파일만 PR에 포함하고 frontend·제품 코드·적용된 Migration 파일은 변경하지 않는다. 실제 프로젝트 FE 및 게시물 사진 연결이 남아 있으므로 PR은 #13/#30을 참조하며 이슈를 자동 종료하지 않는다. 병합 후에도 Render 자동 배포는 꺼져 있고 현재 Live `4fffb1e`와 개발 브랜치 최신 코드를 구분한다.
+
+### #14 게시물 생성과 서버 권한 (2026-10-08)
+
+최신 `back/develop a9ad5c9`에서 `back/feature/14-createpost`를 준비했다. Java17 `gradlew.bat --no-daemon test build --max-workers=2`는 **341개 중334통과·실패0·오류0·7개 건너뜀, build 성공**. 생략 항목은 선택적인 실제 Supabase/Storage 감사이며 이 시험에서는 opt-in을 끄고 실행하지 않았다. 신규 #14 입력 단위·실제 HTTP/JDBC 통합 테스트 13개는 모두 통과했다.
+
+격리 localhost PostgreSQL에서 전체 Migration 적용, Schema 제약 133개, 공개 API 역할의 접근 차단9개, ERD 대조(27테이블·185컬럼)를 확인했다. LOGIN으로 임시 활성화한 실제 `discushion_server` 역할에서 세 유형 생성·postId 응답·지역 자격 거부·사진 최대10,000,000 bytes 연결·초과/만료/타인 파일 rollback·동일 파일 동시 연결 경합·DDL/물리 삭제 거부를 HTTP로 확인했다. 테스트 이후 합성 회원·지역0건, 서버 역할 NOLOGIN을 확인했다. 이는 공유 Supabase 적용, 실제 Storage 전송 또는 프로젝트 FE 연결을 뜻하지 않는다.
