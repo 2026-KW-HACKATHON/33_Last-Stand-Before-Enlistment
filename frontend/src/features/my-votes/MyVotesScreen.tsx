@@ -4,6 +4,7 @@ import { Header } from "../../components/layout/Header";
 import { MobileLayout } from "../../components/layout/MobileLayout";
 import { BottomNavigation } from "../../components/layout/BottomNavigation";
 import { Notice } from "../../components/ui/Notice";
+import { VoteValueSummary } from "../../components/ui/VoteValue";
 import { Button } from "../../components/ui/Button";
 import { PostCard } from "../post/PostCard";
 import type { PersonalDetailRenderer } from "../personal-lists/PersonalListsScreen";
@@ -11,12 +12,6 @@ import { AccessGuard, bottomNavigationDestinations, useNavigation, type Destinat
 import { selectVotes, voteFilters, voteSummary, type MyVotesStore, type VoteFilter } from "./model";
 import { useMyVotes, useMyVotesState } from "./provider";
 
-export function VoteSummaryContent({ summary }: { summary: string }) {
-  return <div className="flex flex-wrap gap-x-2 gap-y-1">{summary.split(" | ").map((part, index) => {
-    const labeled = /^([^:]+): ([\s\S]*)$/.exec(part);
-    return <span key={index} className="inline-flex max-w-full min-w-0 items-center gap-1">{labeled ? <><span className="shrink-0 whitespace-nowrap">{labeled[1]}</span><span className="min-w-0 whitespace-normal break-words rounded-chip bg-white px-[10px] py-1 text-[11px] leading-snug">{labeled[2]}</span></> : part}</span>;
-  })}</div>;
-}
 export function MyVotesScreen({ store, subjectKey, onBack, renderDetail }: { store: MyVotesStore; subjectKey: string | null; onBack: () => void; renderDetail?: PersonalDetailRenderer }) {
   const state = useMyVotesState(store);
   const navigation = useNavigation();
@@ -49,7 +44,7 @@ export function MyVotesScreen({ store, subjectKey, onBack, renderDetail }: { sto
       {state.phase === "ready" && (!items.length ? <Notice>해당 조건의 참여한 투표가 없습니다.</Notice> : items.map(row => <section key={row.postId} className="flex flex-col gap-section" aria-label="개인 투표 기록">
         {row.availability === "available" ? <>
           <PostCard post={row.post} onOpen={id => open(id, true)}/>
-          <Notice><VoteSummaryContent summary={voteSummary(row.snapshot, row.post.vote.status === "ENDED")}/></Notice>
+          <Notice><VoteValueSummary summary={voteSummary(row.snapshot, row.post.vote.status === "ENDED")}/></Notice>
           <Notice>{row.post.vote.status === "OPEN" ? "진행 중" : "종료"} · {row.timingLabel}{row.reminderLabel ? ` · ${row.reminderLabel}` : ""}{row.snapshot ? ` · ${row.snapshot.options.reduce((n, option) => n + option.count, 0)}명 참여` : ""}</Notice>
         </> : <><Notice tone="warning">접근할 수 없는 투표 · 개인 참여 기록 유지<p>참여 시각: {row.participatedAt}</p></Notice><Button variant="secondary" onClick={() => open(row.postId, false)}>접근 불가 안내</Button></>}
       </section>))}

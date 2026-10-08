@@ -4,7 +4,8 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { SessionProvider, NavigationProvider, type SessionState } from "../../lib/navigation";
 import { createMyVotesStore, type VoteFilter } from "./model";
 import { createMyVotesMock, mockVoteSubject, type MyVotesScenario } from "./mock";
-import { MyVotesScreen, VoteSummaryContent } from "./MyVotesScreen";
+import { MyVotesScreen } from "./MyVotesScreen";
+import { VoteValueSummary } from "../../components/ui/VoteValue";
 async function render(filter: VoteFilter = "ALL", scenario: MyVotesScenario = "normal", session: SessionState = { status: "member", capabilities: { status: "ready", grants: [] } }, hide = false) {
   const mock = createMyVotesMock(scenario);
   if (hide) { mock.hide("vote"); mock.hide("vote-ended"); }
@@ -19,6 +20,7 @@ test("three status filters and actual choice/final result, not submission contro
   for (const label of ["내 선택", "최다", "최종 결과"]) assert.match(html, new RegExp(`shrink-0 whitespace-nowrap">${label}</span>`));
   assert.match(html, /bg-white[^>]*>토요일 오전 32%<\/span>/); assert.match(html, /bg-white[^>]*>평일 저녁 48%<\/span>/);
   assert.ok(!html.includes("bg-[#CDE9E2]"));
+  assert.ok(!html.includes("내 선택:")); assert.ok(!html.includes("최다:")); assert.ok(!html.includes("최종 결과:")); assert.ok(!html.includes(" | "));
   assert.ok(!html.includes("투표 제출")); assert.ok(!html.includes("선택 변경"));
 });
 test("status conditions do not mix open and ended content", async () => {
@@ -29,7 +31,7 @@ test("status conditions do not mix open and ended content", async () => {
 test("unavailable history retains metadata only and hides all titles/body/options/images/results", async () => {
   const html = await render("ALL", "normal", undefined, true);
   assert.ok(html.includes("개인 참여 기록 유지")); assert.ok(html.includes("참여 시각"));
-  for (const text of ["주말 주민", "주민 휴식", "평일 저녁", "토요일 오전", "내 선택:", "최다:", "images.unsplash.com"]) assert.ok(!html.includes(text), text);
+  for (const text of ["주말 주민", "주민 휴식", "평일 저녁", "토요일 오전", "내 선택", "최다", "최종 결과", "bg-white", "images.unsplash.com"]) assert.ok(!html.includes(text), text);
 });
 test("empty, failure/retry and choice retrieval waiting have distinct feedback", async () => {
   assert.ok((await render("OPEN", "empty")).includes("해당 조건의 참여한 투표가 없습니다"));
@@ -53,10 +55,10 @@ test("Loading and missing adapter do not expose ready records", async () => {
 });
 
 test("summary values share white pills while labels and waiting remain plain text", () => {
-  const html = renderToStaticMarkup(<VoteSummaryContent summary="현재 결과: 평일 저녁 48% | 최종 결과: 평일 저녁 52%"/>);
+  const html = renderToStaticMarkup(<VoteValueSummary summary="현재 결과: 평일 저녁 48% | 최종 결과: 평일 저녁 52%"/>);
   for (const label of ["현재 결과", "최종 결과"]) assert.match(html, new RegExp(`shrink-0 whitespace-nowrap">${label}</span>`));
   assert.match(html, /bg-white[^>]*>평일 저녁 48%<\/span>/); assert.match(html, /bg-white[^>]*>평일 저녁 52%<\/span>/);
   assert.ok(!html.includes(":")); assert.ok(!html.includes("<button"));
-  const waiting = renderToStaticMarkup(<VoteSummaryContent summary="본인 선택과 결과 조회 대기"/>);
+  const waiting = renderToStaticMarkup(<VoteValueSummary summary="본인 선택과 결과 조회 대기"/>);
   assert.ok(waiting.includes("본인 선택과 결과 조회 대기")); assert.ok(!waiting.includes("bg-white"));
 });
