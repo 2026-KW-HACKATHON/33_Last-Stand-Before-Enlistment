@@ -284,3 +284,6 @@ FE 기준 `origin/front/develop ad0700c`의 post model/service와 대조했다. 
 공유 Supabase의 신규 권한 Migration 적용·배포 및 프로젝트 FE 실제 연결은 #30/#31에서 해소한다. 원격/Storage7개 선택형 검사는 이번 localhost 시험에서 opt-in을 끄고 실행하지 않았으며 통과로 표시하지 않는다. #16의 실제 수정/삭제 API 재연결·권한/rollback 검증은 해당 Issue에서 진행한다. 구현과 로컬 검증은 commit/push/PR·병합 또는 공유 DB 적용을 뜻하지 않는다.
 
 2026-10-09 최신 기준 반영: #14·#15의 통합 원본과 활동 SELECT 권한을 재사용한다. 아직 적용하지 않은 #18 중복 활동 SELECT Migration은 제외하고, #15 Migration은 보존했다. 게시물 생성 INSERT 권한과 SELECT-only 탐색 권한을 구분해 시험 기대값을 통합했다. 공유 DB 적용·배포·실제 FE 연결은 #30/#31에 남긴다.
+
+### #18 PR 전 최신 기준 검증 (2026-10-09)
+최신 back/develop 7e0d73f(#14·#15) 반영 코드83a4d51에서 전체362개 통과·실패0·오류0·skip0, build 성공(00:28 KST, 9분19초). 실제 Supabase 감사3개·Storage4개 포함. Schema 제약133개·공개 역할 차단9개 통과. 기존 #15 활동 SELECT Migration을 재사용하며 미적용 중복 #18 Migration은 제외했다. frontend 변경0·secret 유출0. 실제 공유 DB 권한 rollout·Render 배포·프로젝트 FE 연동은 #30/#31에 남아 있으므로 이 구현 PR으로 #18을 자동 종료하지 않는다.
