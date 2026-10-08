@@ -102,7 +102,7 @@ class ServerRuntimePermissionsIntegrationTests {
         for(String table:List.of("users","profiles","user_agreements","media_files")) allowed.put(table,Set.of("SELECT","INSERT","UPDATE"));
         for(String table:List.of("posts","polls")) allowed.put(table,Set.of("SELECT","INSERT","UPDATE"));
         allowed.put("poll_options",Set.of("SELECT","INSERT"));
-        allowed.put("activity_post_details",Set.of("SELECT","INSERT"));
+        allowed.put("activity_post_details",Set.of("SELECT","INSERT","UPDATE"));
         allowed.put("vote_selections",Set.of("SELECT","INSERT","UPDATE"));
         allowed.put("profile_attributes",Set.of("SELECT","INSERT","DELETE"));
         allowed.put("post_photos",Set.of("SELECT","INSERT","UPDATE","DELETE"));
@@ -215,7 +215,7 @@ class ServerRuntimePermissionsIntegrationTests {
         }
     }
     @Test void serverPoliciesAreExplicitPerOperationAndNeverPublicOrAll() {
-        assertThat(jdbc.queryForObject("select count(*) from pg_policies where schemaname='discushion' and policyname like 'server_%'",Integer.class)).isEqualTo(49);
+        assertThat(jdbc.queryForObject("select count(*) from pg_policies where schemaname='discushion' and policyname like 'server_%'",Integer.class)).isEqualTo(50);
         assertThat(jdbc.queryForObject("""
             select exists(select 1 from pg_policies where schemaname='discushion'
               and tablename='institution_agenda_adoptions' and policyname='server_select'

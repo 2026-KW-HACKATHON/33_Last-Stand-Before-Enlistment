@@ -93,7 +93,7 @@ class HomeReadIntegrationTests {
         @SuppressWarnings("unchecked") var cards=(List<Map<String,Object>>)data(service(actor()).read(new HomeQuery(null))).get("posts");
         assertThat(cards.get(0).get("activityStatus")).isEqualTo("SCHEDULED");
         assertThat(cards.get(0).get("reactionCounts")).isEqualTo(Map.of("EMPATHY",1L,"NEEDED",1L,"CURIOUS",1L,"total",3L));
-        assertThatThrownBy(()->jdbc.update("update discushion.activity_post_details set place='denied' where post_id=?",activity)).isInstanceOf(org.springframework.dao.DataAccessException.class);
+        assertThatThrownBy(()->jdbc.update("delete from discushion.activity_post_details where post_id=?",activity)).isInstanceOf(org.springframework.dao.DataAccessException.class);
     }
     @Test void deletedAndOtherRegionPostsStayHidden(){
         long hidden=post("LOCAL_AGENDA",region,Instant.now());

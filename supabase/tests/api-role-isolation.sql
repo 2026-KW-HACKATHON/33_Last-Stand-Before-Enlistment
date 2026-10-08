@@ -28,6 +28,7 @@ create role service_role nologin bypassrls;
 \ir ../migrations/20261008113000_allow_officer_agenda_reads.sql
 \ir ../migrations/20261008130000_allow_post_creation.sql
 \ir ../migrations/20261008144530_allow_activity_detail_reads.sql
+\ir ../migrations/20261008150737_allow_activity_post_updates.sql
 do $checks$
 declare r text;
 begin
@@ -46,7 +47,8 @@ do $server_checks$
 begin
   if not has_table_privilege('discushion_server','discushion.activity_post_details','SELECT')
     or not has_table_privilege('discushion_server','discushion.activity_post_details','INSERT')
-    or has_table_privilege('discushion_server','discushion.activity_post_details','UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER')
+    or not has_table_privilege('discushion_server','discushion.activity_post_details','UPDATE')
+    or has_table_privilege('discushion_server','discushion.activity_post_details','DELETE,TRUNCATE,REFERENCES,TRIGGER')
     or not exists(select 1 from pg_policies where schemaname='discushion'
       and tablename='activity_post_details' and policyname='server_insert'
       and roles=array['discushion_server']::name[] and cmd='INSERT' and with_check='true') then
@@ -55,6 +57,10 @@ begin
   if not exists(select 1 from pg_policies where schemaname='discushion' and tablename='activity_post_details'
       and policyname='server_select' and roles=array['discushion_server']::name[] and cmd='SELECT' and qual='true') then
     raise exception 'Missing activity detail server SELECT policy';
+  end if;
+  if not exists(select 1 from pg_policies where schemaname='discushion' and tablename='activity_post_details'
+      and policyname='server_update' and roles=array['discushion_server']::name[] and cmd='UPDATE' and qual='true' and with_check='true') then
+    raise exception 'Missing activity update server policy';
   end if;
   if not has_table_privilege('discushion_server','discushion.posts','INSERT')
     or has_table_privilege('discushion_server','discushion.posts','DELETE,TRUNCATE,REFERENCES,TRIGGER')
@@ -156,13 +162,5 @@ begin
     raise exception 'Missing institution_agenda_adoptions server SELECT policy';
   end if;
 end $server_checks$;
-do $home_activity_privileges$
-begin
-  if not has_table_privilege('discushion_server','discushion.activity_post_details','SELECT')
-    or not has_table_privilege('discushion_server','discushion.activity_post_details','INSERT')
-or has_table_privilege('discushion_server','discushion.activity_post_details','UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER') then
-    raise exception 'Unexpected home activity runtime privileges';
-  end if;
-end $home_activity_privileges$;
 select 'PASS: 3 API role names x schema/table/sequence denial = 9 checks' as result;
 rollback;

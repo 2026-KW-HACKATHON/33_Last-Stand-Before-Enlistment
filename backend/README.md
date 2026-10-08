@@ -287,3 +287,15 @@ FE 기준 `origin/front/develop ad0700c`의 post model/service와 대조했다. 
 
 ### #18 PR 전 최신 기준 검증 (2026-10-09)
 최신 back/develop 7e0d73f(#14·#15) 반영 코드83a4d51에서 전체362개 통과·실패0·오류0·skip0, build 성공(00:28 KST, 9분19초). 실제 Supabase 감사3개·Storage4개 포함. Schema 제약133개·공개 역할 차단9개 통과. 기존 #15 활동 SELECT Migration을 재사용하며 미적용 중복 #18 Migration은 제외했다. frontend 변경0·secret 유출0. 실제 공유 DB 권한 rollout·Render 배포·프로젝트 FE 연동은 #30/#31에 남아 있으므로 이 구현 PR으로 #18을 자동 종료하지 않는다.
+
+### #16 실제 상세 연결·게시물 수정/삭제 검증 (2026-10-09)
+
+기존 Draft PR #186의 Feature에 최신 back/develop `7e0d73f`(#14/#15)를 병합했다. 계약 검토표 충돌은 #14 입력 결정과 #16 삭제/보존 결정을 모두 보존해 해결했다. 공통 PostContextReader는 #14 실제 Bean을 유지하고 #16의 중복 등록을 제거했다. PATCH가 #15 실제 상세를 같은 쓰기 transaction에서 반환하도록 연결했으며 DELETE는 기존 북마크·사진 adapter와 연결한다.
+
+누락된 활동 UPDATE를 추가 Migration `20261008150737_allow_activity_post_updates.sql`에서 이 권한과 서버 전용 UPDATE 정책으로만 보완한다. DELETE·DDL·시퀀스·공개 역할 권한은 추가하지 않고 기존 적용 Migration은 수정하지 않는다. #14 동일 URL/미래 종료시각 규칙을 재검증하고 존재하지 않는 지역 및 반올림될 수 있는 소수 ID를 거부한다.
+
+2026-10-09 00:21 KST 전체 Java17 `test build --max-workers=2 --console=plain`은 **367개 중360통과·실패0·오류0·선택형 원격7개 미실행, build 성공**이다. 서버 역할 실제 HTTP8개와 서비스3개·입력4개를 포함했다. PATCH 최신 상세/생략 필드 보존·동시 부분 수정, 활동 수정/URL, 투표 수정 제한/종료, 작성자/지역 거부, 활성 채택의 지역 변경 차단, 기존 photoId 보존/사진 교체·실패 rollback, 삭제 DB 실패의 북마크/사진/게시물 rollback과 정상 삭제의 이력 보존, 삭제 예약·Storage 실패 재시도 상태를 확인했다. Storage는 시험용 mock 경계이며 실제 외부 버킷 삭제 완료로 기록하지 않는다.
+
+최종 관련11개(HTTP8/서비스3) 재실행도 실패/오류/skip0·build 성공이다. 삭제 후 유효 공유 링크·댓글·반응·북마크·투표 API 차단 및 삭제 투표 내부 summary의 display 비노출을 포함했다. 최종 Schema133개·공개 역할 격리9개와 활동 UPDATE/RLS·ERD27테이블/185컬럼/FK55 검사를 통과했다. 합성 회원/지역0개·서버 역할 NOLOGIN·정책50개·실패 주입 함수0개·운영 JAR 테스트 클래스0개를 확인하고 localhost 시험 DB를 정상 종료했다.
+
+실제 공유 Supabase의 #14/#15/#16 권한 적용·배포·프로젝트 FE/Privy 사용자 흐름은 #30/#31에서 해소한다. #29 코드는 별도 작업 공간에 보존하며 이번 PR에 포함하지 않는다. 최종 PR의 공통 API/DB/삭제/보존 영향은 필수 승인0명 규칙으로 작성자·Codex가 재검토하며 실제 연동과 로컬 시험을 구분한다.

@@ -266,3 +266,9 @@ Storage object0개·초기 최종 DELETED 검증 이력2행을 확인했다. 회
 실제 서버 역할로 상세 API를 실행했을 때 `activity_post_details` SELECT가 거부되는 누락을 확인했다. #14 생성 INSERT는 유지하고 CLI로 생성한 `20261008144530_allow_activity_detail_reads.sql`에서 이 테이블 SELECT와 discushion_server 전용 `server_select` RLS만 추가한다. 활동 UPDATE/DELETE·다른 테이블·시퀀스·DDL·공개 역할 권한은 확대하지 않는다. 공개 게시물/회원·특정 공유 접근은 Spring이 검사하며 서버 RLS는 회원별 행 격리를 대신하지 않는다. 기존 Migration과 원격 이력은 수정하지 않는다.
 
 #15의 본문/참여/댓글/활동/투표/채택 조회는 기존 원본을 사용하고 posts→polls SHARE 잠금과 하나의 snapshot으로 수정·삭제 경합을 처리한다. 추가 권한은 격리 localhost에서만 적용·검증한다. 공유 Supabase 적용은 통합 후 지정 담당자의 조율 아래 진행하며 로컬 역할 통과를 실제 배포 환경 권한 통과로 표시하지 않는다. 전체 실행 결과는 Backend README의 #15 기록을 따른다.
+
+## #16 활동 수정 서버 권한 보완 (2026-10-09)
+
+기준 back/develop `7e0d73f`의 활동 상세 권한은 SELECT/INSERT이며 UPDATE는 누락돼 있다. CLI로 생성한 `20261008150737_allow_activity_post_updates.sql`은 activity_post_details UPDATE·discushion_server 전용 server_update 정책(using/with check true)만 추가한다. 다른 테이블·시퀀스·DDL·활동 물리 삭제·공개 역할 권한은 확대하지 않는다. 사용자·작성자·변경 지역·활동 상태/URL은 Spring이 쓰기 시점에 검사한다. 기존 적용 Migration은 변경하지 않는다.
+
+#14 생성의 PostContextReader Bean을 공통 조회원으로 유지하고 #16의 중복 Bean 등록을 제거했다. 수정/삭제는 회원→posts→polls→북마크/사진 순으로 같은 transaction에서 처리하며 PATCH 응답은 #15 실제 상세 adapter를 통해 구성한다. DB 저장/상세 조회 실패는 수정·북마크·사진 상태/삭제 예약까지 rollback한다. 삭제 성공은 비노출 및 예약의 commit이며 실제 Storage 삭제 완료가 아니다. 공유 DB의 #14/#15 및 이번 권한 적용·배포는 지정 담당자 조율 후 수행하며 실제 연동 완료와 로컬 검증을 구분한다.
