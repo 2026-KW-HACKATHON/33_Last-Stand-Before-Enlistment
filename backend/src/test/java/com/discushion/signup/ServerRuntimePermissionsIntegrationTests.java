@@ -95,14 +95,15 @@ class ServerRuntimePermissionsIntegrationTests {
             """,Boolean.class)).isTrue();
         assertThat(jdbc.queryForObject("select has_schema_privilege(current_user,'discushion','USAGE') and not has_schema_privilege(current_user,'discushion','CREATE') and not has_schema_privilege(current_user,'public','CREATE')",Boolean.class)).isTrue();
     }
-    @Test void all27TablesHaveExactlyThePhaseOnePrivilegesAndNoSequenceOrGrantOptions() {
+    @Test void all27TablesHaveExactlyTheCurrentPrivilegesAndNoSequenceOrGrantOptions() {
         Map<String,Set<String>> allowed=new HashMap<>();
         for(String table:List.of("regions","institutions","neighbor_verified_regions","institution_credentials")) allowed.put(table,Set.of("SELECT"));
         allowed.put("institution_agenda_adoptions",Set.of("SELECT"));
         allowed.put("ai_agenda_summaries",Set.of("SELECT","INSERT","UPDATE"));
         for(String table:List.of("users","profiles","user_agreements","media_files")) allowed.put(table,Set.of("SELECT","INSERT","UPDATE"));
-        for(String table:List.of("posts","polls")) allowed.put(table,Set.of("SELECT","UPDATE"));
-        allowed.put("poll_options",Set.of("SELECT"));
+        for(String table:List.of("posts","polls")) allowed.put(table,Set.of("SELECT","INSERT","UPDATE"));
+        allowed.put("poll_options",Set.of("SELECT","INSERT"));
+        allowed.put("activity_post_details",Set.of("SELECT","INSERT"));
         allowed.put("vote_selections",Set.of("SELECT","INSERT","UPDATE"));
         allowed.put("profile_attributes",Set.of("SELECT","INSERT","DELETE"));
         allowed.put("post_photos",Set.of("SELECT","INSERT","UPDATE","DELETE"));
@@ -177,7 +178,7 @@ class ServerRuntimePermissionsIntegrationTests {
             "update discushion.institution_credentials set valid_until=now() where false",
             "select * from discushion.email_verifications",
             "select * from discushion.neighbor_verification_evidences",
-            "insert into discushion.posts default values",
+            "delete from discushion.posts where false",
             "select * from discushion.activity_events",
             "alter role discushion_server bypassrls",
             "set role postgres",
@@ -215,7 +216,7 @@ class ServerRuntimePermissionsIntegrationTests {
         }
     }
     @Test void serverPoliciesAreExplicitPerOperationAndNeverPublicOrAll() {
-        assertThat(jdbc.queryForObject("select count(*) from pg_policies where schemaname='discushion' and policyname like 'server_%'",Integer.class)).isEqualTo(47);
+        assertThat(jdbc.queryForObject("select count(*) from pg_policies where schemaname='discushion' and policyname like 'server_%'",Integer.class)).isEqualTo(52);
         assertThat(jdbc.queryForObject("""
             select exists(select 1 from pg_policies where schemaname='discushion'
               and tablename='institution_agenda_adoptions' and policyname='server_select'
