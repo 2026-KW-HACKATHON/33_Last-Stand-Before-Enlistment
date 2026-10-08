@@ -101,8 +101,9 @@ test("brand Header composes Figma branding and independently supplied settings/n
     <HeaderAction action="notification" variant="main" destination="#test-notification" />
   </>} />);
   assert.match(markup, /src="\/icons\/brand.png"/);
-  assert.match(markup, /width="35" height="32"/);
-  assert.match(markup.replace(/<[^>]*>/g, ""), /Discushion우리의 이야기가, 더 나은 동네를 만듭니다\./);
+  assert.match(markup, /width="30" height="28"/);
+  assert.match(markup.replace(/<[^>]*>/g, ""), /Discushion/);
+  assert.doesNotMatch(markup, /우리의 이야기가, 더 나은 동네를 만듭니다\./);
   const anchors = markup.match(/<a\b[^>]*>/g) ?? [];
   assert.ok(anchors.some((tag) => tag.includes('href="#test-settings"') && tag.includes('aria-label="설정"')));
   assert.ok(anchors.some((tag) => tag.includes('href="#test-notification"') && tag.includes('aria-label="알림"')));
