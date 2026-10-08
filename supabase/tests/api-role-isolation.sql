@@ -26,6 +26,7 @@ create role service_role nologin bypassrls;
 \ir ../migrations/20261008100000_allow_vote_selection_writes.sql
 \ir ../migrations/20261008104330_bookmarks_server_runtime_permissions.sql
 \ir ../migrations/20261008113000_allow_officer_agenda_reads.sql
+\ir ../migrations/20261008135603_allow_home_activity_reads.sql
 do $checks$
 declare r text;
 begin
@@ -112,5 +113,12 @@ begin
     raise exception 'Missing institution_agenda_adoptions server SELECT policy';
   end if;
 end $server_checks$;
+do $home_activity_privileges$
+begin
+  if not has_table_privilege('discushion_server','discushion.activity_post_details','SELECT')
+    or has_table_privilege('discushion_server','discushion.activity_post_details','INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER') then
+    raise exception 'Unexpected home activity runtime privileges';
+  end if;
+end $home_activity_privileges$;
 select 'PASS: 3 API role names x schema/table/sequence denial = 9 checks' as result;
 rollback;

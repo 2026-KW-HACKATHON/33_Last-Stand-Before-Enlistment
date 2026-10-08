@@ -257,3 +257,10 @@ Storage object0개·초기 최종 DELETED 검증 이력2행·시연 회원1명·
 최신 `origin/back/develop 26cb5e8`을 Feature에 반영한 `1d6e6fa`에서 Java17 전체 `test build --rerun-tasks --max-workers=2 --offline`을 실행했다. 22:31 KST 종료, 소요8분19초, **328개 통과·실패0·오류0·skip0·build 성공**이다. 실제 Supabase SELECT-only 감사3개와 직접/서버 중계 Storage 시험4개를 모두 실행했다. 격리 PostgreSQL에는 최신 북마크/기관 조회 권한 Migration2개를 추가 적용했고 제약133개·공개 역할 차단9개를 확인했다. 공유 DB의 추가 기능 권한은 이 검증으로 적용하지 않았다.
 
 종료 후 로컬 시험 회원/사진0개·임시 서버 역할 NOLOGIN/password null·운영 JAR의 테스트 클래스/fixture0개를 확인하고 시험 DB를 정상 종료했다. 기존6파일만 PR에 포함하고 frontend·제품 코드·적용된 Migration 파일은 변경하지 않는다. 실제 프로젝트 FE 및 게시물 사진 연결이 남아 있으므로 PR은 #13/#30을 참조하며 이슈를 자동 종료하지 않는다. 병합 후에도 Render 자동 배포는 꺼져 있고 현재 Live `4fffb1e`와 개발 브랜치 최신 코드를 구분한다.
+
+### #18 지역 메인 구현·검증 (2026-10-08)
+
+back/feature/18-home, 기준 a9ad5c9에서 사용자 확정 최신 공개6개/진행 투표3개 계약을 구현했다. 최신 프로필 기본 지역과 임시 지역을 구분하고 회원 상태·지역·공개 원본·활동 상태·사진 첫 참조·반응·댓글/답글·투표 옵션/득표를 읽기 snapshot으로 조회한다. 입력 오류/401/403/404와 Controller200·no-store를 검증했다. 새 Migration은 activity_post_details 서버 SELECT/RLS만 추가하며 공유 DB에는 미적용이다.
+
+전체336개를 새로 실행해 권한 기대값1곳이 실패했다(335개 통과). activity SELECT 허용표를 보완한 후 home·서버 최소 권한·실제 Supabase 감사3개·Storage4개를 다시 실행해24개 통과/실패0/오류0/skip0·build 성공(23:32 KST)을 확인했다. 이후 검사 범위를 전체336개 재통과로 표시하지 않는다. Schema 제약133개와 공개 API 역할 차단9개도 통과했다. 현재 원격 back/develop d1f8bcf의 #14 생성 구현은 작업 도중 병합됐으며 commit/PR 전 최신 base를 반영해 권한 기대값/CI를 재확인해야 한다. 실제 프로젝트 FE·게시물 생성부터 탐색까지의 사용자 흐름 및 배포는 #30/#31 대기다. commit/push/PR/병합은 수행하지 않았다.
+메인 추가 사진 회귀: 실제 로컬 서버 LOGIN에서 사진2개를 생성 ID와 다른 첨부 순서로 연결해 첫 사진·공개 URL의 공백 인코딩을 확인했다. home 전체 관련10개 재실행·실패0/오류0/skip0·build 성공(1분28초). 이 추가 검증은 앞선 원격 감사/Storage24개와 구분한다. 새 사진/참조 fixture는 정리했다.
