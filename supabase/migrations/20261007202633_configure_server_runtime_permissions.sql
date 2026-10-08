@@ -1,4 +1,4 @@
--- #30 phase 1: permissions for code merged through back/develop c7aee0b.
+-- #30 phase 1: permissions for merged signup, profile, region and photo code.
 -- NOLOGIN and no password: activate only after BE1 review and shared DB approval.
 -- User/region/ownership checks remain in Spring, not these server-wide policies.
 do $role$
@@ -37,6 +37,8 @@ declare
 begin
   for entry in select * from (values
     ('regions', array['SELECT']),
+    -- #10 profile reads institution names. Seed/qualification writes remain admin-only.
+    ('institutions', array['SELECT']),
     ('neighbor_verified_regions', array['SELECT']),
     ('institution_credentials', array['SELECT']),
     ('users', array['SELECT','INSERT','UPDATE']),

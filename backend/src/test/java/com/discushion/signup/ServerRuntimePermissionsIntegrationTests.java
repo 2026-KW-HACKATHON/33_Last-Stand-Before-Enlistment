@@ -33,7 +33,7 @@ class ServerRuntimePermissionsIntegrationTests {
     private boolean activated;
     private JdbcTemplate jdbc;
     private TransactionTemplate tx;
-    private final Clock clock=Clock.systemUTC();
+    private final Clock clock=Clock.fixed(Instant.parse("2026-10-08T00:00:00Z"),java.time.ZoneOffset.UTC);
     private String marker;
     private long region;
 
@@ -96,7 +96,7 @@ class ServerRuntimePermissionsIntegrationTests {
     }
     @Test void all27TablesHaveExactlyThePhaseOnePrivilegesAndNoSequenceOrGrantOptions() {
         Map<String,Set<String>> allowed=new HashMap<>();
-        for(String table:List.of("regions","neighbor_verified_regions","institution_credentials")) allowed.put(table,Set.of("SELECT"));
+        for(String table:List.of("regions","institutions","neighbor_verified_regions","institution_credentials")) allowed.put(table,Set.of("SELECT"));
         for(String table:List.of("users","profiles","user_agreements","media_files")) allowed.put(table,Set.of("SELECT","INSERT","UPDATE"));
         for(String table:List.of("posts","polls")) allowed.put(table,Set.of("SELECT","UPDATE"));
         allowed.put("profile_attributes",Set.of("SELECT","INSERT","DELETE"));
@@ -141,7 +141,7 @@ class ServerRuntimePermissionsIntegrationTests {
         var photos=new PhotoService(store,authorization,storage,tx,clock);
         long file=photos.reserve("synthetic.png","image/png",67).fileId();
         // Provider verification is outside this DB test; stage a server-verified file fixture.
-        jdbc.update("update discushion.media_files set lifecycle_status='UNLINKED',uploaded_at=now() where id=?",file);
+        jdbc.update("update discushion.media_files set lifecycle_status='UNLINKED',uploaded_at=created_at where id=?",file);
         var attachments=new PhotoAttachments(store,authorization,clock);
         tx.executeWithoutResult(status->attachments.replace(post,List.of(new PhotoAttachments.Reference(null,file))));
         long photo=jdbc.queryForObject("select id from discushion.post_photos where file_id=?",Long.class,file);
@@ -161,6 +161,9 @@ class ServerRuntimePermissionsIntegrationTests {
             "delete from discushion.users where false",
             "delete from discushion.media_files where false",
             "insert into discushion.regions(name) values('forbidden-runtime30')",
+            "insert into discushion.institutions(name,created_at) values('forbidden-runtime30',now())",
+            "update discushion.institutions set name='forbidden-runtime30' where false",
+            "delete from discushion.institutions where false",
             "update discushion.neighbor_verified_regions set verified_at=now() where false",
             "update discushion.institution_credentials set valid_until=now() where false",
             "select * from discushion.email_verifications",
@@ -203,7 +206,7 @@ class ServerRuntimePermissionsIntegrationTests {
         }
     }
     @Test void serverPoliciesAreExplicitPerOperationAndNeverPublicOrAll() {
-        assertThat(jdbc.queryForObject("select count(*) from pg_policies where schemaname='discushion' and policyname like 'server_%'",Integer.class)).isEqualTo(26);
+        assertThat(jdbc.queryForObject("select count(*) from pg_policies where schemaname='discushion' and policyname like 'server_%'",Integer.class)).isEqualTo(27);
         assertThat(jdbc.queryForObject("""
             select bool_and(roles=array['discushion_server']::name[] and cmd<>'ALL' and permissive='PERMISSIVE'
               and (qual is not distinct from case when cmd<>'INSERT' then 'true' end)
