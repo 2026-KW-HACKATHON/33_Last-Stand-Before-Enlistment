@@ -1,12 +1,12 @@
 "use client";
-import { createContext, useContext, useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useMemo, useSyncExternalStore, type ReactNode } from "react";
 import { useLogin } from "../auth/provider";
 import { useSession } from "../../lib/navigation";
 import type { ProfileService } from "./contracts";
 import { createProfileStore } from "./state";
 const Context = createContext<{ store: ReturnType<typeof createProfileStore>; service: ProfileService | null } | null>(null);
-export function ProfileProvider({ children, service = null }: { children: ReactNode; service?: ProfileService | null }) {
- const [store] = useState(() => createProfileStore(service)); const { session } = useSession(); const login = useLogin();
+export function ProfileProvider({ children, service = null, subjectKey = null }: { children: ReactNode; service?: ProfileService | null; subjectKey?: string | null }) {
+ const { store } = useMemo(() => ({ subjectKey, store: createProfileStore(service) }), [service, subjectKey]); const { session } = useSession(); const login = useLogin();
  const verifiedSignup = login.state.providerVerified && login.state.resolution?.session.status === "signup-incomplete";
  useEffect(() => { if (session.status === "guest" && !verifiedSignup) store.clear(); else store.setActive(session.status === "member" || session.status === "signup-incomplete" || verifiedSignup); }, [store, session.status, verifiedSignup]);
  useEffect(() => () => store.dispose(), [store]);

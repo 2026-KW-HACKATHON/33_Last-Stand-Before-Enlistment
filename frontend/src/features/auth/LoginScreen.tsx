@@ -19,7 +19,7 @@ const messages = {
 };
 
 export function LoginScreen() {
-  const { state, store, source } = useLogin();
+  const { state, store, source, commitSession, cancelProvider } = useLogin();
   const navigation = useNavigation();
   const [input, setInput] = useState({ store, code: "" });
   if (input.store !== store) setInput({ store, code: "" });
@@ -34,9 +34,10 @@ export function LoginScreen() {
     if (state.resolution && delivered.current !== state.resolution) {
       delivered.current = state.resolution;
       navigation.completeAuthentication(state.resolution.session, state.resolution.availability);
+      commitSession?.();
     }
-  }, [state.resolution, navigation]);
-  function cancel() { setCode(""); store.cancel(); navigation.cancelAuthentication(); }
+  }, [state.resolution, navigation, commitSession]);
+  function cancel() { setCode(""); store.cancel(); cancelProvider?.(); navigation.cancelAuthentication(); }
   function continueLogin() {
     if (state.resolution) { setCode(""); navigation.completeAuthentication(state.resolution.session, state.resolution.availability); }
   }

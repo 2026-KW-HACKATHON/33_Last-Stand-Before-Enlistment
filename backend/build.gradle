@@ -38,3 +38,27 @@ tasks.named('bootJar') {
 tasks.named('jar') {
 	enabled = false
 }
+
+// #75 admin-only tooling is compiled separately and excluded from the production JAR.
+sourceSets {
+    demo {
+        compileClasspath += sourceSets.main.output
+        runtimeClasspath += sourceSets.main.output
+    }
+}
+configurations {
+    demoImplementation.extendsFrom implementation
+    demoRuntimeOnly.extendsFrom runtimeOnly
+}
+sourceSets.test.compileClasspath += sourceSets.demo.output
+sourceSets.test.runtimeClasspath += sourceSets.demo.output
+tasks.named('compileTestJava') { dependsOn tasks.named('demoClasses') }
+tasks.register('demoProvision', JavaExec) {
+    dependsOn tasks.named('demoClasses')
+    classpath = sourceSets.demo.runtimeClasspath
+    mainClass = 'com.discushion.demo.DemoProvisionMain'
+    doFirst {
+        if (!project.hasProperty('demoPlan')) throw new GradleException('Supply -PdemoPlan=/absolute/external/plan.json; credentials via DEMO_DB_* environment only')
+        args = [project.findProperty('demoApply') == 'true' ? '--apply' : '--check', project.property('demoPlan')]
+    }
+}

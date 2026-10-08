@@ -17,6 +17,7 @@ export type SignupFailure = { kind: "failure"; reason: "failed" | "nickname" | "
 export type SignupMember = Extract<SessionState, { status: "member" }>;
 export interface SignupService {
   readonly source: "mock" | "api";
+  commitSession?(): void;
   /** Adapter binds the verified principal; no email/token/userId is supplied by the form. */
   complete(draft: SignupDraft, signal: AbortSignal): Promise<{ kind: "completed"; session: SignupMember } | SignupFailure>;
   /** Retried independently after confirmed creation; never creates a second member. */

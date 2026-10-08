@@ -1,15 +1,15 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useMemo, useSyncExternalStore, type ReactNode } from "react";
 import type { SignupEditors, SignupService } from "./contracts";
 import { createSignupStore, type SignupStore } from "./state";
 
-const SignupContext = createContext<{ store: SignupStore; source: SignupService["source"] | null; editors?: SignupEditors } | null>(null);
+const SignupContext = createContext<{ store: SignupStore; source: SignupService["source"] | null; editors?: SignupEditors; commitSession?: () => void } | null>(null);
 /** Stable service and #43 editor injection. No production Mock registration. */
-export function SignupProvider({ children, service = null, editors }: { children: ReactNode; service?: SignupService | null; editors?: SignupEditors }) {
-  const [store] = useState(() => createSignupStore(service));
+export function SignupProvider({ children, service = null, editors, subjectKey = null }: { children: ReactNode; service?: SignupService | null; editors?: SignupEditors; subjectKey?: string | null }) {
+  const { store } = useMemo(() => ({ subjectKey, store: createSignupStore(service) }), [service, subjectKey]);
   useEffect(() => () => store.dispose(), [store]);
-  return <SignupContext.Provider value={{ store, source: service?.source ?? null, editors }}>{children}</SignupContext.Provider>;
+  return <SignupContext.Provider value={{ store, source: service?.source ?? null, editors, commitSession: service?.commitSession }}>{children}</SignupContext.Provider>;
 }
 export function useSignup() {
   const context = useContext(SignupContext);

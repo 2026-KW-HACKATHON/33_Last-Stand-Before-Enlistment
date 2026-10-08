@@ -11,6 +11,8 @@ export type LoginResolution = { kind: "resolved"; session: LocalLoginSession; av
 
 export interface OtpLoginService {
   readonly source: "provider" | "mock";
+  commitSession?(): void;
+  cancel?(): void;
   sendCode(email: string, signal: AbortSignal): Promise<{ kind: "sent" } | LoginFailure>;
   verifyCode(email: string, code: string, signal: AbortSignal): Promise<{ kind: "verified" } | LoginFailure>;
   /** Separate local membership/availability lookup after Provider verification. No implicit grants. */

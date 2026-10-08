@@ -3,7 +3,7 @@ services:
     name: discushion-api
     runtime: docker
     repo: https://github.com/2026-KW-HACKATHON/33_Last-Stand-Before-Enlistment.git
-    branch: back/develop
+    branch: integration/develop
     dockerfilePath: ./backend/Dockerfile.vercel
     dockerContext: ./backend
     region: singapore
@@ -28,4 +28,22 @@ services:
       - key: DB_USERNAME
         sync: false
       - key: DB_PASSWORD
+        sync: false
+      - key: CORS_ALLOWED_ORIGINS
+        sync: false
+      - key: PRIVY_APP_ID
+        sync: false
+      - key: PRIVY_APP_SECRET
+        sync: false
+      - key: SHARE_TOKEN_SIGNING_KEY
+        sync: false
+      - key: PUBLIC_WEB_BASE_URL
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SECRET_KEY
+        sync: false
+      - key: SUPABASE_STORAGE_BUCKET
+        sync: false
+      - key: GEMINI_API_KEY
         sync: false

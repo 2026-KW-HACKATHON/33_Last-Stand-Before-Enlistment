@@ -440,3 +440,65 @@ API 주소는 확정했지만 OTP 수신 가능한 계정과 배포 DB의 시연
 - `dev/integration-preview`는 개발 환경 전용 fixture 주입 화면이다. production에서는 404이며 제품 root에 fixture를 등록하지 않는다.
 
 B 기능 구현 및 로컬 검증과 **실제 시연 계정 기반 연결 완료**를 구분한다. A의 root 등록·인증/시연 handoff와 적용된 네트워크 이후 실제 API 인수를 수행해야 #200·#169·#170·#172·#173을 최종 종료할 수 있다.
+
+## A 구현 및 실제 배포 점검 — 2026-10-09 KST
+
+사용자가 B에 이어 A 전체 작업을 요청해 root·공통 인증·배포 구성·시연 준비 범위를 구현했다. 아래는 소스/로컬 검증 완료와 외부 적용 결과를 구분한 이관 기록이다.
+
+### #168 인증·가입·세션 및 B root 등록
+
+- `frontend/src/app/runtime.tsx`와 `features/auth/PrivyRuntime.tsx`: Privy React SDK 3.48.0, 이메일 OTP만 설정하고 자동 지갑 생성은 끈다. `layout.tsx`가 실제 runtime을 등록하고 B의 `createFeatureServices`와 `featureProviderProps`를 같은 공통 ApiClient로 주입한다.
+- `features/auth/api-adapter.ts`: SDK의 sendCode/loginWithCode/getAccessToken/logout을 소비한다. 별도 토큰 저장·JWT 검증·자체 세션 교환·무조건 mutation 재시도는 추가하지 않는다. 토큰 갱신 중 principal이 바뀌거나 인증 토큰이 없으면 transport 호출 전에 거부한다.
+- `/auth/login`의 NOT_REGISTERED·INCOMPLETE·COMPLETED를 검증하며 Privy 신규 계정 여부를 로컬 가입 완료로 사용하지 않는다. `/users/me`, 이웃 완료 지역, 기관 자격 조회에서 현재 회원 scope와 실제 grants를 구성한다. 활동 지역 선택을 이웃 완료로 간주하지 않는다.
+- `/auth/sign-up`에 실제 agreements/profile DTO만 보낸다. 회원/역할/이메일/토큰은 폼에서 전달하지 않는다. 가입 수락 후 재조회가 실패하면 unknown/non-retryable로 처리하고 별도 회원 상태 재조회 버튼을 제공한다.
+- OTP 완료는 복귀 경로를 확정한 뒤 root identity에 반영한다. 가입 완료는 성공 화면의 계속 버튼 이후 반영한다. 계정 전환·로그아웃은 회원별 profile/signup 및 기능 stores와 navigation scope를 정리한다. SDK 로그인 결과가 취소 이후 도착하면 그 인증을 종료한다.
+- `NEXT_PUBLIC_PRIVY_APP_ID`가 없으면 실제 OTP를 사용할 수 없다는 안내와 guest 상태를 제공한다. 공개 공유 API는 사용할 수 있지만 Mock 인증을 production에 등록하지 않는다. 보류 정책인 프로필 사진 및 미제공 GPS 지역 API의 입력을 실제 프로필/가입 편집기에 노출하지 않는다.
+
+### #171 안전한 복귀
+
+`lib/navigation/safe-return.ts`는 등록된 canonical 내부 URL만 허용한다. 외부 URL·상대 외부 경로·쿼리/fragment·auth loop·비정상 숫자 게시물 ID를 거부한다. 새 로그인 진입의 returnTo query는 허용된 내부 페이지일 때만 소비하며 저장된 쓰기 동작을 재실행하지 않는다.
+
+공유 로그인은 기존 memory navigation의 opaque 참조에 원래 공유 링크를 연결한다. 취소하면 같은 게시물의 token query를 포함한 원래 URL로 돌아가고, 성공하면 회원 상세로 이동한다. 공유/access token을 localStorage/sessionStorage나 문서에 저장하지 않는다. 게시물 재조회가 403/404/410이면 복귀 불가로 처리하고, 네트워크 실패는 다시 확인하도록 유지한다.
+
+### #30 CORS·배포·DB 적용 준비
+
+- `backend/src/main/java/com/discushion/CorsConfiguration.java`: `CORS_ALLOWED_ORIGINS`의 exact HTTPS origin 및 명시한 localhost origin만 허용한다. wildcard·외부 HTTP·경로·userinfo·query를 거부한다. Authorization/Content-Type/X-Post-Share-Token과 실제 기능 Method를 허용하며, CORS filter가 Bearer filter보다 먼저 실행되어 오류 응답에도 허용 origin을 보존한다. 쿠키 credentials는 사용하지 않는다.
+- `render.yaml`은 integration/develop을 대상으로 하고, 실제 backend가 사용하는 PRIVY_APP_ID/PRIVY_APP_SECRET, CORS_ALLOWED_ORIGINS, PUBLIC_WEB_BASE_URL, SHARE_TOKEN_SIGNING_KEY 및 provider 설정을 선언했다. auto deploy는 기존 off를 유지한다. 구성 파일 변경을 Render 적용으로 간주하지 않는다.
+- FE 배포 root는 frontend, Node 24.21.0/npm 11.19.0, frozen lock install 및 Next build/start를 사용한다. FE에는 `NEXT_PUBLIC_API_BASE_URL`과 **공개** `NEXT_PUBLIC_PRIVY_APP_ID`만 공급한다. Privy 대시보드에서 Email OTP와 실제 FE exact origin을 등록하고 backend와 같은 앱을 사용해야 한다.
+- 기존 문서의 FE 후보는 `https://galds.shop`이다. 이번 런타임에서 해당 origin 확인은 CONNECT 403이므로 실제 배포 주소로 확정하지 않았다. origin이 확인되면 Render의 CORS_ALLOWED_ORIGINS/PUBLIC_WEB_BASE_URL과 Privy 허용 주소를 동일하게 설정한다.
+- 기존 Migration의 서버 역할/RLS·쓰기 권한을 사용하며 새 Schema·임의 관리자 GRANT는 추가하지 않았다. 실제 Supabase admin/runtime 자격증명은 환경에 없으므로 원격 이력 비교·LOGIN/비밀번호·최소 권한 실제 DB 시험·시연 적용은 미실행이다. 기존 적용 파일을 변경하지 않았다.
+
+읽기 전용 재현 검사: `scripts/integration/verify-a-runtime.mjs`에 NEXT_PUBLIC_API_BASE_URL과 **실제** DISCUSHION_FE_ORIGIN을 공급한다. 클라우드 proxy 환경에서는 NODE_USE_ENV_PROXY=1과 환경 proxy CA를 Node에 공급하고 실행한다. 2026-10-09 확인 결과:
+
+| 실제 배포 점검 | 결과 |
+| --- | --- |
+| `/health` | 200, UP |
+| `/api/v1/regions` | 200, ID 1 / 서울특별시 노원구 월계1동 / mapFeatureKey null |
+| 비로그인 `/users/me` | 401, UNAUTHORIZED |
+| 비로그인 POST `/auth/login` `{}` | 404, VALIDATION_ERROR. 현재 소스의 기대 401과 다름; 배포 SHA/route 확인 필요 |
+| localhost:3000 origin OPTIONS | 200이지만 Access-Control-Allow-Origin/Headers 없음. 브라우저 인증 연결 조건 미충족 |
+
+### #75 관리자 시연 실행 도구
+
+`backend/src/demo/java/com/discushion/demo/DemoProvisionMain.java`는 별도 demo source set이며 **운영 bootJar에 포함되지 않는다**. 기존 NeighborDemoProvisioner/InstitutionDemoProvisioner를 사용하고 공개 시연 권한 부여 API를 만들지 않는다. 실제 가입 완료 회원·등록 지역/기관·별도 관리자 권한과 원격 verify-full/공식 CA를 먼저 검증한다. 모든 ID 입력을 확인한 뒤 자격을 부여한다. 각 자격 부여는 기존 provisioner의 독립 트랜잭션이며, 도중 실패 시 전체 plan rollback을 보장하지 않는다. 같은 입력 재실행은 기존 idempotent 계약을 따른다.
+
+팀이 소유한 메일함으로 OTP·가입을 완료하고 `/me`에서 받은 ID를 외부 plan.json에 적는다. entries의 각 항목은 kind(unverified/neighbor/institution), memberId, regionId와 기관 시나리오의 institutionId/completedAt(UTC instant)을 사용한다. 이름/메일로 회원을 추측하거나 없는 기관·타지역을 자동 생성하지 않는다. 동일 회원을 여러 시나리오에 재사용하지 않는다. 예시는 실제 ID를 얻은 후 채우며, 저장소에 계정/OTP/token을 추가하지 않는다.
+
+```bash
+# backend 디렉터리. DEMO_DB_URL/DEMO_DB_USERNAME/DEMO_DB_PASSWORD는 별도 관리자 환경에서 공급.
+./gradlew demoProvision -PdemoPlan=/absolute/external/plan.json
+# 첫 명령으로 DB/plan을 확인한 후 같은 명시적 입력에 대해 적용한다.
+./gradlew demoProvision -PdemoPlan=/absolute/external/plan.json -PdemoApply=true
+```
+
+일반 미완료, 완료 지역, 실제 등록 타지역, 유효 기관, 만료 기관은 서로 다른 회원으로 준비한다. 현재 배포 regions에는 1개만 관찰됐으므로 타지역 거부를 위해 필요한 실제 등록 타지역 데이터는 관리자에게 확인해야 한다. 게스트는 계정 생성 없이 유효한 서버 발급 공유 링크로 검증한다. 자격 적용 후 각 회원으로 실제 API를 재조회해 결과를 기록해야 #75 완료다.
+
+### 실행 검증 및 외부 완료 조건
+
+- 프론트 인증/가입/복귀/profile/logout 회귀 **123/123 통과**. 인증 adapter 신규 18개는 합성 SDK port/HTTP transport 계약 검증이며 실제 OTP 수신 시험을 대체하지 않는다.
+- Java 17.0.20.1+1의 CORS 4개·demo plan 3개 통과. 인증/가입/identity 포함 관련 backend 회귀 총 120개 중 **65개 통과·55개 DB 조건 skip**, 실패/오류 0. bootJar 성공 및 관리자 runner 미포함 확인.
+- Chromium production 화면에서 B root 주입·guest 공유 헤더·로그인 취소 후 공유 token URL 복귀·설정 없는 OTP 성공 방지·이메일 보존·production fixture 404·브라우저 오류 0을 확인했다. 합성 API 응답을 사용했고 실제 Privy 인증으로 기록하지 않는다.
+- 실제 로컬 Java JAR의 health UP와 configured CORS 사전 요청의 exact origin/feature headers를 확인했다. local profile은 DB 없는 health workflow로서 실제 회원 API 검증이 아니다.
+- lint/typecheck/production build 통과. 클라우드에 고정 Node/npm/Java/Gradle·검증된 설치 및 시작 지침, 보존한 네트워크 도메인에 galds.shop/Privy/Render/Vercel 목적지, 공개 설정 요구사항과 Render/Vercel 관리 토큰 요구사항을 **환경 초안**에 저장했다. 검토·secure 값 입력·저장/publish는 별도이며 runtime 적용·외부 배포 성공으로 표시하지 않는다.
+
+남은 실제 완료 조건은 **Privy 공개 App ID/실제 FE origin 및 Email OTP 설정, Render/Vercel 관리 접근과 이 커밋 배포, 별도 DB 관리자/runtime 구성과 실 계정·시연 자격 적용, 실제 OTP→세 회원 상태→가입→복귀 및 B 기능 인수**다. 소스/로컬 검증 완료만으로 #30/#168/#171/#75 또는 공동 #31/#68/#201을 종료하지 않는다.

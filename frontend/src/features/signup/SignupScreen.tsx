@@ -25,7 +25,7 @@ export function SignupScreen() {
   const { session, retry } = useSession();
   const login = useLogin();
   const navigation = useNavigation();
-  const { store, state, source, editors } = useSignup();
+  const { store, state, source, editors, commitSession } = useSignup();
   const loginIncomplete = login.state.providerVerified && login.state.resolution?.session.status === "signup-incomplete";
   const access: SignupAccess = session.status === "member" ? "member"
     : session.status === "signup-incomplete" || loginIncomplete ? "verified-incomplete"
@@ -48,10 +48,11 @@ export function SignupScreen() {
       <Notice>이메일 인증은 확인되었습니다. 약관·프로필·활동 지역을 완료해야 가입됩니다.</Notice>
       {navigation.state.returnTo && <Notice>가입 완료 후 원래 화면으로 돌아갑니다. 참여 동작은 자동 실행되지 않습니다.</Notice>}
       {state.failure && <Notice role="status" tone="error">{failures[state.failure.reason]}</Notice>}
+      {state.failure?.reason === "unknown" && retry && <Button onClick={() => void retry()}>회원 상태 다시 확인</Button>}
       {state.phase === "success" ? <>
         <Notice role="status">{source === "mock" ? "Mock 가입 흐름 확인 완료. 실제 회원 생성은 아닙니다." : "로컬 가입을 완료했습니다."}</Notice>
         {state.availability === "unavailable" && <Notice tone="warning">원래 게시물을 열 수 없어 메인으로 돌아갑니다.</Notice>}
-        <Button onClick={() => { if (state.member && state.availability) navigation.completeAuthentication(state.member, state.availability); }}>계속</Button>
+        <Button onClick={() => { if (state.member && state.availability) { navigation.completeAuthentication(state.member, state.availability); commitSession?.(); } }}>계속</Button>
       </> : <>
         {state.step === "agreements" && <>
           {login.state.email && <Input label="인증 이메일" value={login.state.email} readOnly />}
