@@ -4,7 +4,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { SessionProvider, NavigationProvider, type SessionState } from "../../lib/navigation";
 import { createMyVotesStore, type VoteFilter } from "./model";
 import { createMyVotesMock, mockVoteSubject, type MyVotesScenario } from "./mock";
-import { MyVotesScreen } from "./MyVotesScreen";
+import { MyVotesScreen, VoteSummaryContent } from "./MyVotesScreen";
 async function render(filter: VoteFilter = "ALL", scenario: MyVotesScenario = "normal", session: SessionState = { status: "member", capabilities: { status: "ready", grants: [] } }, hide = false) {
   const mock = createMyVotesMock(scenario);
   if (hide) { mock.hide("vote"); mock.hide("vote-ended"); }
@@ -15,8 +15,9 @@ async function render(filter: VoteFilter = "ALL", scenario: MyVotesScenario = "n
 test("three status filters and actual choice/final result, not submission controls", async () => {
   const html = await render();
   assert.equal((html.match(/aria-pressed=/g) ?? []).length, 3);
-  for (const text of ["참여한 투표", "진행 중", "종료", "토요일 오전", "평일 저녁", "최종 결과:", "접근 불가 안내"]) assert.ok(html.includes(text));
-  assert.ok(html.includes("내 선택 | 토요일 오전 32% | 최다 | 평일 저녁 48%"));
+  for (const text of ["참여한 투표", "진행 중", "종료", "토요일 오전", "평일 저녁", "최종 결과", "접근 불가 안내"]) assert.ok(html.includes(text));
+  for (const label of ["내 선택", "최다", "최종 결과"]) assert.match(html, new RegExp(`bg-white[^>]*>${label}</span>`));
+  assert.ok(html.includes("</span>토요일 오전 32%")); assert.ok(html.includes("</span>평일 저녁 48%"));
   assert.ok(!html.includes("bg-[#CDE9E2]"));
   assert.ok(!html.includes("투표 제출")); assert.ok(!html.includes("선택 변경"));
 });
@@ -49,4 +50,13 @@ test("Loading and missing adapter do not expose ready records", async () => {
   await store.load();
   assert.ok(markup().includes("실 API 연동 대기"));
   assert.ok(!markup().includes("내 선택:"));
+});
+
+test("summary labels share white pills while values and waiting remain plain text", () => {
+  const html = renderToStaticMarkup(<VoteSummaryContent summary="현재 결과: 평일 저녁 48% | 최종 결과: 평일 저녁 52%"/>);
+  for (const label of ["현재 결과", "최종 결과"]) assert.match(html, new RegExp(`bg-white[^>]*>${label}</span>`));
+  assert.ok(html.includes("</span>평일 저녁 48%")); assert.ok(html.includes("</span>평일 저녁 52%"));
+  assert.ok(!html.includes(":")); assert.ok(!html.includes("<button"));
+  const waiting = renderToStaticMarkup(<VoteSummaryContent summary="본인 선택과 결과 조회 대기"/>);
+  assert.ok(waiting.includes("본인 선택과 결과 조회 대기")); assert.ok(!waiting.includes("bg-white"));
 });
