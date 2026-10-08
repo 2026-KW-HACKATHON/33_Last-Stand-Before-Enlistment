@@ -1,0 +1,37 @@
+# Discushion 기능명세 — FE/BE 통합검토본
+
+작성일: 2026-10-09 KST. 적용 대상: 임시 integration/develop.
+
+## 기준과 원본 보존
+
+- main: dc139f43ce9e7cbe09d660202ee0ccec033b0f5f
+- front/develop: 108cb477322eaffdfb42c520a93a5e53794031ce
+- back/develop: eb9a7d4a734a744731d7bb85564b32f3c8f3b39c
+- 기존 `docs/specs/Discushion_기능명세서_2026-10-07_MVP반영_정리본_v10.2.md`는 첫 BE 병합 상태를 유지한다. 이는 BE를 최종 제품 정본으로 선택한 것이 아니다.
+- Front 원문: `docs/integration/originals/front/docs/specs/Discushion_기능명세서_2026-10-07_MVP반영_정리본_v10.2.md`
+- Back 원문: `docs/integration/originals/back/docs/specs/Discushion_기능명세서_2026-10-07_MVP반영_정리본_v10.2.md`
+- 원문 전체와 분기 이력은 삭제하거나 덮어쓰지 않는다. 공통·비충돌 변경과 상충 정책을 아래와 같이 별도 검토한다.
+
+## 통합 기준
+
+기존 기능 ID·지역 참여·기관 담당 지역·소유권·게스트 권한은 유지한다. FE UI/Mock 구현 상태와 BE API 구현 상태를 분리하며 한쪽 구현 부재를 다른 쪽 기능 삭제의 근거로 삼지 않는다.
+
+- 로그인 후 원 상세로 복귀하되 참여·북마크를 자동 실행하지 않는다.
+- 활동 지역 설정·기관 자격은 이웃 완료 지역을 대체하지 않는다. 게스트는 공유된 특정 상세와 허용된 댓글/답글만 이용한다.
+- 기관 채택은 기관과 안건의 별도 관계이며 담당 지역·현재 유효 상태를 검사한다.
+- 사진은 현재 서버 중계 구현의 예약·전송·완료·취소·삭제 상태를 구분한다. 사진 없는 게시물의 이미지 영역은 생략한다.
+- AI는 원문 기반 요약·원문 fallback을 유지하며 표시 모델과 서버 응답을 adapter로 변환한다.
+- UI/Mock 검증은 실 API·서버 저장·실제 사용자 여정 완료가 아니다. 서버에 없는 기능의 endpoint를 이번 통합에서 추가하지 않는다.
+
+## 확인 필요
+
+- 복구된 FE 기능 ID별 UI/Mock 범위와 BE 후순위 범위의 최종 합의. 어느 branch의 문구도 이번 통합의 최종 정책 승인으로 자동 해석하지 않는다.
+- 사진 합계 제한: FE 10,485,760 bytes와 BE 10,000,000 bytes의 차이.
+- 표시 port와 서버 wire의 ID·enum·nullable·pagination·error 변환 및 실제 adapter 연결.
+- 지도 viewport의 실제 지역 ID 집합, 실제 환경의 CORS 또는 같은 origin 중계, Backend test/build 및 FE/BE 사용자 여정.
+
+## 적용과 근거
+
+사용자 예외에 따라 기존 정본을 수정하지 않고 새 통합검토본으로 판단을 기록한다. 일반 Feature 흐름은 front/feature→front/develop, back/feature→back/develop으로 유지한다. integration/develop만 임시 검증용으로 업로드하며 main과 두 develop에는 반영하지 않는다. 검증 미완료·정책 미확정 상태는 그대로다.
+
+근거: FE 문서 동기화 PR #84와 후속 commit78c4d6c, 공통 계약 Issue #74, BE 기관 계약 PR #154, 각 branch의 PRD·기능명세·API 및 통합 지침. 상세 검증과 분기별 처리는 docs/integration/Discushion_FE_BE_통합검증보고서_2026-10-09.md 및 preservation-manifest.json을 확인한다. 이 새 문서는 운영 키 설정 과정이나 실제 환경 식별값을 복사하지 않는다.

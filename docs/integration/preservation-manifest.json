@@ -1,0 +1,331 @@
+[
+  {
+    "branch": "main",
+    "sha": "dc139f43ce9e7cbe09d660202ee0ccec033b0f5f",
+    "source": "AGENTS.md",
+    "preserved": "docs/integration/originals/main/AGENTS.md",
+    "sha256": "f61489b785d2ff81578265f4354c279df7cb07816124ac498e2c9fb45341b6f8"
+  },
+  {
+    "branch": "front",
+    "sha": "108cb477322eaffdfb42c520a93a5e53794031ce",
+    "source": "AGENTS.md",
+    "preserved": "docs/integration/originals/front/AGENTS.md",
+    "sha256": "0b68fb853c6ebe1c606df0d19286f968ebeab7576bbc8fe5a682163f31268148"
+  },
+  {
+    "branch": "back",
+    "sha": "eb9a7d4a734a744731d7bb85564b32f3c8f3b39c",
+    "source": "AGENTS.md",
+    "preserved": "docs/integration/originals/back/AGENTS.md",
+    "sha256": "672ffc7dbc904693649170225a288867944ee2c2b18d10a9109005626559cdda"
+  },
+  {
+    "branch": "main",
+    "sha": "dc139f43ce9e7cbe09d660202ee0ccec033b0f5f",
+    "source": "README.md",
+    "preserved": "docs/integration/originals/main/README.md",
+    "sha256": "ba3b27b8e0eb80d2d8348b70e8ad912cdddfbe7b3548a34ad3a64ddd3d0af6e4"
+  },
+  {
+    "branch": "front",
+    "sha": "108cb477322eaffdfb42c520a93a5e53794031ce",
+    "source": "README.md",
+    "preserved": "docs/integration/originals/front/README.md",
+    "sha256": "b5149ce46c3da30c2d93928b3e9f7659884caa69cdbb32cf4ed32cdc09ed63a4"
+  },
+  {
+    "branch": "back",
+    "sha": "eb9a7d4a734a744731d7bb85564b32f3c8f3b39c",
+    "source": "README.md",
+    "preserved": "docs/integration/originals/back/README.md",
+    "sha256": "64d916307f69bebd2788e771de15e538d1400f814abe2e6cbf1364b3dea70783"
+  },
+  {
+    "branch": "main",
+    "sha": "dc139f43ce9e7cbe09d660202ee0ccec033b0f5f",
+    "source": "backend/README.md",
+    "preserved": "docs/integration/originals/main/backend/README.md",
+    "sha256": "5063eeed2769ac3a396be88366d7d6c8782ce863e66ac724d8ec32bedf695711"
+  },
+  {
+    "branch": "front",
+    "sha": "108cb477322eaffdfb42c520a93a5e53794031ce",
+    "source": "backend/README.md",
+    "preserved": "docs/integration/originals/front/backend/README.md",
+    "sha256": "5063eeed2769ac3a396be88366d7d6c8782ce863e66ac724d8ec32bedf695711"
+  },
+  {
+    "branch": "back",
+    "sha": "eb9a7d4a734a744731d7bb85564b32f3c8f3b39c",
+    "source": "backend/README.md",
+    "preserved": "docs/integration/originals/back/backend/README.md",
+    "sha256": "0b07786ebc64aea712d92b9715dcb9d79d8b3992279b5cf4d3be2b433afaf6ff"
+  },
+  {
+    "branch": "main",
+    "sha": "dc139f43ce9e7cbe09d660202ee0ccec033b0f5f",
+    "source": "docs/README.md",
+    "preserved": "docs/integration/originals/main/docs/README.md",
+    "sha256": "9f42874356a866b6a9296662be4ef155eb4b1d737ac4ffe9952f5500c0b732e8"
+  },
+  {
+    "branch": "front",
+    "sha": "108cb477322eaffdfb42c520a93a5e53794031ce",
+    "source": "docs/README.md",
+    "preserved": "docs/integration/originals/front/docs/README.md",
+    "sha256": "6eed1e5efad4ef82127a88f9c700c74ab9aebd00a572f42cd5acb04817db1e47"
+  },
+  {
+    "branch": "back",
+    "sha": "eb9a7d4a734a744731d7bb85564b32f3c8f3b39c",
+    "source": "docs/README.md",
+    "preserved": "docs/integration/originals/back/docs/README.md",
+    "sha256": "ff45b996e4c63d4c732c9b21e0d1108ef55588c27975ed99702547c0786944d0"
+  },
+  {
+    "branch": "main",
+    "sha": "dc139f43ce9e7cbe09d660202ee0ccec033b0f5f",
+    "source": "docs/api/Discushion_API_SPEC_v2.md",
+    "preserved": "docs/integration/originals/main/docs/api/Discushion_API_SPEC_v2.md",
+    "sha256": "af97b8e9b31519635aa597fee66bd160ed84ff4720def6da63f04fc5879ae306"
+  },
+  {
+    "branch": "front",
+    "sha": "108cb477322eaffdfb42c520a93a5e53794031ce",
+    "source": "docs/api/Discushion_API_SPEC_v2.md",
+    "preserved": "docs/integration/originals/front/docs/api/Discushion_API_SPEC_v2.md",
+    "sha256": "bba4aaf6fd617e548b6c2a0638d7ec87b86cd70e4d8d631deb17dc40cd5b469b"
+  },
+  {
+    "branch": "back",
+    "sha": "eb9a7d4a734a744731d7bb85564b32f3c8f3b39c",
+    "source": "docs/api/Discushion_API_SPEC_v2.md",
+    "preserved": "docs/integration/originals/back/docs/api/Discushion_API_SPEC_v2.md",
+    "sha256": "3727a756aaf2a27fffa31520377cf1b64481961da02dfc87fa5a765cd011fa97"
+  },
+  {
+    "branch": "main",
+    "sha": "dc139f43ce9e7cbe09d660202ee0ccec033b0f5f",
+    "source": "docs/api/README.md",
+    "preserved": "docs/integration/originals/main/docs/api/README.md",
+    "sha256": "5bd09f689bb045b953e8697cd39de09fa8d988154165dff86bb86d46c7eb0e23"
+  },
+  {
+    "branch": "front",
+    "sha": "108cb477322eaffdfb42c520a93a5e53794031ce",
+    "source": "docs/api/README.md",
+    "preserved": "docs/integration/originals/front/docs/api/README.md",
+    "sha256": "5bd09f689bb045b953e8697cd39de09fa8d988154165dff86bb86d46c7eb0e23"
+  },
+  {
+    "branch": "back",
+    "sha": "eb9a7d4a734a744731d7bb85564b32f3c8f3b39c",
+    "source": "docs/api/README.md",
+    "preserved": "docs/integration/originals/back/docs/api/README.md",
+    "sha256": "5b9e0ba0e165309459c971130dfd016e47fd8939a78045bea9d715488a8386d4"
+  },
+  {
+    "branch": "main",
+    "sha": "dc139f43ce9e7cbe09d660202ee0ccec033b0f5f",
+    "source": "docs/collaboration/Discushion_Git_GitHub_통합협업전략_2026-10-06.md",
+    "preserved": "docs/integration/originals/main/docs/collaboration/Discushion_Git_GitHub_통합협업전략_2026-10-06.md",
+    "sha256": "eb9521b7632855a7924029bc1e638a203a70e9dae7919036c1c9555ac486ac0e"
+  },
+  {
+    "branch": "front",
+    "sha": "108cb477322eaffdfb42c520a93a5e53794031ce",
+    "source": "docs/collaboration/Discushion_Git_GitHub_통합협업전략_2026-10-06.md",
+    "preserved": "docs/integration/originals/front/docs/collaboration/Discushion_Git_GitHub_통합협업전략_2026-10-06.md",
+    "sha256": "047e16d7918420e9f22d318cb811f3e1eca7bf61a2f4d263f6dd3fb4b9395343"
+  },
+  {
+    "branch": "back",
+    "sha": "eb9a7d4a734a744731d7bb85564b32f3c8f3b39c",
+    "source": "docs/collaboration/Discushion_Git_GitHub_통합협업전략_2026-10-06.md",
+    "preserved": "docs/integration/originals/back/docs/collaboration/Discushion_Git_GitHub_통합협업전략_2026-10-06.md",
+    "sha256": "13860825a6a72ceda002cfa0627ffa6d42625cfe6f51d67c2da673a8aa853979"
+  },
+  {
+    "branch": "main",
+    "sha": "dc139f43ce9e7cbe09d660202ee0ccec033b0f5f",
+    "source": "docs/collaboration/Discushion_백엔드_Git_GitHub_협업전략_2026-10-06.md",
+    "preserved": "docs/integration/originals/main/docs/collaboration/Discushion_백엔드_Git_GitHub_협업전략_2026-10-06.md",
+    "sha256": "04d581b7cb5151e463fefeccc1365eab0efde81b5c8c6274cb552e1909ae5b8c"
+  },
+  {
+    "branch": "front",
+    "sha": "108cb477322eaffdfb42c520a93a5e53794031ce",
+    "source": "docs/collaboration/Discushion_백엔드_Git_GitHub_협업전략_2026-10-06.md",
+    "preserved": "docs/integration/originals/front/docs/collaboration/Discushion_백엔드_Git_GitHub_협업전략_2026-10-06.md",
+    "sha256": "04d581b7cb5151e463fefeccc1365eab0efde81b5c8c6274cb552e1909ae5b8c"
+  },
+  {
+    "branch": "back",
+    "sha": "eb9a7d4a734a744731d7bb85564b32f3c8f3b39c",
+    "source": "docs/collaboration/Discushion_백엔드_Git_GitHub_협업전략_2026-10-06.md",
+    "preserved": "docs/integration/originals/back/docs/collaboration/Discushion_백엔드_Git_GitHub_협업전략_2026-10-06.md",
+    "sha256": "04d00b68a9aba0cff170a408172ffff02a7c11973d0aa3c9f49e7e12051263c5"
+  },
+  {
+    "branch": "main",
+    "sha": "dc139f43ce9e7cbe09d660202ee0ccec033b0f5f",
+    "source": "docs/collaboration/Discushion_프론트엔드_Git_GitHub_협업전략_2026-10-06_v2.md",
+    "preserved": "docs/integration/originals/main/docs/collaboration/Discushion_프론트엔드_Git_GitHub_협업전략_2026-10-06_v2.md",
+    "sha256": "3c12cdd9036a1d863c56976b9946e2a0274fa0c55840b301f37257cd8ee57867"
+  },
+  {
+    "branch": "front",
+    "sha": "108cb477322eaffdfb42c520a93a5e53794031ce",
+    "source": "docs/collaboration/Discushion_프론트엔드_Git_GitHub_협업전략_2026-10-06_v2.md",
+    "preserved": "docs/integration/originals/front/docs/collaboration/Discushion_프론트엔드_Git_GitHub_협업전략_2026-10-06_v2.md",
+    "sha256": "4dff4d323e59132dd8fbc6ec56ad667a66099b52afaacf7ebd322e63c2eed3ed"
+  },
+  {
+    "branch": "back",
+    "sha": "eb9a7d4a734a744731d7bb85564b32f3c8f3b39c",
+    "source": "docs/collaboration/Discushion_프론트엔드_Git_GitHub_협업전략_2026-10-06_v2.md",
+    "preserved": "docs/integration/originals/back/docs/collaboration/Discushion_프론트엔드_Git_GitHub_협업전략_2026-10-06_v2.md",
+    "sha256": "b99be94527bbc04188588b55847489407adcc2a67ac3823f0dc1f74b6e68b384"
+  },
+  {
+    "branch": "main",
+    "sha": "dc139f43ce9e7cbe09d660202ee0ccec033b0f5f",
+    "source": "docs/collaboration/team-workspace.md",
+    "preserved": "docs/integration/originals/main/docs/collaboration/team-workspace.md",
+    "sha256": "55335ae9d444c22fcf2d1a3243aa7d16b65220faf0072a8e2ebb0677702cc5cc"
+  },
+  {
+    "branch": "front",
+    "sha": "108cb477322eaffdfb42c520a93a5e53794031ce",
+    "source": "docs/collaboration/team-workspace.md",
+    "preserved": "docs/integration/originals/front/docs/collaboration/team-workspace.md",
+    "sha256": "55335ae9d444c22fcf2d1a3243aa7d16b65220faf0072a8e2ebb0677702cc5cc"
+  },
+  {
+    "branch": "back",
+    "sha": "eb9a7d4a734a744731d7bb85564b32f3c8f3b39c",
+    "source": "docs/collaboration/team-workspace.md",
+    "preserved": "docs/integration/originals/back/docs/collaboration/team-workspace.md",
+    "sha256": "ea9e4113516e36fe869d0293ff52d990234fbaaa695864892486a758abdf5c21"
+  },
+  {
+    "branch": "front",
+    "sha": "108cb477322eaffdfb42c520a93a5e53794031ce",
+    "source": "docs/specs/Discushion_MVP_ERD_상세명세.md",
+    "preserved": "docs/integration/originals/front/docs/specs/Discushion_MVP_ERD_상세명세.md",
+    "sha256": "143afb8b0cee7222a11b898efc65ef3d050bb64f1f1a924ecba9ea8122b6b7b0"
+  },
+  {
+    "branch": "back",
+    "sha": "eb9a7d4a734a744731d7bb85564b32f3c8f3b39c",
+    "source": "docs/specs/Discushion_MVP_ERD_상세명세.md",
+    "preserved": "docs/integration/originals/back/docs/specs/Discushion_MVP_ERD_상세명세.md",
+    "sha256": "8914efd4d8de7d09d751bdfdcf9692b40fbd8f2c608a5b360f21fee4a5ffb0e4"
+  },
+  {
+    "branch": "main",
+    "sha": "dc139f43ce9e7cbe09d660202ee0ccec033b0f5f",
+    "source": "docs/specs/Discushion_MVP_백엔드_프론트엔드_통합_지침서.md",
+    "preserved": "docs/integration/originals/main/docs/specs/Discushion_MVP_백엔드_프론트엔드_통합_지침서.md",
+    "sha256": "f8352bd15dd64698f680ec72d4e1bb59a914fbf353d25cc7d23c5f0bb11df2b5"
+  },
+  {
+    "branch": "front",
+    "sha": "108cb477322eaffdfb42c520a93a5e53794031ce",
+    "source": "docs/specs/Discushion_MVP_백엔드_프론트엔드_통합_지침서.md",
+    "preserved": "docs/integration/originals/front/docs/specs/Discushion_MVP_백엔드_프론트엔드_통합_지침서.md",
+    "sha256": "e42ff0b117c106f2fd7b06d625b7784da5150dee918c80617bd40f5331dfdd1b"
+  },
+  {
+    "branch": "back",
+    "sha": "eb9a7d4a734a744731d7bb85564b32f3c8f3b39c",
+    "source": "docs/specs/Discushion_MVP_백엔드_프론트엔드_통합_지침서.md",
+    "preserved": "docs/integration/originals/back/docs/specs/Discushion_MVP_백엔드_프론트엔드_통합_지침서.md",
+    "sha256": "d85f8882c876ea698178293cca32770ff72c7f45b65310edde45885571485acd"
+  },
+  {
+    "branch": "main",
+    "sha": "dc139f43ce9e7cbe09d660202ee0ccec033b0f5f",
+    "source": "docs/specs/Discushion_PRD_2026-10-06_MVP반영_정리본_v10.1.md",
+    "preserved": "docs/integration/originals/main/docs/specs/Discushion_PRD_2026-10-06_MVP반영_정리본_v10.1.md",
+    "sha256": "5de02f98bff5be799bb1718ead07a5486b69995e7536a582bf18c0e6de2423f4"
+  },
+  {
+    "branch": "front",
+    "sha": "108cb477322eaffdfb42c520a93a5e53794031ce",
+    "source": "docs/specs/Discushion_PRD_2026-10-07_MVP반영_정리본_v10.2.md",
+    "preserved": "docs/integration/originals/front/docs/specs/Discushion_PRD_2026-10-07_MVP반영_정리본_v10.2.md",
+    "sha256": "fbc03a7772a3061bba069b600aba1e7c452cf99b983b3575cba367ef40b7fc7a"
+  },
+  {
+    "branch": "back",
+    "sha": "eb9a7d4a734a744731d7bb85564b32f3c8f3b39c",
+    "source": "docs/specs/Discushion_PRD_2026-10-07_MVP반영_정리본_v10.2.md",
+    "preserved": "docs/integration/originals/back/docs/specs/Discushion_PRD_2026-10-07_MVP반영_정리본_v10.2.md",
+    "sha256": "018cb1ba1ec2660e51addf86be39fe7e58134a762e7aee009f80e2fc06ff26b0"
+  },
+  {
+    "branch": "main",
+    "sha": "dc139f43ce9e7cbe09d660202ee0ccec033b0f5f",
+    "source": "docs/specs/Discushion_기능명세서_2026-10-06_MVP반영_정리본_v10.1.md",
+    "preserved": "docs/integration/originals/main/docs/specs/Discushion_기능명세서_2026-10-06_MVP반영_정리본_v10.1.md",
+    "sha256": "0cb164003cd64534164c2b959116dd657b4cde10f99a3742492cc85fa353ae5d"
+  },
+  {
+    "branch": "front",
+    "sha": "108cb477322eaffdfb42c520a93a5e53794031ce",
+    "source": "docs/specs/Discushion_기능명세서_2026-10-07_MVP반영_정리본_v10.2.md",
+    "preserved": "docs/integration/originals/front/docs/specs/Discushion_기능명세서_2026-10-07_MVP반영_정리본_v10.2.md",
+    "sha256": "ec1aac0890524e518aaaaa26f31906a26e84065bd36ea97bf4a7e409e9673332"
+  },
+  {
+    "branch": "back",
+    "sha": "eb9a7d4a734a744731d7bb85564b32f3c8f3b39c",
+    "source": "docs/specs/Discushion_기능명세서_2026-10-07_MVP반영_정리본_v10.2.md",
+    "preserved": "docs/integration/originals/back/docs/specs/Discushion_기능명세서_2026-10-07_MVP반영_정리본_v10.2.md",
+    "sha256": "829285cfc2c7e7798d87630dee2cfbeddbc4ac6f68421fab7a48743df52daa1f"
+  },
+  {
+    "branch": "main",
+    "sha": "dc139f43ce9e7cbe09d660202ee0ccec033b0f5f",
+    "source": "docs/specs/Discushion_유저플로우_와이어프레임기반_2026-10-06.md",
+    "preserved": "docs/integration/originals/main/docs/specs/Discushion_유저플로우_와이어프레임기반_2026-10-06.md",
+    "sha256": "29e1a8dce55f4752dbc7657aa30c734c1a818f3f3cf9a1875c9a0a5dcb502824"
+  },
+  {
+    "branch": "front",
+    "sha": "108cb477322eaffdfb42c520a93a5e53794031ce",
+    "source": "docs/specs/Discushion_유저플로우_와이어프레임기반_2026-10-06.md",
+    "preserved": "docs/integration/originals/front/docs/specs/Discushion_유저플로우_와이어프레임기반_2026-10-06.md",
+    "sha256": "4b5bd6a39ed7be242a54116bac8cc9c788b62680e6b7c695763f4cbc605785c2"
+  },
+  {
+    "branch": "back",
+    "sha": "eb9a7d4a734a744731d7bb85564b32f3c8f3b39c",
+    "source": "docs/specs/Discushion_유저플로우_와이어프레임기반_2026-10-06.md",
+    "preserved": "docs/integration/originals/back/docs/specs/Discushion_유저플로우_와이어프레임기반_2026-10-06.md",
+    "sha256": "111708031e57def040071b2c90ee74a6a4773c4cc1bebb272a89e421a0c0a8f4"
+  },
+  {
+    "branch": "main",
+    "sha": "dc139f43ce9e7cbe09d660202ee0ccec033b0f5f",
+    "source": "frontend/README.md",
+    "preserved": "docs/integration/originals/main/frontend/README.md",
+    "sha256": "bd51161a96cb3219f20119cf16d822afe69e2c7414b9481f492349779179b24b"
+  },
+  {
+    "branch": "front",
+    "sha": "108cb477322eaffdfb42c520a93a5e53794031ce",
+    "source": "frontend/README.md",
+    "preserved": "docs/integration/originals/front/frontend/README.md",
+    "sha256": "a87eccf3d5ba8f9f6fce1636232d9e29c15430099c29c5e3222afbca3d42cb9f"
+  },
+  {
+    "branch": "back",
+    "sha": "eb9a7d4a734a744731d7bb85564b32f3c8f3b39c",
+    "source": "frontend/README.md",
+    "preserved": "docs/integration/originals/back/frontend/README.md",
+    "sha256": "bd51161a96cb3219f20119cf16d822afe69e2c7414b9481f492349779179b24b"
+  }
+]

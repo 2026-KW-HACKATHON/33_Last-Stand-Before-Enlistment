@@ -1,0 +1,1056 @@
+# Discushion API Specification v1.1 — 해커톤 MVP
+
+> **문서 버전** v1.1 (기존 v1.0 갱신본, 파일명 유지)  
+> **갱신 기준일** 2026-10-06 (Asia/Seoul)  
+> **상태** 최신 제품 명세 기반 API 계약 초안. 실제 구현·연동 완료를 뜻하지 않음.  
+> **대상** Frontend / Backend / QA  
+> **제품 정본** `Discushion_PRD_2026-10-06_MVP반영_v10.md`, `Discushion_기능명세서_2026-10-06_MVP반영_v10.md` (두 문서의 내부 버전 v10.1)  
+> **통합 기준** `Discushion_MVP_백엔드_프론트엔드_통합_지침서 (1).md`  
+> **협업 기준** 2026-10-06 통합/프론트엔드/백엔드 Git·GitHub 협업전략
+
+## 0. 목적·근거·변경 이력
+
+이 문서는 가입 → 지역 탐색 → 게시·참여 → 개인 기록 → 기관 채택을 같은 원본 데이터로 구현하기 위한 HTTP API 계약안이다. 기존 명세의 v9 기준과 전체 제품 API를 최신 v10.1의 MVP 범위로 다시 정렬했다. 제공 자료에는 실제 Controller/DTO/DB/Frontend 구현이 없으므로 구현이 존재한다고 가정하지 않는다.
+
+### 0.1 표기와 우선순위
+
+- **[확정]**: 제품 문서에서 확정한 기능·권한·제약·MVP 범위.
+- **[설계 제안]**: 경로, HTTP 상태, JSON 필드, Enum 코드, multipart 구조, 커서, 공유 컨텍스트 전달 등 구현 계약안. FE/BE가 합의해 고정할 기술 선택이다.
+- **[확인 필요]**: 원문에 없는 제품·운영 세부 또는 실제 구현과 대조가 필요한 사항. 제품 정책으로 단정하지 않는다.
+- **[비-MVP]**: 최종 제품 정책은 보존하되 이번 필수 UI/API/배치·인수 대상에서 제외한다.
+
+제품 해석은 두 정본의 `확정 정책 보완`, `범위 대조 및 확인 필요`, 최신 MVP 표기 → 기능 ID별 본문 → PRD 사용자 흐름 순으로 적용한다. 기능명세의 일부 포함 항목에 남아 있는 비-MVP 최종 정책을 구현 요구로 확대하지 않는다. 통합 지침과 협업전략의 예시 경로는 확정 경로가 아니며, 본 명세는 가능한 한 기존 v1.0 경로를 유지한다.
+
+### 0.2 v1.0 → v1.1 변경
+
+| 항목 | 갱신 내용 |
+| --- | --- |
+| 근거 | 2026-10-05 v9 → 2026-10-06 v10.1 |
+| 범위 | 추천·관심 정보·알림/투표 예약·신고·계정 복구/설정/탈퇴·임시저장 API를 비-MVP로 분리 |
+| 게시물 | 참고 자료 링크·익명·알림 예약 필드를 MVP 요청/응답에서 제거 |
+| 계정 | 이메일 인증 목적은 MVP에서 SIGN_UP만 사용; 로그아웃은 이번 필수 범위에서 제외 |
+| 인증 | 접수와 완료 분리, 이웃 완료 지역·기관 담당 지역/유효기간·파생 배지·권한 응답 보완 |
+| 기관 증빙 | 다중 첨부, PDF/JPG/PNG, 파일당 10MB·신청 전체 50MB, 업로드와 최종 제출 구분 |
+| AI | 공개 지역 안건 한정, 생성 상태·실패/짧은 원문 fallback·원문/출처 연결 |
+| 개인 기록 | 누적 행동 횟수 API 및 +1/+0/재등록 규칙 추가, 현재 유효 참여와 분리 |
+| 탐색 | 별도 인기글 선정/14일 노출 운영·자유 게시물 검색·GPS를 MVP 필수에서 제외 |
+| 연동 | Part A~D·기능 ID·공통 DTO·검증 및 계약 변경 절차 연결 |
+
+### 0.3 범위
+
+| 영역 | MVP 구현 | 비-MVP / 정책만 유지 |
+| --- | --- | --- |
+| 계정·지역 | 이메일 인증 가입, 이메일/비밀번호 로그인, 프로필 사진·닉네임·소개·복수 속성·활동 지역 | 이메일/비밀번호 변경, 찾기/재설정, 탈퇴, 다크 모드, 설정·로그아웃 메뉴 |
+| 탐색·게시 | 메인·통합 목록·지도·공통 상세, 세 유형 작성/수정/삭제, 선택 사진 | 자유 게시물 검색, 별도 인기글 선정·누적 14일 노출, 임시저장, 참고 자료 링크, 익명 작성, AI 이미지 |
+| 참여 | 세 반응, 댓글/답글, 좋아요/싫어요, 정렬, 실제 투표, 북마크 | 신고 전체, 알림·푸시·투표 예약 |
+| 개인 기록 | 내가 만든/참여한 게시물, 참여 투표, 북마크, 행동 횟수 | 알림 목록에 의존하는 활동 조회 |
+| 인증·기관 | 이웃/기관 신청·첨부·최종 제출·접수·상태/지역 저장, 완료 상태 기반 권한, 기관 채택/취소 | 실제 운영자 심사·승인/반려·보완 메일·백오피스·증빙 보관/삭제 운영 |
+| AI·공유 | 공개 안건 3문장 요약, 특정 공개 상세 공유·게스트 댓글 | AI 추천·개인 맞춤·관심 지역/키워드, 게스트 전화번호 인증·문자 알림 |
+
+`정책만 유지`는 API·테이블·예약 작업을 만들라는 뜻이 아니다. 활동 출처와 외부 참여 링크는 MVP이며 공통 참고 자료 링크와 다르다. 기관 인증 1년 유효기간과 만료 시 접근/배지 제거는 MVP 권한 판정에 적용한다.
+
+## 1. 공통 규칙
+
+### 1.1 URL·형식·시간 [설계 제안]
+
+| 항목 | 계약안 / 확인 사항 |
+| --- | --- |
+| Base path | `/api/v1`; 실제 배포 주소는 환경변수로 제공 |
+| Content-Type | 기본 application/json, 사진·증빙 포함 시 multipart/form-data |
+| ID | 본문은 v1.0의 JSON number 예시 유지. PK 타입은 미확정; UUID/string/BIGINT 전환 시 모든 DTO·mock을 함께 변경. JS 안전 정수 초과 ID를 number로 전달하지 않음 |
+| 날짜·시각 | 날짜 YYYY-MM-DD, 절대 시각 ISO 8601 offset 포함, 서비스 표시 Asia/Seoul |
+| 페이지 | 불투명 cursor + size; nextCursor/hasNext 반환 |
+| 페이지 크기·기본 정렬 | 실제 프로젝트에서 합의. 기관/댓글의 확정 정렬 외 수치·기본값을 제품 정책으로 고정하지 않음 |
+| null·생략 | 선택 입력은 nullable 명시. 게스트 본인 데이터는 필드 자체를 생략 |
+
+성공 응답:
+
+```json
+{ "data": {} }
+```
+
+목록 응답:
+
+```json
+{ "data": [], "meta": { "nextCursor": null, "hasNext": false } }
+```
+
+오류 응답:
+
+```json
+{
+  "code": "VALIDATION_ERROR",
+  "message": "요청값을 확인해 주세요.",
+  "details": [{ "field": "title", "reason": "필수 입력값입니다." }],
+  "traceId": "server-generated-id"
+}
+```
+
+공개 DTO는 비밀번호/해시·다른 회원 이메일·기관 증빙 원본·담당자 개인정보·저장 절대 경로·금칙어 목록·AI 원시 응답·stack trace·DB 오류를 반환하지 않는다. 예외적으로 활동 게시물의 문의 이메일은 확정 정책대로 공개한다. 인증 API의 자기 토큰과 자기 신청정보는 해당 본인에게 필요한 범위에서만 반환한다.
+
+### 1.2 HTTP 상태 [설계 제안]
+
+| 상태 | 사용 |
+| --- | --- |
+| 200 | 조회·수정·desired state 등록/해제 |
+| 201 | 가입·게시물·댓글/답글·인증 신청·채택 신규 생성 |
+| 204 | 게시물 삭제·채택 취소 등 본문 없는 성공 |
+| 400 | 형식/필수값/지원하지 않는 필드·Enum |
+| 401 | 미로그인/무효 세션, 게스트의 회원 전용 접근 |
+| 403 | 이웃 인증 지역·기관 유효 상태·담당 지역·소유권 부족, 공유 범위 위반 |
+| 404 | 없는/삭제된 게시물 또는 조회할 수 없는 대상; 콘텐츠 미반환 |
+| 409 | 투표 변경 확인 필요, 종료/현재 상태 충돌, 중복 이메일/닉네임 |
+| 413 / 415 | 용량/개수 한도 초과 / 지원하지 않는 파일 형식 |
+| 422 | 도메인 입력조건 위반·금칙어 포함 등 |
+| 429 | 이메일 발송/입력 한도 초과 |
+| 500 / 503 | 내부 오류 / 외부 서비스 장애; 내부 사유 비공개 |
+
+AI 생성 실패는 가능한 한 200 응답의 실패 상태와 원문 fallback으로 전달한다. 통신 자체의 실패만 5xx로 처리하고 FE는 그 경우에도 이미 읽은 원문을 유지한다.
+
+### 1.3 세션·지역·기관 권한
+
+Bearer 인증은 기존 계약을 유지하는 **[설계 제안]**이다.
+
+```http
+Authorization: Bearer <access-token>
+```
+
+- **[확정]** 사용자/작성자/소유자는 서버 인증 주체에서 판별한다. Request userId·authorId·역할·배지 플래그를 권한 근거로 쓰지 않는다.
+- 가입의 이메일 인증은 로그인 세션이 아니다. 로그인은 등록 이메일+비밀번호이며 인증번호 단계가 없다.
+- 게스트는 계정 역할이 아니라 비로그인 공유 상세 컨텍스트다. 유효 공유 컨텍스트가 있어도 회원 전용 권한은 생기지 않는다.
+- 지역 게시·댓글/답글·반응·댓글 평가·투표는 대상 지역 이웃 인증 완료 회원만 가능하다. 공유 게스트의 댓글/답글만 예외다.
+- 기본 활동 지역 설정, 기관 인증, 프로필의 거주자/학생/직장인/상인 속성은 이웃 인증을 대체하지 않는다.
+- 게시물 수정/삭제는 작성자 소유권·대상 지역 자격·유형별 제한을 요청 시점에 확인한다. 기관 채택은 별도 기관 권한을 적용한다.
+- 북마크는 로그인 회원이면 가능하며 해당 지역 이웃 인증을 요구하지 않는다.
+- 기관 전체 안건 조회는 현재 유효 기관 인증, 채택/취소는 추가로 담당 지역·공개 지역 안건·본인 기관 관계가 필요하다.
+- 토큰 형식/TTL/갱신/폐기·기기 세션 모델은 **[확인 필요]**다. refresh token API나 로그아웃 기능을 MVP 필수로 추가하지 않는다.
+
+### 1.4 공유 컨텍스트·로그인 복귀 [설계 제안]
+
+공유 링크는 공개 게시물 원본에 연결한다. 유효 컨텍스트를 서버가 확인할 전달 방식은 코드와 대조해 합의한다. 이 문서의 제안은 회원의 `GET /posts/{postId}/share-link`가 게시물에 귀속된 shareToken 포함 링크를 반환하고, 공유 화면이 이를 다음 header로 전달하는 방식이다.
+
+```http
+X-Post-Share-Token: <server-issued-post-bound-token>
+```
+
+서버는 토큰의 게시물과 대상 postId(댓글/답글이면 그 소속 게시물)를 비교하고 현재 공개 상태를 확인한다. 무토큰/다른 게시물 토큰은 공유 접근을 허용하지 않는다. 토큰 유효기간·재발급·서명/저장 모델은 미확정이다. 공개 링크의 전달 가능성은 공유 기능의 성질이며 특정 수신자 신원 인증을 새로 요구하지 않는다.
+
+| 요청 | 회원 | 유효 공유 게스트 |
+| --- | --- | --- |
+| home/posts 목록/map/개인 기록 | 가능, 개인 기록은 본인 | 401 |
+| 대상 게시물 상세·요약·댓글 조회 | 공개 대상 가능 | 공유 대상에 한정 |
+| 대상 댓글/답글 생성 | 해당 지역 이웃 완료 | 공유 대상만, 공개명 게스트 |
+| 반응/평가/투표/북마크 | 각 회원 권한 조건 | 401, 로그인 안내 |
+
+유효하지 않은 회원 토큰을 보낸 요청을 자동으로 게스트 쓰기로 전환하지 않는다. 로그인한 미인증 회원이 공유 토큰을 보내도 회원 지역 권한 검증을 우회하지 않는다.
+
+`returnTo`는 FE가 가입·프로필·지역 설정까지 유지하는 내부 상세 복귀 정보다. 서버가 받는 구현에서는 허용된 내부 경로만 검증한다. 로그인/가입 성공은 원 상세 또는 메인으로 복귀하는 것까지이며 반응·평가·투표·북마크·게스트 댓글 이관을 자동 실행하지 않는다. 메인/지도/개인 목록의 지역·유형·주제·커서·정렬·스크롤 맥락도 FE가 보존한다.
+
+## 2. Enum·오류·공통 DTO
+
+### 2.1 제품 의미가 확정된 Enum (코드명은 설계 제안)
+
+| Enum | 값 |
+| --- | --- |
+| PostType | LOCAL_AGENDA / LOCAL_ACTIVITY / VOTE |
+| PostTopic | TRANSPORTATION / HOUSING / SAFETY / WELFARE / LIVING_INFORMATION / ENVIRONMENT / OTHER |
+| PostStatus | PUBLISHED / DELETED |
+| ActivityStatus | SCHEDULED / IN_PROGRESS / ENDED / CANCELED |
+| VoteStatus | OPEN / CLOSED (서버 시각과 endsAt으로 파생) |
+| PostReactionType | EMPATHY / NEEDED / CURIOUS |
+| CommentSort | LIKES / LATEST |
+| CommentEvaluationType | LIKE / DISLIKE |
+| ResidentAttribute | RESIDENT / STUDENT / WORKER / MERCHANT (복수 속성, 역할 아님) |
+| EmailVerificationPurpose | SIGN_UP (MVP만) |
+
+`ALL`은 저장 유형/주제가 아니다. 전체 필터는 type/topic 생략으로 전달한다. `scope=ALL|ADOPTED`와 투표 목록 `status=ALL|OPEN|CLOSED`는 조회 전용 값이다.
+
+### 2.2 상태 코드 제안과 미확정 경계
+
+| 대상 | 계약 제안 | 의미 / 주의 |
+| --- | --- | --- |
+| 이웃 신청 status | RECEIVED / COMPLETED | 접수 / 완료. 신청 전은 requests 빈 목록; 완료 지역은 별도 verifiedRegions |
+| 기관 상태 status | NOT_SUBMITTED / RECEIVED / COMPLETED / EXPIRED | 미신청 / 접수 / 완료 / 만료. isActive는 현재 상태·유효기간으로 파생 |
+| AI status | PENDING / SUCCEEDED / FAILED / SOURCE_TOO_SHORT | 생성 중 / 완료 / 실패 / 짧은 원문; 후자의 3개 외 상태 의미는 합의 필요 |
+| 공개 접근 availability | AVAILABLE / UNAVAILABLE | 삭제 투표 기록 등의 콘텐츠 노출 가능 여부 |
+| 게스트 context | SHARED_GUEST | 계정 역할 Enum으로 저장하지 않음 |
+
+이 상태의 영문 문자열은 제품이 지정한 정본이 아니다. 기존 코드가 APPROVED를 완료 상태로 쓰면 동등 의미를 매핑해 FE/BE가 함께 고정한다. MVP에 실제 반려·보완·심사 workflow를 추가하지 않는다. AI 저장/재생성/폴링 간격·짧은 원문 판정 기준은 미확정이며 임의 수치로 고정하지 않는다.
+
+### 2.3 MVP 오류 코드 [설계 제안]
+
+| 그룹 | 코드 |
+| --- | --- |
+| 공통/Auth | VALIDATION_ERROR, UNAUTHORIZED, LOGIN_FAILED, EMAIL_ALREADY_IN_USE, EMAIL_VERIFICATION_INVALID, EMAIL_VERIFICATION_EXPIRED, EMAIL_VERIFICATION_LIMIT_EXCEEDED, EMAIL_DELIVERY_FAILED, PASSWORD_POLICY_VIOLATION, REQUIRED_AGREEMENT_MISSING |
+| User/Region | USER_NOT_FOUND, NICKNAME_ALREADY_IN_USE, REGION_NOT_FOUND, NEIGHBOR_VERIFICATION_REQUIRED, NEIGHBOR_VERIFICATION_LIMIT_EXCEEDED |
+| 공유 | SHARE_CONTEXT_REQUIRED, SHARE_CONTEXT_INVALID, SHARE_SCOPE_MISMATCH |
+| Post/Media | POST_NOT_FOUND, POST_DELETED, POST_NOT_EDITABLE, POST_NOT_DELETABLE, POST_TYPE_INVALID, POST_TOPIC_INVALID, ACTIVITY_INFO_REQUIRED, ACTIVITY_STATUS_REQUIRED, VOTE_OPTIONS_INVALID, MEDIA_LIMIT_EXCEEDED, UNSUPPORTED_MEDIA_TYPE |
+| 참여 | COMMENT_NOT_FOUND, COMMENT_FORBIDDEN_WORD, COMMENT_DEPTH_EXCEEDED, REACTION_TYPE_INVALID, COMMENT_EVALUATION_TYPE_INVALID, VOTE_OPTION_INVALID, VOTE_ENDED, VOTE_CHANGE_CONFIRMATION_REQUIRED |
+| 기관 | INSTITUTION_VERIFICATION_NOT_ACTIVE, ADOPTION_NOT_ALLOWED, ADOPTION_NOT_FOUND |
+| AI | AI_SUMMARY_NOT_APPLICABLE, AI_SUMMARY_UNAVAILABLE |
+
+UI에서 확정 문구를 우선 사용한다: 로그인 `로그인에 실패했습니다`, 게스트 회원 기능 `로그인이 필요한 기능입니다.`, 코드 불일치 `인증번호가 일치하지 않습니다.`, 만료 `인증번호가 만료되었습니다. 다시 발급받아 주세요.`. 세부 오류를 로그인 실패 원인 구분에 사용하지 않는다.
+
+### 2.4 공통 PostCard [설계 제안]
+
+```json
+{
+  "id": 101,
+  "type": "LOCAL_AGENDA",
+  "topic": "TRANSPORTATION",
+  "title": "광운대역 주변 보행 환경 개선",
+  "excerpt": "게시물 본문 미리보기",
+  "region": { "id": 15, "name": "월계1동" },
+  "author": { "displayName": "동네주민", "profileImageUrl": null, "institutionVerified": false },
+  "thumbnailUrl": null,
+  "reactionCounts": { "EMPATHY": 3, "NEEDED": 2, "CURIOUS": 1, "total": 6 },
+  "commentCount": 4,
+  "createdAt": "2026-10-06T13:20:00+09:00",
+  "updatedAt": "2026-10-06T13:20:00+09:00"
+}
+```
+
+타입별 카드에는 activityStatus 또는 vote status/endsAt/participantCount를 같은 원본에서 더한다. 사진이 없으면 thumbnailUrl=null, 상세 images=[]이며 UI는 이미지 영역을 생략한다. excerpt는 일반 본문 미리보기이며 모든 유형을 AI 요약 대상으로 만들지 않는다. 작성자 표시/배지는 조회 시 최신 공개 프로필과 현재 유효 기관 인증을 참조한다.
+
+## 3. MVP API 목록
+
+아래 모든 경로는 Base path 뒤에 붙이며 **[설계 제안]**이다. 표의 `기능 ID`는 최신 기능명세를 추적한다. 인프라 1개를 포함해 39개 Method+Path 계약안이다. 별도 사진/증빙 선업로드 API는 이 안에 포함하지 않고 5절의 multipart 방식을 사용한다.
+
+| Part / Domain | Method | Endpoint | 목적 | 기능 ID |
+| --- | --- | --- | --- | --- |
+| 공통 Infra | GET | `/health` | 기본 상태 | 인프라 |
+| A Auth | POST | `/auth/email-verifications` | 가입 6자리 코드 발송 | F-KZRSXU |
+| A Auth | POST | `/auth/email-verifications/confirm` | 코드 확인 | F-KZRSXU |
+| A Auth | POST | `/auth/sign-up` | 가입·프로필·활동 지역·세션 | F-KZRSXU, F-RBVFZX |
+| A Auth | POST | `/auth/login` | 이메일/비밀번호 로그인 | F-TSOXGG |
+| A User | GET/PATCH | `/users/me` | 프로필·지역·권한 조회/수정 | F-RBVFZX, F-QQKYLC |
+| A Region | GET | `/regions` | 활동/인증 지역 선택 후보 | F-QQKYLC, F-ATWJDJ |
+| A Verification | GET/POST | `/users/me/neighbor-verifications` | 본인 신청·접수·완료 지역 | F-ATWJDJ |
+| A Institution | GET/POST | `/institution-verifications` | 본인 기관 인증 상태/최종 제출 | F-OPNIXL, S-YLSPHQ, S-JRMYIV |
+| B Home | GET | `/home` | 현재 탐색 지역 메인 | F-UPRLMN |
+| B Map | GET | `/map/dongs` | 동별 대표 게시물 | F-QIGKAK |
+| B Post | GET/POST | `/posts` | 통합 목록/세 유형 게시 | F-EAJPVC, F-FTLHCX, S-TBFIHO |
+| B Post | GET/PATCH/DELETE | `/posts/{postId}` | 상세/수정/삭제 | F-PUDHYO, F-UCDVNA, F-FTLHCX |
+| B AI | GET | `/posts/{postId}/summary` | 공개 안건 요약·원문 | F-WSCKDN |
+| C Share | GET | `/posts/{postId}/share-link` | 공유 대상 연결 링크 | F-OWFYWE, S-NYUECP |
+| C Comment | GET/POST | `/posts/{postId}/comments` | 부모+답글 조회/댓글 등록 | F-EDNVWZ, S-JCEZAP, S-OXTKEP |
+| C Comment | POST | `/comments/{commentId}/replies` | 원 부모 아래 답글 | S-YYDGUS |
+| C Reaction | PUT/DELETE | `/posts/{postId}/reactions/{reactionType}` | 독립 반응 등록/취소 | F-GOMLGG, S-HNVDPO |
+| C Evaluation | PUT/DELETE | `/comments/{commentId}/evaluation` | 좋아요/싫어요 등록/전환/취소 | F-CDIBRF |
+| C Vote | PUT | `/posts/{postId}/vote` | 실제 선택 제출/교체 | F-FCPVIS, S-CMGJIG |
+| D Bookmark | PUT/DELETE | `/posts/{postId}/bookmark` | 회원 저장/해제 | F-FYQJPT |
+| D Adoption | GET | `/officer/agendas` | 전체 안건/현재 기관 채택 목록 | F-CNNPYL, S-PCCNUU |
+| D Adoption | POST | `/posts/{postId}/adoptions` | 담당 지역 안건 채택 | F-TUGMEP, S-AQOBIE |
+| D Adoption | DELETE | `/posts/{postId}/adoptions/{adoptionId}` | 본인 기관 채택 취소 | F-TUGMEP |
+| D Activity | GET | `/users/me/posts` | 내가 만든 게시물 | F-SSHXAA |
+| D Activity | GET | `/users/me/participations` | 게시물별 현재 유효 내 행동 | F-NZTUYE |
+| D Activity | GET | `/users/me/votes` | 실제 참여 투표/선택/결과 | F-QPGNCF |
+| D Activity | GET | `/users/me/bookmarks` | 북마크 유형/주제 목록 | F-FYQJPT |
+| D Activity | GET | `/users/me/activity` | 누적 개인 행동 횟수 | F-WYMXXP |
+
+공유 링크를 서버 발급 없이 만드는 동등한 계약을 합의하면 share-link 한 항목을 제외해 38개가 된다. 39개라는 수는 제품의 확정 API 수가 아니라 이 문서가 제안한 묶음의 개수다.
+
+## 4. Auth·프로필·지역·인증
+
+### 4.1 Health
+
+`GET /health`는 인증 불필요, 200 `{ "data": { "status": "UP" } }`. AI 호출/무거운 집계는 실행하지 않는다.
+
+### 4.2 이메일 인증 발송·확인
+
+```http
+POST /api/v1/auth/email-verifications
+POST /api/v1/auth/email-verifications/confirm
+```
+
+발송 request/response:
+
+```json
+{ "email": "user@example.com", "purpose": "SIGN_UP" }
+```
+
+```json
+{
+  "data": {
+    "expiresAt": "2026-10-06T13:25:00+09:00",
+    "resendAvailableAt": "2026-10-06T13:21:00+09:00"
+  }
+}
+```
+
+확인 request/response:
+
+```json
+{ "email": "user@example.com", "purpose": "SIGN_UP", "code": "123456" }
+```
+
+```json
+{ "data": { "verificationToken": "server-issued-sign-up-proof", "verifiedAt": "2026-10-06T13:21:12+09:00" } }
+```
+
+- 인증번호는 선행 0을 유지하는 6자리 문자열. 유효 5분, 재발송 대기 60초, 수신 이메일 기준 30분 최대 5회, 코드당 입력 최대 5회 **[확정]**.
+- 새 코드 재발급 성공 시 이전 코드를 즉시 무효화하고 FE 인증 성공 상태도 다시 확인하도록 갱신한다. 발송 실패를 발송/인증 성공으로 처리하지 않는다.
+- 추가 계정 잠금시간을 임의로 만들지 않는다. 코드·발송 한도를 서버에서 검증한다.
+- verificationToken은 해당 이메일/SIGN_UP에 묶인 인증 증명이며 로그인 토큰이 아니다. TTL/형식·일회 소비와 재발급 시 증명 폐기는 **[설계 제안/구현 합의 필요]**.
+- EMAIL_CHANGE/PASSWORD_CHANGE/PASSWORD_RESET 목적은 비-MVP이며 가입 요청에 우회 사용하지 않는다.
+
+### 4.3 가입
+
+`POST /auth/sign-up`, 201. 사진 없는 기본 요청은 JSON이며 아래 객체를 사용한다.
+
+```json
+{
+  "email": "user@example.com",
+  "emailVerificationToken": "...",
+  "password": "abc12345",
+  "passwordConfirmation": "abc12345",
+  "agreements": { "termsOfService": true, "privacyCollection": true, "marketing": false },
+  "profile": {
+    "nickname": "동네주민",
+    "bio": "우리 동네를 더 좋게",
+    "residentAttributes": ["RESIDENT", "STUDENT"],
+    "activityRegionId": 15
+  }
+}
+```
+
+프로필 사진이 있으면 **[설계 제안]** multipart의 `payload` JSON part에 같은 객체, `profileImage`에 파일을 보내는 대체 형식을 사용한다. Base64/임의 원격 URL을 저장하지 않는다. 프로필 사진의 허용 형식·개수·용량·교체/삭제 보관 규칙은 **[확인 필요]**이며 게시물 사진 규칙을 자동 전용하지 않는다.
+
+가입은 이메일 인증 → 비밀번호/확인 → 동의 → 프로필 → 활동 지역 완료 순서다. 서버는 필수 이용약관·개인정보 수집/이용 동의, 비밀번호 8~64자·영문+숫자·공백 불가·확인 일치, 닉네임 중복 불가/최대 10자, 소개 최대 50자, 선택 지역 존재를 검증한다. 특수문자 필수 아님. 가입·프로필·기본 지역 저장은 실패 시 부분 완료를 남기지 않는 방식으로 처리한다 **[설계 제안]**.
+
+```json
+{ "data": { "user": { "id": 23, "nickname": "동네주민", "activityRegion": { "id": 15, "name": "월계1동" } }, "accessToken": "..." } }
+```
+
+세션 제공 방식은 로그인과 통일한다. 완료 후 returnTo 원 상세/없으면 메인으로 FE가 이동한다. 가입했다고 이웃/기관 인증을 자동 완료하거나 과거 게스트 의견을 회원에게 이관하지 않는다.
+
+### 4.4 로그인
+
+`POST /auth/login`, 200. Request `{ "email": "user@example.com", "password": "abc12345" }`, 성공 응답은 가입과 같은 세션/회원 구조를 사용한다. 실패는 401 LOGIN_FAILED와 `로그인에 실패했습니다`로 통일하고 이메일 존재/비밀번호 오류 원인을 구분하지 않는다. returnTo 복귀 직후 원 행동을 실행하지 않는다.
+
+### 4.5 내 프로필 조회·수정
+
+```http
+GET /api/v1/users/me
+PATCH /api/v1/users/me
+```
+
+본인 회원만, 200. 응답 제안:
+
+```json
+{
+  "data": {
+    "id": 23,
+    "email": "user@example.com",
+    "profile": {
+      "nickname": "동네주민",
+      "bio": "우리 동네를 더 좋게",
+      "profileImageUrl": null,
+      "residentAttributes": ["RESIDENT", "WORKER"],
+      "activityRegion": { "id": 15, "name": "월계1동" }
+    },
+    "neighborVerifiedRegions": [{ "id": 15, "name": "월계1동" }],
+    "institutionVerification": {
+      "status": "COMPLETED",
+      "institutionName": "노원구청",
+      "responsibleRegion": { "id": 15, "name": "월계1동" },
+      "completedAt": "2026-10-06T13:00:00+09:00",
+      "validUntil": "2027-10-06T13:00:00+09:00",
+      "isActive": true
+    },
+    "institutionVerified": true
+  }
+}
+```
+
+PATCH의 허용 필드는 nickname/bio/residentAttributes/activityRegionId. 사진 변경은 가입과 같은 multipart `payload`+`profileImage` 제안이며 사진 제거는 payload `removeProfileImage=true`; 교체와 제거 동시 요청은 400 **[설계 제안]**. 이메일/비밀번호/interestKeywords/기관 역할·배지·완료 지역은 여기서 수정하지 않는다. 성공 시 최신 프로필을 반환하고 비익명 작성자 표시는 같은 프로필을 재조회한다. 취소/실패면 저장 전 값 유지.
+
+### 4.6 지역 후보
+
+`GET /regions?cursor=...&size=...`, 인증 예외로 가입 초기 지역 선택도 허용 **[설계 제안]**. 등록된 지역 ID/name과 동 단위 지도 연계 정보만 제공하며 게시물 목록 탐색 권한을 부여하지 않는다. 필요 시 지역명 `q`를 후보 조회 보조 필터로 합의할 수 있지만 게시물 자유 검색·latitude/longitude·현재 위치 권한 수집은 MVP 필수가 아니다. 저장 지역은 후보에서 선택한 ID를 가입 또는 PATCH /users/me에 전달한다. Region 계층/경계·지도 좌표 원천은 실제 데이터 준비 시 합의한다.
+
+### 4.7 이웃 인증
+
+```http
+GET /api/v1/users/me/neighbor-verifications
+POST /api/v1/users/me/neighbor-verifications
+```
+
+본인 회원만. POST multipart: `regionId` + `evidenceFiles` 파일 part **[설계 제안]**. 사용자가 증빙을 선택/첨부하는 동안 FE 제출 큐에만 보관하며 `신청 제출` 때 파일과 함께 요청한다. 201 접수 응답 제안:
+
+```json
+{ "data": { "id": 501, "region": { "id": 15, "name": "월계1동" }, "status": "RECEIVED", "submittedAt": "2026-10-06T14:00:00+09:00" } }
+```
+
+GET 200 응답은 `{ "data": { "requests": [], "verifiedRegions": [] } }` 형태로 본인 신청지역/접수·완료 상태/제출 시각/증빙 파일명·크기와 완료 지역을 분리해 반환한다. 상태·완료 지역을 영속 저장하고 재조회해 유지한다. 상세 증빙 참조는 비공개이며 본인 외 조회 불가.
+
+완료 지역은 최대 3개 **[확정]**. 접수는 완료가 아니고 참여 권한을 주지 않는다. 한도는 신청 수 제한으로 바꾸지 않고 완료 지역 등록 시 서버/시연 설정에서도 검증한다. 개발자 시연용 완료 설정은 별도 안전한 seed/script 등으로 가능하며 사용자용 승인 API를 만들지 않는다.
+
+거주 증빙 인정 종류·파일 형식/개수/용량·반려 후 재신청·보관은 **[확인 필요]**. 상태/완료 지역 저장·지역 권한 구현을 제외하는 근거로 사용하지 않는다. 기관 증빙의 확정 제한을 이웃 증빙에 그대로 적용하지 않는다.
+
+### 4.8 기관 인증
+
+```http
+GET /api/v1/institution-verifications
+POST /api/v1/institution-verifications
+```
+
+본인 회원만. 로그인 화면의 기관 인증 진입과 마이페이지는 같은 요청/결과를 사용한다. 비로그인 진입은 로그인/가입 후 같은 인증 흐름으로 연결하며 게스트 신청을 허용하지 않는다.
+
+POST multipart Form:
+
+```text
+institutionName, departmentName, positionName, applicantName,
+workEmail, phoneNumber, responsibleRegionId,
+employmentCertificates (반복 파일 part)
+```
+
+- 기관명·부서·직책·담당자 이름·업무 이메일·전화번호·담당 지역·재직증명서 필수 **[확정]**.
+- PDF/JPG/PNG, 파일 개수 제한 없음, 파일 1개 최대 10MB, 신청 전체 첨부 합계 최대 50MB **[확정]**. 요청 본문 overhead를 파일 합산에 혼동하지 않는다.
+- 파일명·크기·제거를 FE 큐에서 관리한다. 첨부/업로드와 최종 제출을 구분하고 `자료 제출` 클릭 때 같은 신청의 모든 선택 파일을 제출한다. 별도 최종 확인 화면 없음. 선업로드를 도입하면 소유자별 비공개 참조·최종 제출 연결 계약을 먼저 추가해야 하며, 업로드만으로 접수/완료 처리하지 않는다.
+- 업무 이메일은 심사용 입력이며 별도 6자리 인증 없음. 계정 로그인 이메일과 구분.
+- 단순 기관 소속 학생/직원이 아닌 실제 민원 업무 담당자 대상이라는 정책 유지. 시연용 완료 설정도 이 의미를 따른다.
+
+201 응답 제안:
+
+```json
+{
+  "data": {
+    "id": 601,
+    "status": "RECEIVED",
+    "responsibleRegion": { "id": 15, "name": "월계1동" },
+    "submittedAt": "2026-10-06T14:00:00+09:00",
+    "files": [{ "id": 701, "name": "재직증명서.pdf", "sizeBytes": 800000 }],
+    "isActive": false,
+    "institutionVerified": false
+  }
+}
+```
+
+GET은 본인 제출 정보·파일명/크기·신청상태와 현재 기관 인증 completedAt/validUntil/담당 지역을 반환한다. 접수·첨부만으로 역할/파란 배지 부여 금지. 유효 완료 상태에서만 역할·배지·기관 접근을 파생한다. 승인일부터 1년, 만료 시 현재 및 과거 작성물의 배지·기관 접근 제거, 일반 회원 계정/게시물 유지. 실제 심사/승인/반려 UI·보완 메일·만료 증빙 삭제/반려 후 30일 삭제 배치는 비-MVP다.
+
+## 5. Home·Map·Post·AI·Share
+
+### 5.1 지역 메인
+
+`GET /home?regionId=15`, 로그인 회원, 200. 미지정 시 프로필 기본 활동 지역을 사용하며 지정 regionId는 임시 탐색 기준으로만 적용한다.
+
+```json
+{
+  "data": {
+    "region": { "id": 15, "name": "월계1동" },
+    "posts": [],
+    "openVotes": [],
+    "boardCounts": { "LOCAL_AGENDA": 0, "LOCAL_ACTIVITY": 0, "VOTE": 0 }
+  }
+}
+```
+
+posts/openVotes는 공통 카드와 같은 원본 ID/집계를 사용한다. 빈 상태에서도 섹션·게시판 CTA를 유지하고 `아직 등록된 게시물이 없습니다.`를 표시한다. 메인의 노출 순서/건수는 FE/BE 기술 계약으로 합의한다. `trendingPost` 전용 API·인기도=반응+댓글+답글·누적 노출 14일 운영은 보조 정책만 보존하며 이번 완료 조건으로 요구하지 않는다. 추천 카드·알림 데이터 의존 없음.
+
+### 5.2 이슈 지도
+
+`GET /map/dongs?centerRegionId=15`, 로그인 회원, 200. 최초 미지정 시 기본 활동 지역 중심. 표시할 동 집합/경계·좌표 데이터 원천은 **[확인 필요]**.
+
+```json
+{
+  "data": {
+    "centerRegion": { "id": 15, "name": "월계1동" },
+    "dongs": [
+      {
+        "region": { "id": 15, "name": "월계1동" },
+        "representativePost": { "id": 101, "type": "LOCAL_AGENDA", "title": "보행 환경 개선", "reactionCount": 6, "thumbnailUrl": null }
+      },
+      { "region": { "id": 18, "name": "월계2동" }, "representativePost": null }
+    ]
+  }
+}
+```
+
+대표는 각 동의 공개 지역 안건/투표 중 반응 합계 최대 1건, 동률 최신 게시물이다. 활동 정보·댓글 수·득표 수를 선정에 사용하지 않는다. 사진 있으면 첨부 순서 첫 사진만 thumbnailUrl, 없으면 null/이미지 영역 생략. 후보 없는 동도 유지하고 선택 시 `등록된 게시물이 없습니다` 표시. 반응 변경 후 재조회하면 최신 대표를 반환한다. GPS·실시간 위치 추적·지도 표시용 위치 권한 불필요. 확대/축소와 오류/재시도는 FE 구현 책임.
+
+### 5.3 통합 목록·상세
+
+```http
+GET /api/v1/posts?regionId=15&type=LOCAL_AGENDA&topic=TRANSPORTATION&cursor=...&size=...
+GET /api/v1/posts/{postId}
+```
+
+목록은 회원 전용이며 지역 → 유형 → 주제 조건을 적용하고 목록 응답은 PostCard 배열이다. 전체 유형/주제는 query 생략. regionId 미지정 기본은 프로필 활동 지역 **[설계 제안]**. q 자유 게시물 검색은 MVP 계약에 포함하지 않는다. 상세는 회원 또는 유효 공유 게스트에게만 공개한다.
+
+상세 응답 제안(기관 채택은 지역 안건에서만 표시):
+
+```json
+{
+  "data": {
+    "id": 101,
+    "type": "LOCAL_AGENDA",
+    "topic": "TRANSPORTATION",
+    "title": "광운대역 주변 보행 환경 개선",
+    "content": "게시물 공개 원문",
+    "status": "PUBLISHED",
+    "region": { "id": 15, "name": "월계1동" },
+    "author": { "displayName": "동네주민", "profileImageUrl": null, "institutionVerified": false },
+    "images": [],
+    "reactionCounts": { "EMPATHY": 3, "NEEDED": 2, "CURIOUS": 1, "total": 6 },
+    "commentCount": 0,
+    "comments": [],
+    "commentsMeta": { "sort": "LATEST", "nextCursor": null, "hasNext": false },
+    "adoptions": [{ "institutionName": "노원구청", "adoptedAt": "2026-10-06T14:00:00+09:00" }],
+    "myState": { "reactions": ["EMPATHY"], "isBookmarked": true },
+    "capabilities": {
+      "canComment": true,
+      "canReact": true,
+      "canEvaluateComment": true,
+      "canVote": false,
+      "canBookmark": true,
+      "canEdit": false,
+      "canDelete": false,
+      "canAdopt": false,
+      "canCancelAdoption": false
+    },
+    "createdAt": "2026-10-06T13:20:00+09:00",
+    "updatedAt": "2026-10-06T13:20:00+09:00"
+  }
+}
+```
+
+comments 초기 페이지와 후속 GET comments는 동일 구조/정렬을 사용한다. 초기 기본 정렬/건수는 합의해야 한다. 게스트는 myState·vote.myOptionId·댓글 myEvaluation 필드를 생략한다. capabilities는 공유 대상 댓글/답글만 true, 회원 행동은 false로 반환한다. UI 가드는 서버의 매 요청 재검증을 대체하지 않는다.
+
+LOCAL_ACTIVITY는 activity를 추가:
+
+```json
+{
+  "source": "노원구청",
+  "schedule": "2026-10-12 14:00",
+  "place": "월계동 주민센터",
+  "status": "SCHEDULED",
+  "externalParticipationUrl": null,
+  "externalParticipationEnabled": false,
+  "organizerEmail": "user@example.com"
+}
+```
+
+schedule 저장 형식은 **[설계 제안]**인 문자열이며 상세 일정 구조/길이는 실제 계약에서 합의한다. 문의 이메일은 작성자 현재 등록 로그인 이메일에서 조회하고 회원·공유 게스트에게 표시한다. 없으면 null과 `주최자 문의 정보를 확인할 수 없습니다.` 표시. 외부 링크가 없거나 유효하지 않은 경우와 문의 이메일 없음은 별개다. 종료/취소 상태면 링크를 비활성화하고 예정/진행으로 되돌리면 유효한 링크가 있을 때 재활성화한다. 링크 허용 protocol·유효성 검사는 **[설계 제안]**, 내부 신청/결제 API는 없음.
+
+VOTE는 vote를 추가:
+
+```json
+{
+  "question": "설치에 동의하시나요?",
+  "status": "OPEN",
+  "endsAt": "2026-10-10T18:00:00+09:00",
+  "participantCount": 11,
+  "myOptionId": 1,
+  "options": [
+    { "id": 1, "content": "찬성", "voteCount": 8, "votePercentage": 72.73 },
+    { "id": 2, "content": "반대", "voteCount": 3, "votePercentage": 27.27 }
+  ]
+}
+```
+
+회원 myOptionId는 실제 본인 선택이며 미참여면 null, 게스트는 필드 생략. 다른 참여자의 개인 선택/이름/식별자별 선택은 반환하지 않는다. 득표율 소수 자릿수·반올림은 **[설계 제안]**이며 합의해 통일한다. 참여 0명일 때 각 득표율 0을 반환하는 안을 사용한다. 지역 안건에는 활동/투표 진행 상태를 만들지 않고 기관 채택도 PostStatus에 넣지 않는다.
+
+### 5.4 게시물 생성·사진
+
+`POST /posts`, 해당 지역 이웃 인증 완료 회원, multipart, 201 최신 상세 DTO. 서버는 사용자/지역 자격·공통 및 유형 입력·사진을 검증하고 원본과 하위 데이터를 저장한다. 성공한 postId의 상세로 FE가 이동하며 목록/마이/지도도 같은 원본을 사용한다.
+
+multipart part 제안:
+
+```text
+payload: application/json
+images: 반복 파일 part (선택, 첨부 순서 유지)
+```
+
+지역 안건 payload:
+
+```json
+{ "type": "LOCAL_AGENDA", "topic": "TRANSPORTATION", "regionId": 15, "title": "보행 환경 개선", "content": "원문" }
+```
+
+활동 payload:
+
+```json
+{
+  "type": "LOCAL_ACTIVITY", "topic": "LIVING_INFORMATION", "regionId": 15,
+  "title": "주민 간담회", "content": "활동 설명",
+  "details": {
+    "source": "노원구청", "schedule": "2026-10-12 14:00", "place": "월계동 주민센터",
+    "activityStatus": "SCHEDULED", "externalParticipationUrl": "https://example.org/event"
+  }
+}
+```
+
+투표 payload:
+
+```json
+{
+  "type": "VOTE", "topic": "SAFETY", "regionId": 15,
+  "title": "횡단보도 조명 설치 의견", "content": "투표 설명",
+  "details": { "question": "설치에 동의하시나요?", "options": ["찬성", "반대"], "endsAt": "2026-10-10T18:00:00+09:00" }
+}
+```
+
+| 입력 | 검증 |
+| --- | --- |
+| 공통 | 유형·주제·지역·제목·본문 필수, 저장 ALL 불가 |
+| 지역 안건 | 활동 필드/투표 확장 없음 |
+| 지역 활동 정보 | 출처·일정·장소·활동 상태 필수, 상태 기본값 없음, 외부 링크 선택, 문의 이메일 별도 입력 없음 |
+| 투표 | 질문·선택지 2~10개·종료 시각 필수; 최소 2개는 찬반 강제 아님 |
+| 사진 | JPG/PNG만, 최대 10장, 모든 사진 합산 최대 10MB |
+| 비-MVP 필드 | referenceLink, isAnonymous, reminderAt, draft 입력은 MVP 허용 필드에서 제외 |
+
+사진 한도는 최종 연결된 전체 사진에 적용하며 FE 사전 안내와 서버 확정 검증을 함께 수행한다. MB를 bytes로 환산하는 기준은 FE/BE 합의 후 고정 **[확인 필요]**. 제목/본문/질문/선택지 길이, 중복 선택지 허용 여부, 신규 종료시각의 과거값 처리 등 미명시 입력 세부는 제품 정책으로 임의 고정하지 않는다.
+
+사진 선택·카메라/갤러리·미리보기·교체·제거는 제출 전 FE 파일 큐에서 지원한다. 화면 왕복/선택 취소/저장 실패 시 공통/유형별 입력과 기존 사진 유지. 성공 때만 연결 완료로 표시한다. 파일 부분 실패 시 게시물 생성 완료로 표시하지 않는 원자 저장/보상 처리는 **[설계 제안]**.
+
+### 5.5 게시물 수정·삭제
+
+```http
+PATCH /api/v1/posts/{postId}
+DELETE /api/v1/posts/{postId}
+```
+
+PATCH multipart `payload` JSON + 선택 `images`. 사진 유지/교체/삭제 순서를 명확히 하기 위한 제안:
+
+```json
+{
+  "title": "수정 제목",
+  "photoOrder": [{ "photoId": 801 }, { "newImageIndex": 0 }]
+}
+```
+
+photoOrder 생략은 기존 사진 유지, []는 전체 제거, 지정 시 최종 순서와 연결할 기존 photoId/newImageIndex를 전부 나열한다. newImageIndex는 요청 images의 0-based 순서. 같은 참조 중복·다른 게시물 photoId·범위 밖 index 거부. 제거된 사진의 물리 보관 방식은 별도 합의한다. 최종 사진 수/합산 용량 재검증 **[설계 제안]**.
+
+| 유형 | 수정/삭제 정책 |
+| --- | --- |
+| 안건/활동 | 본인 원본 수정/삭제 가능. 공통·활동 필드의 세부 변경 허용 목록은 합의; 게시물 유형 전환 API는 임의 제공하지 않음 |
+| 활동 상태 | 작성자가 네 상태 사이에서 자유 변경. 시간 경과로 자동 전환하지 않음 |
+| 진행 중 투표 | 제목·본문·사진·종료 시각만 수정. 질문·선택지·지역·주제 수정 불가, 삭제 가능 |
+| 종료 투표 | 수정·삭제 불가. 서버 시각으로 최종 재검증 |
+
+POST/PATCH에 알림 생성/예약은 없다. PATCH 200은 최신 상세, DELETE 204. 삭제 즉시 공개 상세/공유/댓글/요약 접근 및 추가 참여를 차단하고 북마크 관계 자동 해제·목록 제거. 참여 투표 기록은 유지하되 삭제 본문/선택지를 다시 노출하지 않는다. 댓글·반응·사진·표·행동/채택 기록의 물리 보존/삭제 방식은 **[확인 필요]**.
+
+### 5.6 AI 안건 요약
+
+`GET /posts/{postId}/summary`, 회원 또는 해당 공유 게스트, 200 상태 응답 **[설계 제안]**. 공개 LOCAL_AGENDA만, 다른 유형은 422 AI_SUMMARY_NOT_APPLICABLE. 삭제/비공개는 콘텐츠 없이 404.
+
+```json
+{
+  "data": {
+    "postId": 101,
+    "status": "SUCCEEDED",
+    "summary": "원문의 핵심을 설명하는 첫 문장입니다. 핵심 논점을 설명하는 두 번째 문장입니다. 원문에 근거한 마지막 문장입니다.",
+    "generatedAt": "2026-10-06T14:00:00+09:00",
+    "source": {
+      "postId": 101,
+      "title": "광운대역 주변 보행 환경 개선",
+      "content": "게시물 공개 원문",
+      "authorDisplayName": "동네주민",
+      "updatedAt": "2026-10-06T13:20:00+09:00",
+      "originalPath": "/posts/101"
+    },
+    "fallbackToSource": false
+  }
+}
+```
+
+source는 실제 원 게시물의 출처 정보/원문 연결이며 안건 작성자에게 비-MVP referenceLink나 활동 source 입력을 요구하지 않는다. guest originalPath 이동도 같은 공유 컨텍스트를 유지한다. AI 3문장은 자연스러운 한 문단, 불릿 3개 아님, 원문 외 사실 추가 금지 **[확정]**.
+
+PENDING은 summary/generatedAt=null과 source 반환, FAILED/SOURCE_TOO_SHORT는 summary=null·fallbackToSource=true와 원문/상태 안내 반환. 실패를 전체 상세 열람 실패로 처리하지 않는다. 조회 GET은 저장된 생성 상태를 읽는 제안이며 생성 착수·동기/비동기/캐시/수정 후 재생성·짧은 원문 임계값·재시도는 구현 전에 합의한다. 원문 갱신 시 이전 버전 요약을 최신 요약으로 표시하지 않는 source version 연결은 권장한다. 별도 사용자 Job API·추천 API·정해진 폴링 간격을 필수로 만들지 않는다.
+
+### 5.7 공개 공유 링크
+
+`GET /posts/{postId}/share-link`, 회원, 200. 공개 대상 여부 확인 후 `{ "data": { "postId": 101, "shareUrl": "https://<서비스도메인>/shared/posts/101?token=<공유토큰>" } }` **[설계 제안]**. 실제 서비스 domain은 환경 설정, 위 URL은 예시. 클라이언트는 복사/공유하고 링크 열기는 로그인 없이 특정 상세로 직행한다. 조회로 개인 활동 +1 없음. 게스트도 받은 링크를 FE에서 복사할 수 있으며 새 링크 발급 API는 호출하지 않는다.
+
+서버 링크 발급 API/토큰을 사용하지 않는 동등 방식도 가능하지만 공유 대상과 서버 권한 검증 계약을 먼저 합의해야 한다. 공유 링크 만료·재발급은 제품 미정이며 추가 요구로 단정하지 않는다. 삭제된 원본을 링크/토큰으로 복구해 노출하지 않는다.
+
+## 6. 댓글·반응·평가·투표·북마크
+
+### 6.1 댓글과 1단계 답글
+
+```http
+GET /api/v1/posts/{postId}/comments?sort=LIKES&cursor=...&size=...
+POST /api/v1/posts/{postId}/comments
+POST /api/v1/comments/{commentId}/replies
+```
+
+GET은 회원/해당 공유 게스트, POST는 해당 지역 이웃 완료 회원 또는 공유 게스트. 댓글 Request `{ "content": "좋은 의견입니다." }`, 답글 Request `{ "content": "저도 동의합니다.", "replyToCommentId": 302 }`. path commentId는 부모 또는 답글로 해석 가능하도록 설계하되 서버는 항상 원 부모를 찾아 연결한다. replyToCommentId를 지정하면 같은 게시물·같은 부모 하위인지 검증한다 **[설계 제안]**.
+
+생성 201, 댓글 DTO 제안:
+
+```json
+{
+  "data": {
+    "id": 301,
+    "postId": 101,
+    "parentCommentId": null,
+    "content": "좋은 의견입니다.",
+    "author": { "displayName": "게스트", "isGuest": true, "institutionVerified": false },
+    "replyTo": null,
+    "likeCount": 0,
+    "dislikeCount": 0,
+    "createdAt": "2026-10-06T14:00:00+09:00",
+    "replies": []
+  }
+}
+```
+
+회원 컨텍스트에는 myEvaluation=LIKE/DISLIKE/null 추가. 답글 parentCommentId는 원 부모 ID, replyTo는 대상 commentId/displayName. 게스트 공개명은 정확히 `게스트`, 기관 배지는 false. 회원 이름/배지는 최신 공개 프로필을 참조한다.
+
+- 빈 내용 거부, 댓글/답글과 회원/게스트 모두 동일 사전 정의 문자열 **포함** 검사를 적용. 통과 시 즉시 공개. 실제 금칙어 목록은 **[확인 필요]**, 임의로 만들어 확정하지 않는다. AI 유해 문맥 판정/운영자 관리 UI 없음.
+- 답글의 답글도 원 부모 아래 1단계 저장하며 대상명을 표시한다. 2단계 계층을 만들지 않는다.
+- LIKES는 부모 좋아요 내림차순·동률 최신 부모, LATEST는 부모 작성시각 내림차순. 답글 좋아요를 부모 정렬에 합산하지 않고 답글은 부모 아래 유지한다.
+- 커서 페이지는 부모 단위이며 각 부모 replies를 함께 반환하는 안. 답글이 큰 경우 별도 페이지 계약을 합의해야 하며 답글을 누락한 채 전체로 표시하지 않는다. 최종 동률의 ID 보조 정렬은 기술 설계로 합의.
+- 성공 회원 댓글/답글은 개인 행동 +1, 현재 참여 카드에 `댓글 작성` 표시. 게스트 의견은 가입 후 자동 회원 이관/개인 활동 집계 없음.
+- 댓글/답글 수정·삭제 API는 원문 미명시이므로 임의 제공하지 않는다.
+
+### 6.2 게시물 반응
+
+```http
+PUT /api/v1/posts/{postId}/reactions/{reactionType}
+DELETE /api/v1/posts/{postId}/reactions/{reactionType}
+```
+
+이웃 완료 회원, 공개 대상, 200. reactionType=EMPATHY/NEEDED/CURIOUS. PUT은 그 관계 존재, DELETE는 그 관계 부재라는 최종 상태를 요청한다. FE의 같은 버튼 재클릭은 DELETE. 세 반응은 독립이고 동시에 모두 선택 가능.
+
+```json
+{ "data": { "postId": 101, "reactionCounts": { "EMPATHY": 3, "NEEDED": 2, "CURIOUS": 1, "total": 6 }, "myReactions": ["EMPATHY", "NEEDED"] } }
+```
+
+동일 PUT 재시도는 관계/횟수 추가 없음, DELETE 부재 상태 재시도도 유지 **[설계 제안]**. 실제 없는→있는 등록은 유형별 +1, 취소 +0, 취소 뒤 재등록 +1. 집계 total은 3유형 합계이며 댓글/투표 수와 분리.
+
+### 6.3 댓글/답글 좋아요·싫어요
+
+```http
+PUT /api/v1/comments/{commentId}/evaluation
+DELETE /api/v1/comments/{commentId}/evaluation
+```
+
+대상 소속 지역 이웃 완료 회원. PUT body `{ "type": "LIKE" }` 또는 DISLIKE, DELETE body 없음. 응답 200 `{ "data": { "commentId": 301, "myEvaluation": "LIKE", "likeCount": 4, "dislikeCount": 1 } }`. 취소면 myEvaluation=null.
+
+평가는 상호배타. 반대 버튼은 PUT으로 전환, 같은 버튼은 DELETE로 취소. 최초 평가 +1, 직접 전환/취소/같은 desired state 재시도 +0, 취소 후 새 등록 +1. 댓글/답글 모두 적용하고 참여한 게시물에 `댓글 좋아요·싫어요` 표시. 게스트 평가 401, 답글 like는 부모 정렬에 합산하지 않음.
+
+### 6.4 실제 투표 제출·변경
+
+`PUT /posts/{postId}/vote`, 해당 지역 이웃 완료 회원, 200 최신 vote DTO. Request:
+
+```json
+{ "optionId": 1, "confirmChange": false }
+```
+
+서버 순서: 인증 → 대상 공개 VOTE → 지역 자격 → 진행 여부(서버 시각) → 옵션 소속 → 현재 선택 잠금/확인 → 생성/동일 유지/확인 후 교체 → 최신 집계.
+
+- UI 선택만으로 요청/저장하지 않고 `투표 제출` 클릭 때 요청 **[확정]**.
+- 다른 기존 선택은 `선택을 변경하시겠습니까?` 확인. 취소 시 요청하지 않고 기존 표 유지. 확인 후 confirmChange=true.
+- false인 다른 선택은 409 VOTE_CHANGE_CONFIRMATION_REQUIRED **[설계 제안]**. FE에서 선확인했어도 서버가 요청 시 기존 선택을 다시 확인한다.
+- 동일 옵션 재요청 200 유지는 **[설계 제안]**, 참여/집계/+1 중복 없음. 종료 후에는 동일 옵션 요청을 포함한 신규 제출·변경 요청을 거부하는 안.
+- 최초 표 +1, 선택 변경 +0, 사용자당 현재 한 표. 변경/종료 경합은 원자 갱신과 서버 종료시각 우선.
+- 응답은 실제 본인 선택, 옵션별 수/율, 전체 참여자 수, 진행/종료·endsAt. 타인 개인 선택 비공개.
+- 결과 최신화는 제출 성공 후 조회·상세 재진입/재조회로 충족하도록 설계. SSE/WebSocket/폴링 주기는 제품에서 미확정이며 기술 합의 전 필수 방식으로 고정하지 않는다. 알림 예약·발송 없음.
+
+### 6.5 북마크
+
+```http
+PUT /api/v1/posts/{postId}/bookmark
+DELETE /api/v1/posts/{postId}/bookmark
+```
+
+로그인 회원, 지역 이웃 인증 불필요, 공개 게시물만. 200 `{ "data": { "postId": 101, "isBookmarked": true } }`, 해제 false. desired state 재시도 멱등 **[설계 제안]**.
+
+상세 버튼 하나에서 회원 저장 성공 시 `저장되었습니다` 팝업, 현재 상세 유지. 게스트는 저장 API/성공 팝업 없이 로그인 안내·returnTo 보존. 가입/로그인 뒤 복귀만 하며 재클릭 전 자동 저장 금지. 목록 카드에 등록/해제 버튼 추가 없음.
+
+실제 등록 +1, 해제 +0, 해제 후 재등록 +1. 북마크만 한 글은 참여 게시물 목록에서 제외. 게시물 삭제 시 관계 자동 해제·북마크 목록 제거, 삭제에 따른 해제도 +0.
+
+## 7. 기관 안건 조회·채택
+
+### 7.1 담당자 안건 목록
+
+`GET /officer/agendas?regionId=15&scope=ALL&cursor=...&size=...`, 현재 유효 기관 인증 완료 사용자, 200 목록. 전체 공개 LOCAL_AGENDA만, 반응 합계 내림차순. regionId는 조회 편의 필터이며 담당 지역 밖도 안건·공개 댓글/답글 내용을 열람할 수 있다. 반응 동률의 보조 정렬은 최신/ID 등 기술 계약으로 합의하며 제품이 확정한 값으로 단정하지 않는다.
+
+item은 공통 PostCard의 제목·지역·반응 수·commentCount·게시시각에 `myInstitutionAdoption`을 추가한다 **[설계 제안]**:
+
+```json
+{
+  "postId": 101,
+  "myInstitutionAdoption": { "id": 70, "adoptedAt": "2026-10-06T14:00:00+09:00" },
+  "capabilities": { "canAdopt": false, "canCancelAdoption": true }
+}
+```
+
+scope=ADOPTED는 현재 인증된 **본인 기관**의 유효 채택만 제공한다. 동일 기관 내 개별 채택 담당자의 userId와 기관 관계를 혼동하지 않는다. 식별 기관 모델은 **[설계 제안/합의 필요]**, 기관명 문자열만으로 같다고 추정하지 않는다. 취소된 관계는 현재 목록에서 제외한다. 목록의 의견 숫자만 보이고 상세 댓글 내용이 누락되는 방식은 인수하지 않는다.
+
+### 7.2 채택·취소
+
+```http
+POST /api/v1/posts/{postId}/adoptions
+DELETE /api/v1/posts/{postId}/adoptions/{adoptionId}
+```
+
+POST body 없음, 인증 주체에서 기관/담당 지역/채택 사용자를 판별. 유효 기관 인증 → 공개 LOCAL_AGENDA → 담당 지역 일치 → 본인 기관 관계 생성. 201 `{ "data": { "id": 70, "postId": 101, "institutionName": "노원구청", "adoptedAt": "2026-10-06T14:00:00+09:00" } }`. 같은 현재 관계 재요청은 200 기존 관계 반환 권장 **[설계 제안]**.
+
+DELETE는 유효 기관·대상 담당 지역·adoptionId의 postId/본인 기관 귀속 확인 후 204. 다른 기관 관계를 취소할 수 없다. 동일 취소 재시도 성공 유지 또는 404 처리는 실제 계약에서 통일한다. 취소 시 내부 채택 사용자/시각·취소 이력을 보존하고 현재 표시/목록에서 제거한다. 복수 기관 채택 독립, 한 기관 취소는 타 기관에 영향 없음.
+
+일반 상세의 공개 정보는 기관명·채택 시각만이며 내부 채택 담당자 이름/업무 이메일/전화번호/증빙은 공개하지 않는다. 일반 DTO에 불필요한 adoptionId는 넣지 않고 기관용 본인 관계에만 취소용 ID를 제공한다 **[설계 제안]**. 채택은 게시물 상태 변경이 아니며 투표/활동 상태와도 분리한다. 채택/취소 알림·검토 중/처리 중/완료·행정 연동 없이 정상 동작한다. 기관 채택/취소는 정의된 주민 개인 활동 +1 항목에 추가하지 않는다.
+
+## 8. 개인 목록·활동 횟수
+
+모든 API는 로그인 본인만 조회하며 userId query로 다른 회원 기록을 선택하지 않는다. 목록은 같은 원본 PostCard/관계를 사용한다.
+
+### 8.1 목록 계약
+
+| API | 필터 / 반환 |
+| --- | --- |
+| GET /users/me/posts | type, cursor, size. 내가 작성한 세 유형 원본, 유형/주제 표시, 상태 필터 없음. 유형별 canEdit/canDelete |
+| GET /users/me/participations | type, cursor, size. 현재 유효 내 반응·댓글/답글·평가·표를 postId별 한 카드에 합침 |
+| GET /users/me/votes | status=ALL/OPEN/CLOSED, cursor, size. 실제 참여한 투표만, 본인 실제 선택·최신/최종 결과·종료시각 |
+| GET /users/me/bookmarks | type, topic, cursor, size. 본인 현재 저장 원본, 삭제물은 제거 |
+
+type/topic 전체는 생략한다. 내가 만든/참여한 게시물은 유형 필터를 사용하며 북마크의 주제 필터를 모든 개인 목록에 일괄 추가하지 않는다. 투표 카드의 남은 기간은 endsAt와 서버 시각/상태를 기준으로 FE가 표시하고 최다 득표를 내 선택으로 추정하지 않는다.
+
+참여 목록 item은 공통 카드에 다음 `myParticipation` 제안을 추가한다.
+
+```json
+{
+  "reactions": ["EMPATHY", "CURIOUS"],
+  "hasCommentOrReply": true,
+  "hasCommentOrReplyEvaluation": true,
+  "hasVote": false
+}
+```
+
+댓글/답글은 `댓글 작성`, 댓글/답글 평가 종류는 `댓글 좋아요·싫어요`로 묶되 원본 관계는 유지한다. 현재 유효한 모든 표시를 반환하고 취소 시 그 표시만 제거한다. 다른 참여가 있으면 카드 유지. 북마크만/게시물 작성만/타인이 내 글에 한 행동은 참여 카드 근거가 아니다. 게스트 의견을 회원 기록으로 자동 이관하지 않는다. 빈 참여 목록은 `아직 참여한 게시물이 없습니다`와 게시판 CTA.
+
+### 8.2 삭제·접근 불가 투표 기록
+
+개인 참여 기록은 남기되 일반 공개 콘텐츠를 되살리지 않는다. 응답 제안:
+
+```json
+{
+  "postId": 102,
+  "availability": "UNAVAILABLE",
+  "participatedAt": "2026-10-06T15:00:00+09:00",
+  "post": null,
+  "vote": null
+}
+```
+
+사용자에게 접근 불가 안내만 제공한다. 삭제된 본문/선택지·본문 excerpt·이미지·선택 텍스트를 별도 사본에서 반환하지 않는다. status=OPEN/CLOSED 필터와 삭제 기록의 관계·내부 보존 모델은 **[확인 필요]**이며 전체 목록에는 기록 유지가 보장되어야 한다. 북마크 삭제 정책(카드 제거)과 혼동하지 않는다.
+
+### 8.3 활동 횟수
+
+`GET /users/me/activity`, 본인 회원, 200. 행동 원본/누적 이벤트에서 반환하는 제안:
+
+```json
+{
+  "data": {
+    "totalCount": 7,
+    "counts": {
+      "POST_CREATED": 1,
+      "BOOKMARK_REGISTERED": 2,
+      "EMPATHY_REGISTERED": 1,
+      "NEEDED_REGISTERED": 0,
+      "CURIOUS_REGISTERED": 0,
+      "COMMENT_CREATED": 1,
+      "REPLY_CREATED": 0,
+      "COMMENT_LIKE_REGISTERED": 1,
+      "COMMENT_DISLIKE_REGISTERED": 0,
+      "REPLY_LIKE_REGISTERED": 0,
+      "REPLY_DISLIKE_REGISTERED": 0,
+      "VOTE_PARTICIPATED": 1
+    }
+  }
+}
+```
+
+| 사건 | 누적 활동 | 현재 유효 참여 표시 |
+| --- | --- | --- |
+| 게시물 최초 게시 | +1 | 작성 목록; 작성 자체로 참여 목록 추가 없음 |
+| 북마크 최초 등록 | +1 | 북마크 목록; 참여 목록 근거 아님 |
+| 각 반응 등록 | 각각 +1 | 해당 반응 표시 |
+| 댓글/답글 작성 | 각각 +1 | 댓글 작성 표시 |
+| 댓글/답글 LIKE/DISLIKE 최초 등록 | 각각 +1 | 댓글 좋아요·싫어요 표시 |
+| 투표 최초 참여 | +1 | 투표 참여 표시 |
+| 반응·평가·북마크 취소 | +0, 누적 횟수 차감 없음 | 해당 현재 표시 제거 |
+| 평가 직접 LIKE↔DISLIKE 전환 | +0 | 평가/집계 갱신, 참여 유지 |
+| 투표 선택 변경 | +0, 최초 1회 유지 | 실제 본인 선택 갱신 |
+| 취소 후 반응/평가/북마크 재등록 | +1 | 해당 현재 표시 복원 |
+| 조회·수정·삭제·프로필/지역 설정 | +0 | 각 원본 상태만 갱신 |
+| 동일 desired state 재시도 | +0 | 기존 관계 유지 |
+
+totalCount는 위 누적 행동 횟수의 합이고 현재 북마크 수/반응 수/중복 제거 게시물 수와 다르다. 직접 평가 전환은 새로운 +1 이벤트로 기록하지 않는다. 활동 카테고리 세부 코드는 **[설계 제안]**이며 +1 규칙은 **[확정]**. 원본 변경과 이벤트 기록을 원자 처리하거나 신뢰할 동등 방식으로 연계하고 알림 생성 여부에 의존하지 않는다.
+
+## 9. 데이터 정본·동시성·재시도
+
+| 값 | 정본 / 계산 |
+| --- | --- |
+| 게시물·사진·작성자 | 같은 Post 원본, 정렬된 사진, 최신 공개 프로필 |
+| 반응 총수 | 현재 세 유형 관계 수의 합 |
+| 댓글 수 | 부모 댓글 + 답글 수 |
+| 댓글 정렬 | 부모 평가 수/부모 작성시각, 답글 like 합산 없음 |
+| 지도 대표 | 동별 공개 안건/투표 중 반응 최대·동률 최신 |
+| 투표 선택·결과 | 회원별 현재 한 표와 옵션 집계 |
+| 참여 게시물 | 본인의 현재 유효 참여 관계, postId 중복 제거 |
+| 누적 활동 | 실제 +1 등록/작성 이벤트, 취소/전환/변경 +0 |
+| 기관 배지·권한 | 유효한 기관 인증 완료 상태·유효기간·담당 지역 |
+| 채택 표시 | 기관↔안건의 현재 관계; 취소 이력 내부 보존 |
+| 기본 활동 지역 | User 프로필 저장값 |
+| 탐색 지역 | 임시 조회 parameter, 프로필 덮어쓰기 없음 |
+
+권장 제약 **[설계 제안]**:
+
+```text
+PostReaction       UNIQUE(post_id, user_id, reaction_type)
+CommentEvaluation  UNIQUE(comment_id, user_id)
+VoteSelection      UNIQUE(poll_id, user_id)
+Bookmark           UNIQUE(post_id, user_id)
+VerifiedRegion     UNIQUE(user_id, region_id) + 사용자별 최대 3개 원자 검증
+Adoption           UNIQUE(post_id, institution_id) for current relation
+```
+
+v1.0의 institution_verification_id만 유일 키로 쓰면 동일 기관의 다른 인증 담당자가 중복 채택 관계를 만들 수 있다. 관계 단위는 확정 기관↔안건이며 기관 식별 정본/인증 요청 연결 구조를 합의한다. 채택 사용자와 현재 인증 ID는 내부 감사 정보로 별도 저장한다.
+
+반응/평가/투표/북마크는 원자 갱신·유일 제약으로 중복 집계를 막는다. 원본과 활동 이벤트도 함께 확정한다. 댓글/게시/인증 신청 등 POST 생성 재시도는 클라이언트 요청 ID 또는 Idempotency-Key 지원을 권장한다. 지원하기로 합의하면 키 scope·보관기간·같은 키 다른 payload 오류를 문서에 고정하고 같은 요청의 리소스/+1 이벤트를 한 번만 생성한다. 모든 API에 아직 구현되지 않은 전역 키를 필수로 요구하지 않는다.
+
+권한/상태 파생 응답은 조회 시점 정보이며 서버는 각 쓰기에 재검증한다. 네트워크 오류로 결과가 불명확한 경우 FE는 성공을 가정하지 않고 최신 상태를 조회해 복구한다. 실패 시 낙관 갱신 롤백·입력/첨부 큐 유지. 401/403/409를 구분해 로그인·지역 자격·변경 확인/종료 안내를 제공한다.
+
+## 10. 비-MVP API·최종 정책 보존
+
+아래는 **이번 구현 대상 목록에 포함하지 않는다**. v1.0에서 제안한 경로는 후순위 추적용이며 제품 정책 제거를 뜻하지 않는다. 후순위 개발 시 당시 정본과 계약을 다시 대조한다.
+
+| 후순위 경로/필드 | 보존 정책 / 기능 ID |
+| --- | --- |
+| POST /auth/logout | 현재 기기 세션만 종료·시작 화면 복귀. 설정/로그아웃 UI는 이번 필수 범위 제외 (S-HDQTIR) |
+| POST /auth/password-resets | 이메일 인증→새 비밀번호, 존재 여부 구분 없는 안내, 성공 후 로그인 화면·자동 로그인 없음, returnTo 유지 (F-TZCLRG) |
+| PUT /users/me/email | 기존 비밀번호+새 이메일 인증, 중복 이메일 불가, 활동 문의 이메일 갱신 (F-JRAFSD, S-YXAQIT) |
+| PUT /users/me/password | 등록 이메일 인증 후 변경, 공통 비밀번호 정책 (S-ZTMHOQ) |
+| POST /users/me/withdrawal | 주의사항→현재 비밀번호→최종 확인, 콘텐츠/집계 유지·회원 식별 연결/북마크/설정 제거·문의 이메일 제거·탈퇴 사용자 표시 (S-FIUQIE) |
+| GET/PUT /users/me/regions/interests | 관심 지역 무제한·0개 허용, 탐색/추천만, 참여 권한·알림 근거 아님 (F-MBJNPG) |
+| PATCH /users/me의 interestKeywords | 7개 주제 중 최대 4개, 자유 입력 없음, 추천만, 실패 시 기존 선택 유지 (F-OAPPBV) |
+| GET/PATCH /users/me/settings | 다크 모드 계정 저장, push 단일 ON/OFF. 앱 내 알림 기록 유지 (F-SAOWVT, S-EJZFTB) |
+| GET/POST /posts/drafts | 지역 안건 임시 저장. 식별자/발행/갱신 세부 미정 (S-NVXXYQ의 비-MVP 부분) |
+| referenceLink / isAnonymous | 참고 자료는 활동 출처/외부 링크와 별개. 허용 유형의 실제 작성자 연결 유지; 활동/기관 인증 사용자는 익명 불가 (F-FTLHCX) |
+| GET /agenda-recommendations | 안건만 추천, 활동 지역→관심 지역→관심 키워드, 행동 이력 없음, 현재 카드만 제외·후보 없으면 현재 유지 (F-QZITNN) |
+| GET /notifications, PATCH /notifications/{id}/read | 본인 알림·읽음, 자기 행동 제외·같은 이벤트/수신자 중복 방지, 일반 상세/신고 삭제 안내 연결 (R-ZZFXGA) |
+| reminderAt·투표 예약 데이터/실행 | 종료 전 선택 시점, 작성자/참여자 중복 없이 발송. 종료/삭제/종료 일시 변경 시 기존 예약 취소, 새 시점은 작성자가 다시 지정 (S-ASBCKL) |
+| POST /posts/{postId}/reports | 자유 입력 사유, 동일 회원/게시물 재신고 불가, 접수만으로 삭제 없음, 조치 없음/경고/삭제 운영 심사·경고 누적 (F-VXHBWJ) |
+| 인증 승인/반려·보완·보관 운영 | 1주일 내 실제 운영자 정성 심사, 기관 보완은 이메일 회신, 기관 만료 증빙 삭제·반려 증빙 30일 후 삭제 운영 (F-ATWJDJ, F-OPNIXL) |
+
+후순위 알림은 푸시 OFF여도 앱 내 생성/보관, ON이면 1회 시도·실패해도 기록 유지·자동 재시도 없음. 채택/취소 알림 실패는 관계 저장을 되돌리지 않는다. 이는 알림을 이번 MVP에 만들어야 한다는 요구가 아니다. 신고 삭제 시 콘텐츠 미노출·북마크 해제 정책은 일반 삭제의 MVP 처리와 일관되게 유지한다.
+
+서비스 내부 활동 신청·결제, 게스트 전화번호 인증/문자 알림, AI 이미지, 기관 채택 후 처리 상태/외부 행정 자동 연동도 MVP에 추가하지 않는다.
+
+## 11. 구현 전 확인과 계약 고정
+
+### 11.1 MVP에서 합의할 항목
+
+| 구분 | 항목 | 범위 / 해석 |
+| --- | --- | --- |
+| 제품 세부 | 실제 금칙어 사전 | 단순 포함 필터 완료에 필요, 임의 목록 확정 금지 |
+| 제품/첨부 세부 | 이웃 증빙 인정 종류·파일 제한, 프로필 사진 제한 | 신청/프로필 기능은 MVP, 기관/게시 사진 제한 전용 금지 |
+| 제품/입력 세부 | 필드 길이·활동 일정 구조·URL 검증·과거 종료 시각·선택지 중복 | 원문 미명시 규칙을 확정 정책으로 단정하지 않음 |
+| 삭제 보존 | 댓글/반응/사진/표/활동/채택 물리 보존 | 공개 차단·북마크 제거·개인 투표 기록 유지 먼저 보장 |
+| 기술 공통 | 실제 URL, PK/ID, 인증 전달·TTL·갱신, DTO/nullable/error | 기존 구현이 제공되면 일괄 대조; 본 경로/Enum은 초안 |
+| 기술 목록 | cursor/size·기본 정렬·동률, 초기 댓글 페이지·답글 | 기관/댓글 확정 정렬 유지, 미정 수치 합의 |
+| 기술 지역·기관 | Region/지도 원천, 기관 ID와 인증 요청 연결 | 동일 원본·기관별 독립 관계 보장 |
+| 기술 파일 | MB bytes 기준, multipart, 프로필 교체/제거, 비공개 증빙 | 본문 구조 제안을 실제 FE/BE에 고정 |
+| 기술 공유 | 공유 전달 컨텍스트·토큰·수명·returnTo | 특정 postId 귀속·공개 재검증·자동 행동 금지 |
+| 기술 AI | 생성 시점·provider·source version·저장/재생성·재시도·짧은 원문 기준 | 상태/원문 fallback은 MVP; 추천 구현 불필요 |
+| 기술 집계 | 활동 이벤트·멱등 키·투표 득표율/갱신 방식 | +1/+0·한 표·한 현재 관계 보장 |
+
+### 11.2 후순위 운영 질문
+
+반려 후 재신청·인증 보완 메일 수신 주소/회신 연결·전화번호 별도 인증·증빙 보관 구조·신고 심사/경고 임계치/제재·알림 수신자 세부·draft 발행 모델 등은 후순위다. 이를 이유로 MVP 상태·지역 저장/권한·참여·개인 활동을 누락하지 않는다.
+
+### 11.3 협업전략 적용
+
+FE/BE 같은 Part끼리 Method+Path, Request 필수/선택, Response 타입/nullable, 정상/오류·HTTP 상태, 회원/게스트 전달 방식, 권한, mock과 실 API 차이를 합의해 작업 카드에 기록한다. mock 확인은 연동 완료가 아니다.
+
+- A는 계정·프로필·지역·이웃/기관 인증·공통 권한. B는 공통 Post·사진·탐색·지도·요약. C는 참여·공유 범위. D는 북마크·개인 기록·활동·기관 채택.
+- 공통 상세는 B 소유이며 C의 참여와 D의 북마크/채택 응답을 같은 postId로 조립한다. A가 인증/권한 기반을 제공하고 각 쓰기 소유 Part가 재검증한다.
+- 투표 원본/작성 제약은 B, 선택/집계 C, 개인 조회 D. 기관 상태 A, 기관 안건/채택 D.
+- 활동 +1 생성은 각 행동 소유 Part, 조회/집계 D. 동일 원본과 이벤트 계약을 공유한다.
+- API 변경은 명세·협업 문서에 변경 전/후·영향 Part·적용 순서·commit·상대 확인/연동 결과를 기록한다. 실제 담당자 공지는 사람이 수행하며 문서 갱신만으로 자동 통보된 것으로 표시하지 않는다.
+- 검증된 Part 변경을 develop을 통해 전달한다. 일반 기능 PR/Issue 필수 절차를 별도 추가하지 않고 제공 협업전략을 따른다. 실제 폴더·test/build 명령은 저장소에서 확인 후 기록한다.
+
+## 12. MVP 인수 검증
+
+구현이 제공되지 않았으므로 아래는 실행 결과가 아닌 **구현 후 검증 목록**이다. 인증 접수 계정·이웃 완료 계정·유효/만료 기관 계정·다른 담당 지역 계정을 준비한다.
+
+| 여정 | 인수 기준 | 기능 ID |
+| --- | --- | --- |
+| 가입·로그인 | 코드 5분/60초/30분5회/코드5회, 재발급 이전 코드 무효, 발송 실패/불일치/만료 성공 금지, 필수 동의/비밀번호/닉네임 검증, 로그인 원인 비구분 | F-KZRSXU, F-TSOXGG |
+| 복귀 | 가입·프로필·지역까지 returnTo 보존, 원 상세/없으면 메인, 자동 저장/표 제출/게스트 의견 이관 없음 | F-TSOXGG, S-NYUECP |
+| 프로필·지역 | 본인만 변경, 최신 작성자 표시, 임시 탐색으로 기본 지역 변경 없음, 기관/이웃 속성으로 참여 권한 생성 없음 | F-RBVFZX, F-QQKYLC |
+| 이웃 인증 | 증빙 제출·접수 재조회 유지, 접수만으로 참여 불가, 완료 지역에만 동일 쓰기 권한, 네 번째 완료 지역 거부 | F-ATWJDJ |
+| 게시 원본 | 세 유형 게시→해당 상세, 목록·메인·마이·지도 같은 원본/집계, 필수 활동 4항목·투표 2~10옵션 경계 | F-FTLHCX, S-TBFIHO |
+| 사진 | JPG/PNG·10장·전체10MB 경계, 선택 취소/왕복/실패 입력 유지, 수정 최종 사진 한도, 사진 없음 이미지 영역 없음 | F-GSMCLD |
+| 수정·삭제 | 본인/지역/상태 검증, 투표 허용4항목만 수정, 종료 후 수정/삭제 거부, 삭제 상세/공유 차단·북마크 해제 | F-FTLHCX, F-FYQJPT |
+| 메인·지도 | 빈 상태 CTA 유지, 지도 활동 후보 제외·최고반응/동률최신·첫사진, 빈 동 유지, 반응 변경 후 대표 갱신, GPS 불필요 | F-UPRLMN, F-QIGKAK |
+| 요약 | 공개 안건만 3문장 한 문단·원문/출처 연결, 생성중/실패/짧은 원문 상태·원문 fallback, 공유 대상 한정 | F-WSCKDN |
+| 게스트 | 특정 공유 상세/공개집계/댓글·답글 가능, 메인/목록/지도/개인기록 불가, 다른 postId 토큰 접근·평가/표/반응/북마크 거부 | F-OWFYWE, S-NYUECP |
+| 댓글 | 동일 금칙어 포함 검사, 빈 내용 거부·통과 즉시 게시, 답글의 답글도 동일 원부모/대상명, 부모 좋아요/최신 정렬·답글like 합산 없음 | F-EDNVWZ, S-YYDGUS, S-OXTKEP |
+| 반응·평가 | 세 반응 동시 선택/개별취소, 평가 상호배타 전환/취소, 재시도 중복 관계/집계/+1 없음 | F-GOMLGG, F-CDIBRF |
+| 투표 | 선택만 저장 없음, 변경 확인 취소 기존표 유지/확인 한표 교체, 종료 경합 서버 우선, 본인 선택 실제값·타인 선택 비공개 | S-CMGJIG |
+| 북마크 | 미인증 지역 회원 저장 가능, 상세 단일버튼·성공 팝업/현재상세 유지, 게스트 복귀 뒤 재클릭, 목록 유형/주제/삭제 제거 | F-FYQJPT |
+| 개인 기록 | 참여 postId 한카드·현재 모든 표시·다른 행동 있으면 유지, 북마크만/타인행동 제외, 삭제 투표 기록 유지·콘텐츠 미노출 | F-NZTUYE, F-QPGNCF |
+| 활동 횟수 | 등록/작성+1, 취소/직접전환/표변경+0, 재등록+1, 현재관계수/카드수와 별개, 알림 없이 조회 | F-WYMXXP |
+| 기관 인증 | PDF/JPG/PNG·개수제한없음·개별10MB/전체50MB, 파일첨부≠최종제출≠완료, 담당지역/유효기간 기반 배지/역할·만료 접근 제거 | F-OPNIXL, S-JRMYIV, F-MUBDJD |
+| 기관 채택 | 전체 안건·주민 의견 내용 열람, 담당지역 공개안건만 채택, 기관별 독립/현재관계만표시/취소이력 내부보존/담당자정보 비공개 | F-CNNPYL, F-TUGMEP |
+| 범위 독립 | 추천·관심·알림/예약·신고·계정복구·운영심사 없이 모든 MVP 여정 저장/조회 가능 | v10.1 A~AA |
+
+## 13. 구현 순서·Endpoint 정합성
+
+1. **공통 계약/A 기반**: 실제 ID·세션·Region·응답/오류 → 가입/로그인/프로필 → 이웃/기관 신청 상태·지역과 시연 완료 권한.
+2. **B 읽기/쓰기**: 공통 Post/사진/활동/투표 원본 → 목록/상세/메인/지도 → 세 유형 게시/수정/삭제.
+3. **C 참여·공유**: 공유 상세 검증 → 댓글/답글/정렬 → 반응/평가 → 한 표 제출/확인 변경/종료.
+4. **D 개인·기관**: 북마크·개인 목록·누적 활동 → 기관 전체 안건/담당 지역 채택/취소. 활동 이벤트 계약은 각 쓰기 구현 전에 합의한다.
+5. **B 요약·전체 연동**: 공개 원문/출처/생성상태/fallback → 권한/동시성·삭제/복귀 경합 인수 검증. 요약은 추천/관심 정보 없이 독립 완료한다.
+
+순서는 의존성 기준이며 단일 Part 전체 일괄 구현 요청이 아니다. 각 기능 ID에 세부 작업·허용 범위·API·검증을 연결해 순차 구현하고 선행 검증된 공통 변경을 develop에서 받는다.
+
+아래는 3절과 같은 39개 Method+Path 계약안이다. 비-MVP 경로를 섞지 않는다.
+
+```text
+GET    /health
+POST   /auth/email-verifications
+POST   /auth/email-verifications/confirm
+POST   /auth/sign-up
+POST   /auth/login
+GET    /users/me
+PATCH  /users/me
+GET    /regions
+GET    /users/me/neighbor-verifications
+POST   /users/me/neighbor-verifications
+GET    /institution-verifications
+POST   /institution-verifications
+GET    /home
+GET    /map/dongs
+GET    /posts
+POST   /posts
+GET    /posts/{postId}
+PATCH  /posts/{postId}
+DELETE /posts/{postId}
+GET    /posts/{postId}/summary
+GET    /posts/{postId}/share-link
+GET    /posts/{postId}/comments
+POST   /posts/{postId}/comments
+POST   /comments/{commentId}/replies
+PUT    /posts/{postId}/reactions/{reactionType}
+DELETE /posts/{postId}/reactions/{reactionType}
+PUT    /comments/{commentId}/evaluation
+DELETE /comments/{commentId}/evaluation
+PUT    /posts/{postId}/vote
+PUT    /posts/{postId}/bookmark
+DELETE /posts/{postId}/bookmark
+GET    /officer/agendas
+POST   /posts/{postId}/adoptions
+DELETE /posts/{postId}/adoptions/{adoptionId}
+GET    /users/me/posts
+GET    /users/me/participations
+GET    /users/me/votes
+GET    /users/me/bookmarks
+GET    /users/me/activity
+```
+
+제품 범위·정책은 최신 정본으로 정렬했으며, 기술 초안의 경로/필드/Enum은 FE/BE 합의·실제 구현 대조 전 확정 완료로 표시하지 않는다.

@@ -1,0 +1,198 @@
+.stage {
+  display: grid;
+  min-height: 100dvh;
+  place-items: center;
+  padding: 24px;
+  background:
+    radial-gradient(circle at top, rgb(230 244 241 / 72%), transparent 44%),
+    #e9eef1;
+}
+
+.phone {
+  position: relative;
+  /* 396 × 852 app canvas + 12px bezel and 2px border on every side. */
+  width: min(424px, calc(100vw - 24px));
+  aspect-ratio: 424 / 880;
+  overflow: hidden;
+  border: 2px solid #27333c;
+  border-radius: 42px;
+  background: #182127;
+  padding: 12px;
+  box-shadow: 0 24px 60px rgb(15 23 41 / 24%), 0 8px 20px rgb(15 23 41 / 16%);
+  transform: scale(0.8);
+  transform-origin: top left;
+}
+
+.scaleBox {
+  width: 339.2px;
+  height: 704px;
+}
+
+.screen {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  border-radius: 30px;
+  background: #f8fafc;
+  overflow: hidden;
+}
+
+.statusBar {
+  display: flex;
+  height: 44px;
+  flex: 0 0 44px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px 0 22px;
+  color: #111827;
+  background: #fff;
+}
+
+.time {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.04em;
+}
+
+.statusIndicators {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.signal {
+  display: flex;
+  height: 13px;
+  align-items: end;
+  gap: 1.5px;
+}
+
+.signal i {
+  display: block;
+  width: 3px;
+  border-radius: 1px;
+  background: currentColor;
+}
+
+.signal i:nth-child(1) { height: 4px; }
+.signal i:nth-child(2) { height: 7px; }
+.signal i:nth-child(3) { height: 10px; }
+.signal i:nth-child(4) { height: 13px; }
+
+.wifi {
+  width: 18px;
+  height: 14px;
+}
+
+.battery {
+  position: relative;
+  display: block;
+  width: 24px;
+  height: 12px;
+  border: 1.8px solid currentColor;
+  border-radius: 3px;
+}
+
+.battery::after {
+  position: absolute;
+  top: 3px;
+  right: -3.5px;
+  width: 2px;
+  height: 4px;
+  border-radius: 0 1px 1px 0;
+  background: currentColor;
+  content: "";
+}
+
+.battery i {
+  position: absolute;
+  inset: 2px;
+  display: block;
+  border-radius: 1px;
+  background: currentColor;
+}
+
+.appCanvas {
+  /* Host wrappers have auto height; measure the canvas itself, not a parent wrapper. */
+  --app-viewport-height: 100cqh;
+  container-type: size;
+  min-height: 0;
+  flex: 1;
+  overflow: hidden;
+}
+
+/* Existing demo screens own their Header, BottomNavigation and inner scroll area. */
+.appCanvas :global(.h-dvh) {
+  height: var(--app-viewport-height);
+}
+
+.appCanvas :global(.min-h-dvh) {
+  min-height: var(--app-viewport-height);
+}
+
+.camera {
+  position: absolute;
+  z-index: 1;
+  top: 5px;
+  left: 50%;
+  display: grid;
+  width: 82px;
+  height: 18px;
+  place-items: center;
+  transform: translateX(-50%);
+  border-radius: 999px;
+  background: #080d10;
+}
+
+.camera span {
+  width: 6px;
+  height: 6px;
+  border: 1px solid #27333c;
+  border-radius: 999px;
+  background: #101d2a;
+}
+
+.homeIndicator {
+  position: absolute;
+  z-index: 1;
+  bottom: 5px;
+  left: 50%;
+  width: 112px;
+  height: 4px;
+  transform: translateX(-50%);
+  border-radius: 999px;
+  background: #d5dde3;
+}
+
+@media (max-width: 480px) {
+  .stage {
+    display: block;
+    padding: 0;
+    background: #f8fafc;
+  }
+
+  .phone {
+    width: 100%;
+    min-height: 100dvh;
+    border: 0;
+    border-radius: 0;
+    padding: 0;
+    box-shadow: none;
+    transform: none;
+  }
+
+  .scaleBox {
+    width: 100%;
+    height: 100dvh;
+  }
+
+  .screen {
+    border-radius: 0;
+  }
+
+  .camera,
+  .homeIndicator,
+  .statusBar {
+    display: none;
+  }
+}
