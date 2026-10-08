@@ -63,6 +63,7 @@ class ServerRuntimePermissionsIntegrationTests {
         var ids=fixture.queryForList("select id from discushion.users where privy_user_id=?",Long.class,"did:privy:"+marker);
         for(long id:ids) {
             fixture.update("delete from discushion.post_photos where file_id in(select id from discushion.media_files where owner_user_id=?)",id);
+            fixture.update("delete from discushion.bookmarks where post_id in(select id from discushion.posts where author_user_id=?)",id);
             fixture.update("delete from discushion.polls where post_id in(select id from discushion.posts where author_user_id=?)",id);
             fixture.update("delete from discushion.posts where author_user_id=?",id);
             fixture.update("delete from discushion.media_files where owner_user_id=?",id);
@@ -97,6 +98,7 @@ class ServerRuntimePermissionsIntegrationTests {
     @Test void all27TablesHaveExactlyThePhaseOnePrivilegesAndNoSequenceOrGrantOptions() {
         Map<String,Set<String>> allowed=new HashMap<>();
         for(String table:List.of("regions","institutions","neighbor_verified_regions","institution_credentials")) allowed.put(table,Set.of("SELECT"));
+        allowed.put("institution_agenda_adoptions",Set.of("SELECT"));
         for(String table:List.of("users","profiles","user_agreements","media_files")) allowed.put(table,Set.of("SELECT","INSERT","UPDATE"));
         for(String table:List.of("posts","polls")) allowed.put(table,Set.of("SELECT","UPDATE"));
         allowed.put("poll_options",Set.of("SELECT"));
@@ -106,6 +108,7 @@ class ServerRuntimePermissionsIntegrationTests {
         allowed.put("post_reactions",Set.of("SELECT","INSERT","DELETE"));
         allowed.put("comments",Set.of("SELECT","INSERT"));
         allowed.put("comment_evaluations",Set.of("SELECT","INSERT","UPDATE","DELETE"));
+        allowed.put("bookmarks",Set.of("SELECT","INSERT","DELETE"));
         var tables=jdbc.queryForList("select tablename from pg_tables where schemaname='discushion' order by tablename",String.class);
         assertThat(tables).hasSize(27);
         for(String table:tables) for(String operation:List.of("SELECT","INSERT","UPDATE","DELETE","TRUNCATE","REFERENCES","TRIGGER")) {
@@ -211,7 +214,12 @@ class ServerRuntimePermissionsIntegrationTests {
         }
     }
     @Test void serverPoliciesAreExplicitPerOperationAndNeverPublicOrAll() {
-        assertThat(jdbc.queryForObject("select count(*) from pg_policies where schemaname='discushion' and policyname like 'server_%'",Integer.class)).isEqualTo(40);
+        assertThat(jdbc.queryForObject("select count(*) from pg_policies where schemaname='discushion' and policyname like 'server_%'",Integer.class)).isEqualTo(44);
+        assertThat(jdbc.queryForObject("""
+            select exists(select 1 from pg_policies where schemaname='discushion'
+              and tablename='institution_agenda_adoptions' and policyname='server_select'
+              and roles=array['discushion_server']::name[] and cmd='SELECT' and qual='true')
+            """,Boolean.class)).isTrue();
         assertThat(jdbc.queryForObject("""
             select bool_and(roles=array['discushion_server']::name[] and cmd<>'ALL' and permissive='PERMISSIVE'
               and (qual is not distinct from case when cmd<>'INSERT' then 'true' end)

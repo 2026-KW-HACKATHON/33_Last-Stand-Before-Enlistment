@@ -972,6 +972,8 @@ DELETE /api/v1/posts/{postId}/bookmark
 
 로그인 회원, 지역 이웃 인증 불필요, 공개 게시물만. 200 `{ "data": { "postId": 101, "isBookmarked": true } }`, 해제 false. desired state 재시도 멱등 **[설계 제안]**.
 
+BE1 #26 구현 제안은 같은 PUT을 반복해도 북마크 관계 1개와 최초 `bookmarkedAt`을 유지하고, 이미 해제된 관계의 DELETE도 200 `isBookmarked:false`로 응답하는 것이다. 목록은 `GET /api/v1/users/me/bookmarks?type=&topic=&cursor=&size=`로 본인의 현재 북마크 중 공개 게시물만 반환한다. type은 `LOCAL_AGENDA`·`LOCAL_ACTIVITY`·`VOTE`, topic은 저장된 주제 Enum을 사용한다. 기본 size 20, 최대 100이며 최근 저장시각 내림차순·postId 내림차순으로 커서 페이지를 제공한다. 항목은 postId·type·regionId·title·topic·createdAt·bookmarkedAt을 포함해 기존 상세로 이동할 수 있게 한다. 커서는 type/topic 필터에 결합한다. 삭제 게시물은 목록에서 제외한다. **FE wire 확인 전 구현 제안이며 최종 FE/BE 계약 승인을 뜻하지 않는다.**
+
 상세 버튼 하나에서 회원 저장 성공 시 `저장되었습니다` 팝업, 현재 상세 유지. 게스트는 저장 API/성공 팝업 없이 로그인 안내·returnTo 보존. 가입/로그인 뒤 복귀만 하며 재클릭 전 자동 저장 금지. 목록 카드에 등록/해제 버튼 추가 없음.
 
 실제 등록 +1, 해제 +0, 해제 후 재등록 +1. 북마크만 한 글은 참여 게시물 목록에서 제외. 게시물 삭제 시 관계 자동 해제·북마크 목록 제거, 삭제에 따른 해제도 +0.
@@ -980,19 +982,32 @@ DELETE /api/v1/posts/{postId}/bookmark
 
 ### 7.1 담당자 안건 목록
 
-`GET /officer/agendas?regionId=15&scope=ALL&cursor=...&size=...`, 현재 유효 기관 인증 완료 사용자, 200 목록. 전체 공개 LOCAL_AGENDA만, 반응 합계 내림차순. regionId는 조회 편의 필터이며 담당 지역 밖도 안건·공개 댓글/답글 내용을 열람할 수 있다. 반응 동률의 보조 정렬은 최신/ID 등 기술 계약으로 합의하며 제품이 확정한 값으로 단정하지 않는다.
+`GET /api/v1/officer/agendas?regionId=15&scope=ALL&cursor=...&size=...`, 현재 유효 기관 인증 완료 사용자, 200 목록. `scope`는 생략 시 `ALL`; `ALL`은 전체 공개 LOCAL_AGENDA, `ADOPTED`는 현재 인증된 본인 기관이 현재 채택한 안건이다. 기관 식별은 유효 credential의 `institution_id`로 하며 기관명 문자열을 비교하지 않는다. `regionId`는 선택 조회 필터이며 담당 지역 밖 열람도 허용한다. 채택 권한은 별도로 담당 지역을 검사한다.
 
-item은 공통 PostCard의 제목·지역·반응 수·commentCount·게시시각에 `myInstitutionAdoption`을 추가한다 **[설계 제안]**:
+반응 합계 내림차순, 동률은 게시시각 내림차순·postId 내림차순. 기본 `size=20`, 최대100, 커서는 기관·scope·regionId 필터에 바인딩된 keyset(`reactionCount`, `createdAt`, `postId`)이며 응답 meta는 `nextCursor`와 `hasNext`를 제공한다. 반응 변경에 따라 다음 페이지의 위치가 바뀔 수 있으므로 정렬 변경/새로고침은 처음부터 조회한다. 목록에는 제목·유형·주제·지역·게시시각·반응 유형별 수/합계·댓글/답글 합계와 현재 본인 기관 채택 정보를 제공한다. 댓글/답글 본문은 기존 게시물 상세와 댓글 조회 API에서 열람한다.
+
+각 item은 제목·지역·유형·주제·반응 수·`commentCount`·게시시각에 `myInstitutionAdoption`과 `capabilities`를 제공한다:
 
 ```json
 {
-  "postId": 101,
-  "myInstitutionAdoption": { "id": 70, "adoptedAt": "2026-10-06T14:00:00+09:00" },
-  "capabilities": { "canAdopt": false, "canCancelAdoption": true }
+  "data": [{
+    "postId": 101,
+    "type": "LOCAL_AGENDA",
+    "regionId": 15,
+    "regionName": "노원구",
+    "title": "교차로 안전 개선",
+    "topic": "SAFETY",
+    "reactionCounts": { "empathy": 3, "needed": 2, "curious": 1, "total": 6 },
+    "commentCount": 12,
+    "createdAt": "2026-10-06T14:00:00+09:00",
+    "myInstitutionAdoption": { "id": 70, "adoptedAt": "2026-10-06T15:00:00+09:00" },
+    "capabilities": { "canAdopt": false, "canCancelAdoption": true }
+  }],
+  "meta": { "nextCursor": "...", "hasNext": true }
 }
 ```
 
-scope=ADOPTED는 현재 인증된 **본인 기관**의 유효 채택만 제공한다. 동일 기관 내 개별 채택 담당자의 userId와 기관 관계를 혼동하지 않는다. 식별 기관 모델은 **[설계 제안/합의 필요]**, 기관명 문자열만으로 같다고 추정하지 않는다. 취소된 관계는 현재 목록에서 제외한다. 목록의 의견 숫자만 보이고 상세 댓글 내용이 누락되는 방식은 인수하지 않는다.
+`myInstitutionAdoption`은 현재 관계가 없으면 `null`. `capabilities`는 조회 편의 표시이며 채택/취소 API는 저장 시점에 자격·담당 지역·게시물 상태를 다시 검사한다. 취소된 관계는 현재 목록에서 제외한다. 목록에 댓글 본문을 복제하지 않고, 기존 게시물 상세와 댓글 조회 API로 전체 공개 댓글·답글을 확인할 수 있어야 한다.
 
 ### 7.2 채택·취소
 
