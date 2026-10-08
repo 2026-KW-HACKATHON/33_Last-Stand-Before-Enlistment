@@ -99,6 +99,8 @@ class ServerRuntimePermissionsIntegrationTests {
         for(String table:List.of("regions","institutions","neighbor_verified_regions","institution_credentials")) allowed.put(table,Set.of("SELECT"));
         for(String table:List.of("users","profiles","user_agreements","media_files")) allowed.put(table,Set.of("SELECT","INSERT","UPDATE"));
         for(String table:List.of("posts","polls")) allowed.put(table,Set.of("SELECT","UPDATE"));
+        allowed.put("poll_options",Set.of("SELECT"));
+        allowed.put("vote_selections",Set.of("SELECT","INSERT","UPDATE"));
         allowed.put("profile_attributes",Set.of("SELECT","INSERT","DELETE"));
         allowed.put("post_photos",Set.of("SELECT","INSERT","UPDATE","DELETE"));
         allowed.put("post_reactions",Set.of("SELECT","INSERT","DELETE"));
@@ -209,7 +211,7 @@ class ServerRuntimePermissionsIntegrationTests {
         }
     }
     @Test void serverPoliciesAreExplicitPerOperationAndNeverPublicOrAll() {
-        assertThat(jdbc.queryForObject("select count(*) from pg_policies where schemaname='discushion' and policyname like 'server_%'",Integer.class)).isEqualTo(36);
+        assertThat(jdbc.queryForObject("select count(*) from pg_policies where schemaname='discushion' and policyname like 'server_%'",Integer.class)).isEqualTo(40);
         assertThat(jdbc.queryForObject("""
             select bool_and(roles=array['discushion_server']::name[] and cmd<>'ALL' and permissive='PERMISSIVE'
               and (qual is not distinct from case when cmd<>'INSERT' then 'true' end)
