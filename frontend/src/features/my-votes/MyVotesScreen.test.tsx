@@ -15,7 +15,9 @@ async function render(filter: VoteFilter = "ALL", scenario: MyVotesScenario = "n
 test("three status filters and actual choice/final result, not submission controls", async () => {
   const html = await render();
   assert.equal((html.match(/aria-pressed=/g) ?? []).length, 3);
-  for (const text of ["참여한 투표", "진행 중", "종료", "내 선택: 토요일 오전", "최다: 평일 저녁", "최종 결과:", "접근 불가 안내"]) assert.ok(html.includes(text));
+  for (const text of ["참여한 투표", "진행 중", "종료", "토요일 오전", "평일 저녁", "최종 결과:", "접근 불가 안내"]) assert.ok(html.includes(text));
+  assert.match(html, /bg-\[#CDE9E2\][^>]*>내 선택<\/span>토요일 오전/);
+  assert.match(html, /bg-\[#CDE9E2\][^>]*>최다<\/span>평일 저녁/);
   assert.ok(!html.includes("투표 제출")); assert.ok(!html.includes("선택 변경"));
 });
 test("status conditions do not mix open and ended content", async () => {

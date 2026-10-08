@@ -43,7 +43,10 @@ export function MyVotesScreen({ store, subjectKey, onBack, renderDetail }: { sto
       {state.phase === "ready" && (!items.length ? <Notice>해당 조건의 참여한 투표가 없습니다.</Notice> : items.map(row => <section key={row.postId} className="flex flex-col gap-section" aria-label="개인 투표 기록">
         {row.availability === "available" ? <>
           <PostCard post={row.post} onOpen={id => open(id, true)}/>
-          <Notice>{voteSummary(row.snapshot, row.post.vote.status === "ENDED")}</Notice>
+          <Notice><div className="flex flex-wrap gap-x-2 gap-y-1">{voteSummary(row.snapshot, row.post.vote.status === "ENDED").split(" | ").map((part, index) => {
+            const label = /^(내 선택|최다): /.exec(part);
+            return <span key={index} className="min-w-0">{label ? <><span className="mr-1 inline-flex items-center rounded-chip bg-[#CDE9E2] px-1 py-[1px] align-middle text-[11px] leading-none">{label[1]}</span>{part.slice(label[0].length)}</> : part}</span>;
+          })}</div></Notice>
           <Notice>{row.post.vote.status === "OPEN" ? "진행 중" : "종료"} · {row.timingLabel}{row.reminderLabel ? ` · ${row.reminderLabel}` : ""}{row.snapshot ? ` · ${row.snapshot.options.reduce((n, option) => n + option.count, 0)}명 참여` : ""}</Notice>
         </> : <><Notice tone="warning">접근할 수 없는 투표 · 개인 참여 기록 유지<p>참여 시각: {row.participatedAt}</p></Notice><Button variant="secondary" onClick={() => open(row.postId, false)}>접근 불가 안내</Button></>}
       </section>))}
