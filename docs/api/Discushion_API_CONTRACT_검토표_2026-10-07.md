@@ -1082,3 +1082,7 @@ EvaluationService.list는 기존 댓글 GET의 부모/replies에 있는 본인 �
 신규 권한 Migration의 로컬 적용/재실행,15테이블·36정책 및 전체 Schema SQL128개/API 역할 이름 모의 격리9개 통과. 원격 감사3개는 기존6개 이력/180컬럼·55FK·27RLS/12테이블·27정책 및 TLS verify-full·공개 역할 차단을 SELECT-only로 확인했다. 로컬은9개 Migration이며 원격6개와의 차이는 승인 전 공유 DB rollout 대기다. 기대값을 완화하거나 실제 원격 DB를 변경하지 않았다. 운영 JAR 평가 test fixture0·diff 공백 오류0, 최신 origin/back/develop과 기준 동일을 확인했다. 로컬 임시 서버 역할은 NOLOGIN/password null로 복구하고 이번 PostgreSQL을 종료했다.
 
 변경은 Feature 작업 트리에 보존한다. 이번 #24 commit/push/PR·병합은 아직 수행하지 않았다. 실제 BE2 source/공통 참여 기록·권한 rollout·FE/Privy·#5 활동은 후속으로 유지하며 #24 전체 완료로 표시하지 않는다. 이후 요청 시 API/권한 Migration 영향에 대한 최신 BE2 승인·필수 CI·최신 base·충돌/미해결 리뷰 없음 조건으로 PR 통합을 진행한다.
+
+## #20 요약 계약 확정 (2026-10-08)
+
+사용자가 최초 요청 생성·원문 revision별 DB 재사용·수정 후 새 revision 생성·실패 자동 재시도 없음·정보 부족 SOURCE_TOO_SHORT를 채택했다. API 정본 §5.6을 따른다. 네트워크 밖의 transaction에서 원문/권한 재검사, PENDING/revision/requested_at 저장 조건으로 중복/늦은 결과를 차단한다. ai_agenda_summaries 서버 S/I/U와 RLS만 새 Migration으로 준비하며 DELETE·공개 역할 권한은 추가하지 않는다. 공식 모델/REST/구조화 출력 문서는 https://ai.google.dev/gemini-api/docs/models/gemini-3.5-flash-lite 와 https://ai.google.dev/api/generate-content 를 확인했다. 실제 키/provider 및 공유 원본 adapter·FE 연동은 별도 확인한다.

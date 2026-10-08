@@ -257,3 +257,11 @@ Storage object0개·초기 최종 DELETED 검증 이력2행·시연 회원1명·
 최신 `origin/back/develop 26cb5e8`을 Feature에 반영한 `1d6e6fa`에서 Java17 전체 `test build --rerun-tasks --max-workers=2 --offline`을 실행했다. 22:31 KST 종료, 소요8분19초, **328개 통과·실패0·오류0·skip0·build 성공**이다. 실제 Supabase SELECT-only 감사3개와 직접/서버 중계 Storage 시험4개를 모두 실행했다. 격리 PostgreSQL에는 최신 북마크/기관 조회 권한 Migration2개를 추가 적용했고 제약133개·공개 역할 차단9개를 확인했다. 공유 DB의 추가 기능 권한은 이 검증으로 적용하지 않았다.
 
 종료 후 로컬 시험 회원/사진0개·임시 서버 역할 NOLOGIN/password null·운영 JAR의 테스트 클래스/fixture0개를 확인하고 시험 DB를 정상 종료했다. 기존6파일만 PR에 포함하고 frontend·제품 코드·적용된 Migration 파일은 변경하지 않는다. 실제 프로젝트 FE 및 게시물 사진 연결이 남아 있으므로 PR은 #13/#30을 참조하며 이슈를 자동 종료하지 않는다. 병합 후에도 Render 자동 배포는 꺼져 있고 현재 Live `4fffb1e`와 개발 브랜치 최신 코드를 구분한다.
+
+### #20 원문 버전별 AI 요약 구현·검증 (2026-10-08)
+
+back/feature/20-summary, 기준 a9ad5c9. 사용자 채택 최초 요청 생성·원문 revision별 DB 저장/재사용·수정 후 새 버전 생성·실패 자동 재시도 없음·정보 부족 SOURCE_TOO_SHORT를 구현했다. 회원 또는 검증된 공유 범위·공개 LOCAL_AGENDA를 생성 전/저장·응답 전에 재검사하며 DB 잠금을 외부 호출 중 유지하지 않는다. PENDING/요청시각/revision 조건으로 중복/늦은 결과를 차단하고 expired PENDING은 FAILED로 처리한다. 키 미설정/비활성은 영구 캐시 실패를 남기지 않는 원문 fallback이다. 서버 S/I/U·RLS Migration만 새로 추가했으며 공유 DB에는 미적용이다.
+
+23:50 KST Java17 전체 test build --rerun-tasks --max-workers=2 --offline,345개 통과/실패0/오류0/skip0·build 성공(7분33초). 실제 Supabase SELECT-only 감사3개·Storage4개·Gemini2개를 포함했다. 격리된 Migration/Schema 제약133개·공개 역할 차단9개 및 AI 서버 S/I/U·DELETE 차단도 통과했다. 테스트 준비 순서를 명시한 후 AI DB/Controller9개와 실제 Gemini2개를 재실행해11개 통과·build 성공(1분21초)을 확인했다. 정상 합성 출력은 원문의 보행 공간 부족·표지 개선 의견·기관 전달 제안만 3문장 한 문단으로 담았고 정보 부족 원문은 SOURCE_TOO_SHORT다. 새 key는 ignored .env에서만 읽었으며 테스트 출력/문서/Git에 포함하지 않았다.
+
+실제 원본 PostContextReader는 작업 도중 병합된 back/develop d1f8bcf의 #14 PostJdbcRepository에서 준비됐다. commit/PR 전 최신 base와 새 권한/테스트를 반영하고 운영 SharedPostAccess에 연결해 서명 게스트 경로를 검증한다. 다양한 실제 원문 품질/쿼터·배포 환경 key/활성화·FE PENDING 표시/HTTP adapter는 #20/#30/#31에서 확인한다. front/develop ad0700c는 읽기 전용으로 확인했고 변경하지 않았다. 아직 commit/push/PR/배포/병합하지 않았다.

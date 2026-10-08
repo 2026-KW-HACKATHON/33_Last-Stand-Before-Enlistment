@@ -26,6 +26,7 @@ create role service_role nologin bypassrls;
 \ir ../migrations/20261008100000_allow_vote_selection_writes.sql
 \ir ../migrations/20261008104330_bookmarks_server_runtime_permissions.sql
 \ir ../migrations/20261008113000_allow_officer_agenda_reads.sql
+\ir ../migrations/20261008135612_allow_summary_storage.sql
 do $checks$
 declare r text;
 begin
@@ -112,5 +113,14 @@ begin
     raise exception 'Missing institution_agenda_adoptions server SELECT policy';
   end if;
 end $server_checks$;
+do $summary_privileges$
+begin
+  if not has_table_privilege('discushion_server','discushion.ai_agenda_summaries','SELECT')
+    or not has_table_privilege('discushion_server','discushion.ai_agenda_summaries','INSERT')
+    or not has_table_privilege('discushion_server','discushion.ai_agenda_summaries','UPDATE')
+    or has_table_privilege('discushion_server','discushion.ai_agenda_summaries','DELETE,TRUNCATE,REFERENCES,TRIGGER') then
+    raise exception 'Unexpected AI summary runtime privileges';
+  end if;
+end $summary_privileges$;
 select 'PASS: 3 API role names x schema/table/sequence denial = 9 checks' as result;
 rollback;
