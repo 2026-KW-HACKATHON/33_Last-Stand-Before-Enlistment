@@ -3,6 +3,8 @@ export type CommentDisplay = {
   id: string;
   postId: string;
   content: string;
+  likeCount?: number;
+  dislikeCount?: number;
   authorName: string;
   createdAtLabel: string;
   /** FE-only ordering value; the API adapter maps an agreed timestamp later. */
@@ -23,6 +25,7 @@ export type CommentCreateInput = {
 export type CommentReplyInput = CommentCreateInput & {
   parentCommentId: string;
   targetAuthorName: string;
+  replyToCommentId?: string;
 };
 
 export type CommentPermission = {

@@ -101,11 +101,11 @@ export function PostDetailStateView({ state, slots, bookmark, onReport }: {
 }
 
 /** Page owner shell. It consumes #40's navigation callback without redefining origin/snapshots. */
-export function PostDetailScreen({ state, slots, bookmark, onReport }: {
-  state: PostDetailState; slots?: PostDetailSlots; bookmark?: BookmarkBinding; onReport?: (postId: string) => void;
+export function PostDetailScreen({ state, slots, bookmark, onReport, onBack }: {
+  state: PostDetailState; slots?: PostDetailSlots; bookmark?: BookmarkBinding; onReport?: (postId: string) => void; onBack?: () => void;
 }) {
   const navigation = useNavigation();
-  return <MobileLayout header={<Header title="게시물 상세" onBack={() => navigation.back()} />}>
+  return <MobileLayout header={<Header title="게시물 상세" onBack={onBack ?? (() => navigation.back())} />}>
     <PostDetailStateView state={state} slots={slots} bookmark={bookmark} onReport={onReport} />
   </MobileLayout>;
 }

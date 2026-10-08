@@ -4,7 +4,7 @@ export type TypeFilter = "ALL" | PostType;
 export const participationLabels = { EMPATHY: "공감해요", NECESSARY: "필요해요", CURIOUS: "궁금해요", COMMENT: "댓글 작성", EVALUATION: "댓글 좋아요·싫어요", VOTE: "투표 참여" } as const;
 export type Participation = keyof typeof participationLabels;
 /** FE display relation, not a server DTO. Adapter must supply current, subject-scoped relations. */
-export type PersonalRecord = { post: PostDisplayModel; visible: boolean; participation: readonly { relationId: string; subjectKey: string; action: Participation; active: boolean }[]; voteSummary?: string };
+export type PersonalRecord = { post: PostDisplayModel; visible: boolean; ownedBySubjectKey?: string; participation: readonly { relationId: string; subjectKey: string; action: Participation; active: boolean }[]; voteSummary?: string };
 export type PersonalItem = { post: PostDisplayModel; actions: readonly Participation[]; voteSummary?: string };
 export interface PersonalListsService { readonly source: "mock" | "api"; list(subjectKey: string, signal: AbortSignal): Promise<readonly PersonalRecord[]>; }
 export function selectItems(records: readonly PersonalRecord[], subject: string, kind: ListKind, filter: TypeFilter): PersonalItem[] {
@@ -16,7 +16,7 @@ export function selectItems(records: readonly PersonalRecord[], subject: string,
   const relations = new Map<string, PersonalRecord["participation"][number]>();
   for (const row of group) for (const relation of row.participation) if (relation.subjectKey === subject) relations.set(relation.relationId, relation);
   const actions = [...new Set([...relations.values()].filter(p => p.active).map(p => p.action))];
-  if (kind === "myPosts" ? last.post.author.id !== subject : !actions.length) return [];
+  if (kind === "myPosts" ? (last.ownedBySubjectKey ?? last.post.author.id) !== subject : !actions.length) return [];
   return [{ post: last.post, actions, ...(actions.includes("VOTE") && last.voteSummary ? { voteSummary: last.voteSummary } : {}) }];
  });
 }

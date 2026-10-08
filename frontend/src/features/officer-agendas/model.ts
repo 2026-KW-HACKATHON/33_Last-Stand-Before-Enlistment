@@ -30,7 +30,7 @@ export function canChange(item: OfficerAgenda, authority: OfficerAuthority) {
 export function publicAdoptions(item: OfficerAgenda): readonly AdoptionDisplay[] {
   return item.relations.map(({ institutionName, adoptedAtLabel }) => ({ institutionName, adoptedAtLabel }));
 }
-export function publicPost(item: OfficerAgenda): AgendaPostDisplay { return { ...item.post, adoptions: publicAdoptions(item) }; }
+export function publicPost(item: OfficerAgenda): AgendaPostDisplay { return { ...item.post, adoptions: item.post.adoptions.length ? item.post.adoptions : publicAdoptions(item) }; }
 export type OfficerState = {
   phase: "idle" | "loading" | "ready" | "error" | "unavailable";
   items: readonly OfficerAgenda[]; scope: "all" | "adopted"; regionId: string; scroll: number;

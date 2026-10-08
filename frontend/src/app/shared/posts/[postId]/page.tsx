@@ -1,5 +1,5 @@
-"use client";
-import { use, useMemo } from "react";
-import { SharedPostScreen } from "@/features/share/SharedPostScreen";
-import { createShareMockService } from "@/features/share/mock";
-export default function SharedPostPage({ params }: { params: Promise<{ postId: string }> }) { const { postId } = use(params); const service = useMemo(() => createShareMockService(), []); return <SharedPostScreen postId={postId} shareService={service} />; }
+import { SharedHost } from "@/features/integration/SharedHost";
+export default async function SharedPostPage({ params, searchParams }: { params: Promise<{ postId: string }>; searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+  const { postId } = await params, query = await searchParams;
+  return <SharedHost postId={postId} token={typeof query.token === "string" ? query.token : null} />;
+}

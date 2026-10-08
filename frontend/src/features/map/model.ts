@@ -1,7 +1,7 @@
 import type { PostDisplayModel } from "../post/model";
 
-/** FE display contracts only. Region geometry and provider coordinates remain unagreed. */
-export type MapViewport = { centerRegionId: string; zoom: number };
+/** Registered server IDs; optional geographic center uses [latitude, longitude]. */
+export type MapViewport = { centerRegionId: string; zoom: number; center?: readonly [number, number]; regionIds?: readonly string[] };
 export type MapDong = {
   region: { id: string; name: string };
   representativePost: PostDisplayModel | null;
@@ -15,5 +15,6 @@ export type MapLoadState =
 export type MapSnapshot = { viewport: MapViewport; selectedDongId: string | null };
 
 export function mapSnapshotReference(snapshot: MapSnapshot): string {
-  return `map:${snapshot.viewport.centerRegionId}:${snapshot.viewport.zoom}:${snapshot.selectedDongId ?? "none"}`;
+  const center = snapshot.viewport.center?.map(value => value.toFixed(6)).join(":") ?? "region";
+  return `map:${snapshot.viewport.centerRegionId}:${snapshot.viewport.zoom}:${center}:${snapshot.selectedDongId ?? "none"}`;
 }

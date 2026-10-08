@@ -10,7 +10,7 @@ import { bottomNavigationDestinations, snapshotReference, useNavigation } from "
 import { PostCard } from "../post/PostCard";
 import type { ExploreContext } from "../explore/model";
 import { MockMapRenderer, type MapRenderer } from "./MapRenderer";
-import { mapSnapshotReference, type MapLoadState, type MapViewport } from "./model";
+import { mapSnapshotReference, type MapLoadState, type MapViewport, type MapResult } from "./model";
 import type { MapService } from "./service";
 import { readMapSnapshot, rememberMapSnapshot } from "./snapshot";
 
@@ -26,27 +26,34 @@ type MapScreenProps = {
 export function MapScreen({ context, service, renderer: Renderer = MockMapRenderer, rendererError, onRetry, onOpenPost }: MapScreenProps) {
   const navigation = useNavigation();
   const restored = readMapSnapshot(snapshotReference(navigation.state, { id: "map" }, "map"));
-  const [viewport, setViewport] = useState<MapViewport>(() => restored?.viewport ?? { centerRegionId: context.defaultActivityRegion.id, zoom: 13 });
+  const [viewport, setViewport] = useState<MapViewport>(() => restored?.viewport ?? { centerRegionId: context.defaultActivityRegion.id, zoom: 13, regionIds: [context.defaultActivityRegion.id] });
   const [state, setState] = useState<MapLoadState>(() => service ? { kind: "loading" } : { kind: "error", message: "지도 데이터를 연결할 서비스를 준비 중입니다. 실제 API 연동 전에는 표시할 수 없습니다." });
   const [selectedDongId, setSelectedDongId] = useState<string | null>(() => restored?.selectedDongId ?? null);
   const latestRequest = useRef(0);
+  const controller = useRef<AbortController | null>(null);
+  const [lastData, setLastData] = useState<MapResult | null>(null);
   const request = async (nextViewport = viewport) => {
     if (!service) return;
+    controller.current?.abort(); controller.current = new AbortController();
+    const signal = controller.current.signal;
     const requestId = ++latestRequest.current;
     setState({ kind: "loading" });
     try {
-      const data = await service.getMap(nextViewport);
-      if (requestId !== latestRequest.current) return;
+      const data = await service.getMap(nextViewport, signal);
+      if (requestId !== latestRequest.current || signal.aborted) return;
       setState({ kind: "success", data });
+      setLastData(data);
       setSelectedDongId((current) => data.dongs.some((dong) => dong.region.id === current) ? current : data.dongs[0]?.region.id ?? null);
     } catch {
-      if (requestId !== latestRequest.current) return;
+      if (requestId !== latestRequest.current || signal.aborted) return;
       setState({ kind: "error", message: "지도 데이터를 불러오지 못했습니다. 다시 시도해 주세요." });
     }
   };
   useEffect(() => {
     const timer = window.setTimeout(() => { void request(); }, 0);
-    return () => window.clearTimeout(timer);
+    // This is a numeric request generation, not a DOM ref; invalidate all pending results.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    return () => { window.clearTimeout(timer); latestRequest.current++; controller.current?.abort(); };
     // Service changes are a new data source.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [service]);
@@ -68,6 +75,7 @@ export function MapScreen({ context, service, renderer: Renderer = MockMapRender
     {rendererError && <Notice tone="error" role="alert"><p>{rendererError}</p><Button className="mt-3" onClick={() => void request()}>다시 시도</Button></Notice>}
     {state.kind === "loading" && <div aria-busy="true" className="space-y-3"><div className="h-72 animate-pulse rounded-card bg-disabled" /><div className="h-24 animate-pulse rounded-card bg-disabled" /></div>}
     {state.kind === "error" && <Notice tone="error" role="alert"><p>{state.message}</p><Button className="mt-3" onClick={() => { onRetry?.(); void request(); }}>다시 시도</Button></Notice>}
-    {state.kind === "success" && <><Renderer viewport={viewport} dongs={state.data.dongs} selectedDongId={selectedDongId} onSelectDong={setSelectedDongId} onViewportChange={changeViewport} />{selected && <section aria-live="polite"><h2 className="text-section">{selected.region.name}</h2>{selected.representativePost ? <PostCard className="mt-2" post={selected.representativePost} onOpen={openPost} /> : <Notice className="mt-2">이 동에 등록된 게시물이 없습니다.</Notice>}</section>}</>}
+    {service && <Renderer viewport={viewport} dongs={state.kind === "success" ? state.data.dongs : lastData?.dongs ?? []} selectedDongId={selectedDongId} onSelectDong={setSelectedDongId} onViewportChange={changeViewport} />}
+    {state.kind === "success" && <>{selected && <section aria-live="polite"><h2 className="text-section">{selected.region.name}</h2>{selected.representativePost ? <PostCard className="mt-2" post={selected.representativePost} onOpen={openPost} /> : <Notice className="mt-2">이 동에 등록된 게시물이 없습니다.</Notice>}</section>}</>}
   </MobileLayout>;
 }

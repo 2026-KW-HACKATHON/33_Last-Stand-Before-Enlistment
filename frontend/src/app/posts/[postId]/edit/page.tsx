@@ -1,1 +1,5 @@
-"use client"; import { useParams } from "next/navigation"; import { PostEditorScreen } from "@/features/post-editor/PostEditorScreen"; export default function EditPostPage(){const params=useParams<{postId:string}>();return <PostEditorScreen mode="edit" postId={params.postId} canEdit={false}/>;}
+import { EditorHost } from "@/features/integration/EditorHost";
+export default async function EditPostPage({ params }: { params: Promise<{ postId: string }> }) {
+  const { postId } = await params;
+  return <EditorHost key={postId} postId={postId} />;
+}

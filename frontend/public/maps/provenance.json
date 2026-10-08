@@ -1,0 +1,15 @@
+{
+  "source_repository": "https://github.com/vuski/admdongkor",
+  "source_commit": "dd1881663fcabc69b81393604e91ebf3a4202e9a",
+  "source_path": "ver20260701/HangJeongDong_ver20260701.geojson",
+  "source_sha256": "c01ef44a0eb00978662ba7a6240ccb1da287fb52abd85104a1758969d391132f",
+  "dataset_date": "2026-07-01",
+  "crs": "EPSG:4326",
+  "features": 3558,
+  "generated_sha256": "bbddfbefa4ec2bb7fd5aa77db205c620edc84925438baaac4c8da7771acceef8",
+  "processing": "mapshaper@0.7.81 input.geojson -simplify weighted interval=50 keep-shapes -filter-fields adm_nm,adm_cd2 -o format=geojson precision=0.000001 administrative-dongs-20260701.geojson",
+  "processing_report": "0 repaired intersections; 2 reported intersections remained in the nationwide dataset. This is a display boundary dataset, not a legal or authorization boundary.",
+  "upstream_license": "KOGL Type 1 (Statistics Korea SGIS)",
+  "derived_license": "CC-BY-4.0 (vuski/admdongkor)",
+  "license_file": "LICENSE-DATA.txt"
+}

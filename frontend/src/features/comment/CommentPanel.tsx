@@ -9,7 +9,7 @@ import type { EvaluationService } from "./evaluation-service";
 import type { CommentDisplay, CommentPermission, CommentThread } from "./model";
 import type { CommentService } from "./service";
 
-type ReplyTarget = { parentCommentId: string; targetAuthorName: string };
+type ReplyTarget = { parentCommentId: string; targetAuthorName: string; replyToCommentId?: string };
 type FailedAction = { kind: "root" | "reply"; input: string; target?: ReplyTarget };
 type FailedEvaluation = { commentId: string; requested: Exclude<EvaluationType, "NONE">; before: EvaluationSnapshot };
 type Props = { postId: string; service: CommentService; evaluationService: EvaluationService; permission: CommentPermission; canEvaluate: boolean; evaluationRestrictionMessage?: string; onInvalidate?: (postId: string) => void };
@@ -32,7 +32,7 @@ export function CommentPanel({ postId, service, evaluationService, permission, c
 
   useEffect(() => {
     let active = true;
-    void Promise.all([service.list(postId), evaluationService.list(postId)]).then(([commentThreads, snapshots]) => {
+    void Promise.all([service.list(postId), permission.viewerContext === "shared-guest" ? Promise.resolve([]) : evaluationService.list(postId)]).then(([commentThreads, snapshots]) => {
       if (!active) return;
       setThreads(commentThreads);
       setEvaluations(Object.fromEntries(snapshots.map((snapshot) => [snapshot.commentId, snapshot])));
@@ -42,11 +42,11 @@ export function CommentPanel({ postId, service, evaluationService, permission, c
       setLoadError(error instanceof Error ? error.message : "댓글을 불러오지 못했습니다."); setLoading(false);
     });
     return () => { active = false; };
-  }, [evaluationService, postId, reloadVersion, service]);
+  }, [evaluationService, postId, reloadVersion, service, permission.viewerContext]);
 
   const retryLoad = () => { setThreads(undefined); setLoadError(undefined); setLoading(true); setReloadVersion((current) => current + 1); };
   const sortedThreads = useMemo(() => threads ? [...threads].sort((left, right) => {
-    const likeDifference = (evaluations[right.root.id]?.likeCount ?? 0) - (evaluations[left.root.id]?.likeCount ?? 0);
+    const likeDifference = (evaluations[right.root.id]?.likeCount ?? right.root.likeCount ?? 0) - (evaluations[left.root.id]?.likeCount ?? left.root.likeCount ?? 0);
     return likeDifference || right.root.createdAtOrder - left.root.createdAtOrder;
   }) : undefined, [evaluations, threads]);
   const append = (comment: CommentDisplay) => {
@@ -61,7 +61,7 @@ export function CommentPanel({ postId, service, evaluationService, permission, c
     try {
       const created = action.kind === "root"
         ? await service.create(postId, { content: action.input })
-        : await service.createReply(postId, { content: action.input, parentCommentId: action.target!.parentCommentId, targetAuthorName: action.target!.targetAuthorName });
+        : await service.createReply(postId, { content: action.input, parentCommentId: action.target!.parentCommentId, targetAuthorName: action.target!.targetAuthorName, replyToCommentId: action.target!.replyToCommentId });
       append(created);
       if (action.kind === "root") setRootInput(""); else { setReplyInput(""); setReplyTarget(undefined); }
       setFeedback(action.kind === "root" ? "댓글이 등록되었습니다." : "답글이 등록되었습니다."); onInvalidate?.(postId);
@@ -83,7 +83,7 @@ export function CommentPanel({ postId, service, evaluationService, permission, c
       setFailedEvaluation({ commentId, requested, before }); setEvaluationFeedback(error instanceof Error ? error.message : "평가를 반영하지 못했습니다.");
     } finally { setPendingEvaluations((current) => current.filter((id) => id !== commentId)); }
   };
-  const beginReply = (parentCommentId: string, targetAuthorName: string) => { setReplyTarget({ parentCommentId, targetAuthorName }); setReplyInput(""); setFeedback(undefined); setFailedAction(undefined); };
+  const beginReply = (parentCommentId: string, targetAuthorName: string, replyToCommentId?: string) => { setReplyTarget({ parentCommentId, targetAuthorName, replyToCommentId }); setReplyInput(""); setFeedback(undefined); setFailedAction(undefined); };
 
   return <section className="rounded-card border border-border bg-background p-section" aria-label="댓글">
     <h2 className="text-card-title">댓글</h2>
@@ -99,13 +99,13 @@ export function CommentPanel({ postId, service, evaluationService, permission, c
       <TextArea label="댓글" value={rootInput} onChange={(event) => setRootInput(event.target.value)} placeholder="댓글을 입력해 주세요." disabled={pending} />
       <Button disabled={pending || !rootInput.trim()} onClick={() => void submit({ kind: "root", input: rootInput })}>{pending ? "등록 중" : "댓글 등록"}</Button>
     </div>}
-    {feedback && <Notice tone={failedAction ? "error" : "info"} className="mt-3" role="status"><p>{feedback}</p>{failedAction && <Button className="mt-3" onClick={() => void submit(failedAction)}>다시 시도</Button>}</Notice>}
+    {feedback && <Notice tone={failedAction ? "error" : "info"} className="mt-3" role="status"><p>{feedback}</p>{failedAction && <Button className="mt-3" onClick={() => { setFailedAction(undefined); retryLoad(); }}>목록 재조회</Button>}</Notice>}
   </section>;
 }
 
-function CommentThreadView({ thread, evaluations, canEvaluate, evaluationPending, disabled, onEvaluate, onReply }: { thread: CommentThread; evaluations: EvaluationState; canEvaluate: boolean; evaluationPending: readonly string[]; disabled: boolean; onEvaluate: (commentId: string, type: Exclude<EvaluationType, "NONE">) => void; onReply: (parentCommentId: string, targetAuthorName: string) => void }) {
-  return <div className="mt-4 border-t border-border pt-3"><CommentItem comment={thread.root} evaluation={evaluations[thread.root.id] ?? emptyEvaluation(thread.root.id)} canEvaluate={canEvaluate} evaluationPending={evaluationPending.includes(thread.root.id)} disabled={disabled} onEvaluate={onEvaluate} onReply={() => onReply(thread.root.id, thread.root.authorName)} />
-    {thread.replies.map((reply) => <div key={reply.id} className="ml-4 mt-3 border-l-2 border-soft pl-3"><CommentItem comment={reply} evaluation={evaluations[reply.id] ?? emptyEvaluation(reply.id)} canEvaluate={canEvaluate} evaluationPending={evaluationPending.includes(reply.id)} disabled={disabled} onEvaluate={onEvaluate} onReply={() => onReply(thread.root.id, reply.authorName)} /></div>)}
+function CommentThreadView({ thread, evaluations, canEvaluate, evaluationPending, disabled, onEvaluate, onReply }: { thread: CommentThread; evaluations: EvaluationState; canEvaluate: boolean; evaluationPending: readonly string[]; disabled: boolean; onEvaluate: (commentId: string, type: Exclude<EvaluationType, "NONE">) => void; onReply: (parentCommentId: string, targetAuthorName: string, replyToCommentId?: string) => void }) {
+  return <div className="mt-4 border-t border-border pt-3"><CommentItem comment={thread.root} evaluation={evaluations[thread.root.id] ?? { ...emptyEvaluation(thread.root.id), likeCount: thread.root.likeCount ?? 0, dislikeCount: thread.root.dislikeCount ?? 0 }} canEvaluate={canEvaluate} evaluationPending={evaluationPending.includes(thread.root.id)} disabled={disabled} onEvaluate={onEvaluate} onReply={() => onReply(thread.root.id, thread.root.authorName)} />
+    {thread.replies.map((reply) => <div key={reply.id} className="ml-4 mt-3 border-l-2 border-soft pl-3"><CommentItem comment={reply} evaluation={evaluations[reply.id] ?? { ...emptyEvaluation(reply.id), likeCount: reply.likeCount ?? 0, dislikeCount: reply.dislikeCount ?? 0 }} canEvaluate={canEvaluate} evaluationPending={evaluationPending.includes(reply.id)} disabled={disabled} onEvaluate={onEvaluate} onReply={() => onReply(thread.root.id, reply.authorName, reply.id)} /></div>)}
   </div>;
 }
 

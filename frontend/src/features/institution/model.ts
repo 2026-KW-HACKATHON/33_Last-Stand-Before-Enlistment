@@ -36,6 +36,7 @@ export function institutionAccess(state: InstitutionState, subjectId: string, se
 }
 /** Author-specific projection: never apply the viewer's institution status to another author. */
 export function withInstitutionBadge<T extends AuthorDisplay>(author:T,state:InstitutionState):T {
+ if (!author.id) return author;
  return {...author,badge:isCurrentInstitution(state,author.id) ? "institution" : undefined};
 }
 export function createInstitutionStore(service: InstitutionService | null, subjectId: string, now:()=>number=Date.now) {

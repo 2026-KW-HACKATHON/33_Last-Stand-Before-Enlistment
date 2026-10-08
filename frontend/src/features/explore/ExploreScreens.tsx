@@ -60,12 +60,12 @@ export function HomeScreen({ context, state, onRetry, ...slots }: Slots & { cont
 const typeOptions: readonly { value: BoardTypeFilter; label: string }[] = [{ value: "ALL", label: "전체" }, { value: "LOCAL_AGENDA", label: "지역 안건" }, { value: "LOCAL_ACTIVITY", label: "지역 활동 정보" }, { value: "VOTE", label: "투표" }];
 function Chip({ selected, children, onClick }: { selected: boolean; children: ReactNode; onClick: () => void }) { return <button type="button" onClick={onClick} className={`shrink-0 rounded-chip border px-3 py-1.5 text-caption ${selected ? "border-primary bg-primary text-surface" : "border-border bg-surface text-secondary"}`}>{children}</button>; }
 
-export function BoardScreen({ context, state, onLoadMore, onRetry, ...slots }: Slots & { context: ExploreContext; state: LoadState<BoardPage>; onRetry?: () => void; onLoadMore?: () => void }) {
+export function BoardScreen({ context, state, onLoadMore, onRetry, onFiltersChange, loadingMore, ...slots }: Slots & { context: ExploreContext; state: LoadState<BoardPage>; onRetry?: () => void; onLoadMore?: () => void; onFiltersChange?: (filters: BoardFilters) => void; loadingMore?: boolean }) {
   const navigation = useNavigation();
   const [selectingRegion, setSelectingRegion] = useState(false);
   const [selection, setSelection] = useState<Pick<BoardFilters, "type" | "topic">>({ type: "ALL", topic: "ALL" });
   const filters: BoardFilters = { regionId: context.currentExploreRegion.id, ...selection };
-  const change = (next: Partial<Pick<BoardFilters, "type" | "topic">>) => setSelection((current) => ({ ...current, ...next }));
+  const change = (next: Partial<Pick<BoardFilters, "type" | "topic">>) => { const value = { ...selection, ...next }; setSelection(value); onFiltersChange?.({ regionId: context.currentExploreRegion.id, ...value }); };
   const open = (postId: string) => { const ref = `board:${filters.regionId}:${filters.type}:${filters.topic}`; navigation.registerSnapshot({ destination: { id: "board" }, kind: "list", ref }); slots.onOpenPost?.(postId, ref); navigation.navigate({ destination: { id: "post", params: { postId } }, origin: { id: "board" }, sharedContextRef: ref }); };
   const openSearch = () => { navigation.navigate({ destination: { id: "search" }, origin: { id: "board" } }); slots.onSearch?.(); };
   const openRecommendations = () => { navigation.navigate({ destination: { id: "recommendations" }, origin: { id: "board" } }); slots.onRecommendations?.(); };
@@ -84,6 +84,6 @@ export function BoardScreen({ context, state, onLoadMore, onRetry, ...slots }: S
     {state.kind === "loading" && <div aria-busy="true" className="space-y-3"><div className="h-36 animate-pulse rounded-card bg-disabled" /><div className="h-36 animate-pulse rounded-card bg-disabled" /></div>}
     {state.kind === "error" && <Notice tone="error" role="alert"><p>{state.message}</p><Button className="mt-3" onClick={onRetry}>다시 시도</Button></Notice>}
     {state.kind === "empty" && <Notice>조건에 맞는 게시물이 없습니다.</Notice>}
-    {state.kind === "success" && <><div className="space-y-3">{posts.length ? posts.map((post: PostDisplayModel) => <PostCard key={post.id} post={post} onOpen={open} />) : <Notice>조건에 맞는 게시물이 없습니다.</Notice>}</div>{state.data.pageInfo.nextCursor && <Button variant="secondary" onClick={onLoadMore}>더 보기</Button>}</>}
+    {state.kind === "success" && <><div className="space-y-3">{posts.length ? posts.map((post: PostDisplayModel) => <PostCard key={post.id} post={post} onOpen={open} />) : <Notice>조건에 맞는 게시물이 없습니다.</Notice>}</div>{state.data.pageInfo.nextCursor && <Button variant="secondary" disabled={loadingMore} onClick={onLoadMore}>더 보기</Button>}</>}
   </MobileLayout>;
 }

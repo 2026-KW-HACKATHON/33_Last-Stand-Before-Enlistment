@@ -366,3 +366,77 @@ B는 `frontend/src/features/**`의 인증/가입 이외 기능, 기능별 decode
 - A는 B의 service 묶음이 준비된 commit을 integration/develop에서 받아 root/provider에 연결한다. B는 A의 공통 client를 소비할 뿐 root를 수정하지 않는다.
 - 새 Migration·공통 권한이 필요하면 B는 변경안을 commit으로 제공하고, A가 실제 DB 적용과 최소 권한 검증을 실행한다. 기능 코드·Migration 작성과 실제 공유 DB 적용은 같은 사람이 동시에 책임지지 않는다.
 - #5 활동 횟수와 #10 프로필 사진, 아직 제공하지 않는 서버 API는 각각 보류로 남긴다. 대체 데이터나 Mock 결과를 실제 완료로 기록하지 않는다.
+
+## B 기능 adapter·화면 구현 및 A 연결 이관
+
+사용자가 실제 API 기준 주소를 `https://discushion-api.onrender.com/api/v1`로 확인했다. A가 이 값을 공통 ApiClient의 base URL과 환경 설정에 사용한다. B는 주소·Bearer·Privy를 기능 내부에 별도로 저장하지 않는다.
+
+### 구현 위치와 주입
+
+- `frontend/src/features/integration/index.ts`: `createFeatureServices(apiClient)`와 FeatureServices 타입. 콘텐츠·사진·댓글·평가·반응·투표·공유·AI·탐색·지역/기관 자격·북마크·기관 채택·프로필·개인 목록의 서버 adapter를 제공한다.
+- 같은 디렉터리의 `wire.ts`, `post-decoder.ts`, `content-services.ts`, `editor-services.ts`, `member-services.ts`: 실제 Java 응답 기준 숫자 ID, offset 시간, CANCELED 상태, flat 오류, nullable 회원 상태, cursor와 파일/사진 ID를 검증한다. 공개 작성자 응답에 없는 회원 ID를 만들지 않는다.
+- `provider.tsx`, `bindings.tsx`: A가 root에 한 번 등록할 context와 기존 AppProviders 주입 props. `PostHost`, `EditorHost`, `ExploreHost`, `SharedHost`, `MapHost`는 해당 실제 service로 화면을 연결한다. A 소유 root/providers·공통 client·인증·환경 파일은 이번 B 변경에서 수정하지 않았다.
+- 사진은 예약→동일 서버 relay RAW PUT→complete를 사용한다. 불명확한 전송 결과는 기존 예약 ID로 조회/확인하고 무조건 재전송하지 않는다. 게시물 생성이 수락된 뒤 재조회만 실패하면 받은 postId를 보존한다. 게시물/사진 삭제 예약과 Storage 실제 삭제 완료를 구분해 후속 상태 조회를 제공한다.
+- 공유 토큰은 공유 상세·댓글·요약 허용 경로에만 전달한다. 지역 참여/기관 권한은 서버 상태를 다시 조회하며, 개인 목록 소유권은 인증 subject scope에 묶는다. 로그인 이후 쓰기를 자동 재실행하지 않는다.
+
+A 등록 예시(인증·가입 props와 ApiClient 생성은 기존 A 구현을 유지):
+
+```tsx
+const services = useMemo(
+  () => createFeatureServices(apiClient),
+  [apiClient, subjectKey],
+);
+return (
+  <FeatureServicesProvider services={services} subjectKey={subjectKey}>
+    <AppProviders
+      {...existingAuthAndSignupProps}
+      apiClient={apiClient}
+      subjectKey={subjectKey}
+      {...featureProviderProps(services)}
+    >
+      {children}
+    </AppProviders>
+  </FeatureServicesProvider>
+);
+```
+
+subjectKey는 로그인 완료된 **로컬 회원 숫자 ID의 문자열**이며 게스트는 null이다. 계정 전환/로그아웃에 맞춰 client와 scope를 갱신한다. Privy 식별자를 로컬 회원 ID로 대체하지 않는다. 공통 prepareRequest가 정상 회원 요청의 Bearer를 공급하고 공유 요청의 허용 헤더를 보존해야 한다.
+
+### 지금 확정한 지도 SDK·경계·지역 ID 매핑
+
+사용자가 미정 지도 선택을 지금 결정하도록 요청해 다음을 채택했다.
+
+| 항목 | 선택 및 위치 |
+| --- | --- |
+| SDK | Leaflet 1.9.4, `frontend/src/features/map/GeographicMapRenderer.tsx` |
+| 배경 | OpenStreetMap 표준 tile, 화면 저작자 표시. 별도 지도 API 키 없이 사용 |
+| 행정동 | SGIS 기반 vuski/admdongkor 2026-07-01, 전국 3,558개 EPSG:4326 Polygon/MultiPolygon |
+| 데이터 | `frontend/public/maps/administrative-dongs-20260701.geojson` |
+| 출처/재생성 | 같은 디렉터리 `provenance.json`, upstream commit `dd1881663fcabc69b81393604e91ebf3a4202e9a`, source SHA256 포함 |
+| 라이선스 | 같은 디렉터리 `LICENSE-DATA.txt`, SGIS 공공누리 1유형 및 가공 데이터 CC BY 4.0 출처 표시 |
+| 매핑 | 서버 `/regions`의 mapFeatureKey를 MOIS 10자리 `adm_cd2`에 연결. key가 null일 때만 NFC/양끝 공백 정규화한 **전체 행정동 이름**의 유일한 일치를 허용 |
+
+`map-geometry.ts`가 중복 코드/이름·잘못된 좌표·미등록 key를 거부한다. 짧은 동 이름이나 화면 위치로 지역 ID를 추측하지 않는다. 예를 들어 전체 이름 `서울특별시 노원구 월계1동`의 경계 코드는 `1135056000`이며 서버 ID는 `/regions` 응답에서만 얻는다. 실제 배포 DB에 이 지역이 등록돼 있는지는 별도 확인한다. 화면 bbox와 교차하는 매핑 완료 지역 ID만 지도 API에 보낸다.
+
+전국 경계는 mapshaper 0.7.81로 50m 단순화·좌표 소수점 6자리 처리해 약 6.6MB로 저장했다. 원본/처리 hash와 재생성 명령을 provenance에 기록했다. 도구가 보고한 전국 경계 교차 2개는 남아 있으며, 이 데이터는 지도 표시용이다. 권한/참여 가능 지역 판정은 서버 회원·지역 상태를 기준으로 한다. tile 접근 실패 시 실제 경계와 지역 선택을 유지한다.
+
+### 시연 계정 사용 절차와 남은 실제 검증
+
+API 주소는 확정했지만 OTP 수신 가능한 계정과 배포 DB의 시연 권한 적용 결과는 제공되지 않았다. 실제 준비 절차는 다음으로 정한다.
+
+1. A가 팀이 소유한 시연 메일함으로 Privy OTP→가입→`/me` 로컬 회원 ID를 확인한다. 비밀번호/OTP/access token을 채팅이나 저장소에 기록하지 않는다.
+2. 일반 미완료 회원, 완료 지역 회원, 타지역 회원, 유효 기관 담당자, 만료 기관 담당자의 계정과 게스트 공유 시나리오를 준비한다. 지역은 실제 `/regions` 결과에서 선택한다.
+3. A가 backend의 NeighborDemoProvisioner/InstitutionDemoProvisioner 및 #75 절차로 지정 회원의 시연 상태를 적용하고 조회 결과·만료시간·담당 지역을 확인한다. 이것들은 서버 관리용 구성요소이며 공개 provision API나 회원 자체 인증 버튼을 추가하지 않는다.
+4. 계정별 접근 방법·기대 상태·실제 서버 지역 ID와 A integration-ready commit을 이 문서에 남긴다. B가 저장→재조회, 타지역 거부, 게스트 공유, 댓글/투표 종료, 북마크/채택 취소, 사진 삭제 완료를 실제 화면에서 검증한다.
+
+현재 클라우드 런타임에서 API와 GitHub REST 접근은 proxy CONNECT 403으로 차단된다. onboarding 환경 **초안**의 추가 허용 도메인에 `api.github.com`, `discushion-api.onrender.com`, `tile.openstreetmap.org`를 저장했다. 환경 설정 검토·저장 및 publish 후 적용된 런타임에서 확인해야 한다. 초안 저장을 현재 런타임 적용이나 배포 성공으로 기록하지 않는다.
+
+### 실행한 검증과 완료 판정
+
+- Node 24.21.0/npm 11.19.0의 저장소 고정 버전으로 의존성을 설치하고 검증했다.
+- API transport/decoder 및 관련 기존 기능 회귀 테스트, 실제 번들 경계 매핑 테스트 **200/200 통과**(실패·skip 0). 기존 TypeScript compiler + node:test 방식으로 저장소 밖 임시 출력에서 실행했다.
+- `npm run lint`, `npm run typecheck`, `npm run build` 모두 exit 0. production build 44개 페이지 생성 성공.
+- 로컬 Chromium에서 게시물 상세, 북마크 저장·재조회, 반응 저장·재조회, Leaflet 실제 경계, 확대 후 서버 regionIds 재조회, 투표 작성 입력 보존과 offset 시간 전송을 확인했다. 브라우저 오류 0개. HTTP fixture 검증이며 실제 Render API/Privy/DB 인수 결과는 아니다.
+- `dev/integration-preview`는 개발 환경 전용 fixture 주입 화면이다. production에서는 404이며 제품 root에 fixture를 등록하지 않는다.
+
+B 기능 구현 및 로컬 검증과 **실제 시연 계정 기반 연결 완료**를 구분한다. A의 root 등록·인증/시연 handoff와 적용된 네트워크 이후 실제 API 인수를 수행해야 #200·#169·#170·#172·#173을 최종 종료할 수 있다.

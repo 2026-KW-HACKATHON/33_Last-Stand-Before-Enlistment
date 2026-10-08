@@ -8,7 +8,7 @@ export type VoteStatus = "OPEN" | "ENDED";
 
 export type PostImage = { id: string; url: string; alt: string };
 export type AuthorDisplay = {
-  id: string;
+  id?: string;
   displayName: string;
   institutionName?: string;
   badge?: "institution";
@@ -18,6 +18,7 @@ export type PostCapabilities = {
   canDelete: boolean;
   canBookmark: boolean;
   canReact: boolean;
+  canEvaluateComment?: boolean;
   canComment: boolean;
   canVote: boolean;
   canReport: boolean;
@@ -30,6 +31,7 @@ export type PostViewerState = {
   participationRestriction?: string;
 };
 export type PostMetadata = {
+  regionId?: string;
   regionName: string;
   topic: string;
   createdAtLabel: string;
