@@ -607,7 +607,7 @@ sequenceDiagram
 | 높음 | F-FTLHCX, F-FYQJPT, F-QPGNCF | 삭제·데이터 보존 | 게시물 삭제 시 댓글·반응·사진·투표 선택·활동 이벤트·채택 관계를 어떤 공개/보존 방식으로 처리할 것인가? 북마크 해제와 삭제 투표 기록 정책 외에는 명시되지 않았다. |
 | 중간 | F-ATWJDJ, F-OPNIXL | 인증 상태 모델 | 신청/접수/완료 외 추가 상태값을 MVP에 둘 것인가? 문서는 실제 반려 심사를 비-MVP로 두므로 임의 상태 확장은 피해야 한다. |
 | 중간 | F-OWFYWE, S-NYUECP | 공유 링크 | 공유 링크의 수명·재발급·추측 방지 토큰 형식은 미정이다. 게시물 식별자 참조와 공개 상태 확인만 확정이다. |
-| 중간 | F-WSCKDN | AI 요약 | 요약 결과의 저장/재생성 시점·실패 재시도 정책은 미정이다. 원문 기반 3문장·실패 시 원문 우선만 확정이다. |
+| 중간 | F-WSCKDN | AI 요약 | 2026-10-08 사용자 채택: 최초 요청 생성·원문 revision별 저장/재사용·수정 후 새 버전 생성·실패 자동 재시도 없음. 정보 부족은 SOURCE_TOO_SHORT이며 원문 fallback을 제공한다. 실제 배포/FE 연결은 대기다. |
 | 중간 | F-FTLHCX, F-EDNVWZ | 수정/삭제 범위 | 게시물 외 댓글/답글의 수정·삭제 권한/UX는 명시되지 않았다. MVP에서 임의 제공하지 말아야 한다. |
 | 낮음 | F-OPNIXL | 기관 운영 | 보완 요청 수신 이메일, 전화번호 별도 인증, 이메일 회신 자료 연결·보관·삭제 구조는 후순위 운영 세부다. |
 | 낮음 | 목록 기능 전반 | API/UX | 페이지 번호/커서, 목록 정렬의 기본값(기관 목록 반응순 외)은 미정이다. 기술 방식은 권장안으로만 결정한다. |
@@ -698,3 +698,9 @@ FE와 BE는 같은 Privy 앱을 사용한다. FE에는 공개 App ID만 전달�
 GET /api/v1/map/dongs?regionIds=15,18&centerRegionId=15를 사용한다. FE가 실제 경계 데이터의 지역과 서버 카탈로그 ID를 연결한 뒤 현재 viewport ID 목록을 중복 없이 전달한다. centerRegionId 생략은 최신 프로필 기본 지역, 임시 선택은 프로필에 저장하지 않는다. dongs는 요청 순서로 유지하며 representativePost=null을 후보 없음으로 표시한다. 대표는 공개 안건/투표만 반응 합계·작성시각·ID 순서다. 경계·좌표·SDK는 응답에 가짜 값으로 추가하지 않는다. 지도 geometry와 API adapter/말풍선·반응 재조회 실제 연동은 #30/#31 대기이며 backend 조회만으로 지도 완료로 표시하지 않는다.
 
 2026-10-08 확인: origin/front/develop ad0700c의 frontend/src/features/map/service.ts/model.ts는 FE 표시 계약이며 실제 HTTP adapter가 없다. viewport는 centerRegionId/zoom만 갖고 regionIds 수집이 없다. 서버 숫자 ID의 FE 문자열 변환, 실제 geometry의 ID 매핑, 대표 최소 DTO의 말풍선 표시 모델 연결을 FE 후속으로 남긴다. 해당 브랜치를 수정하지 않았다.
+
+### #20 AI 요약 소비 계약 확정 (2026-10-08)
+
+GET /api/v1/posts/{postId}/summary는 최초 요청 때 생성하고 원문 버전별 결과를 재사용한다. 생성 중 다른 요청은 PENDING과 원문을 받는다. 성공은 3문장 한 문단·출처·원문 링크, 실패/정보 부족은 FAILED/SOURCE_TOO_SHORT 및 fallbackToSource=true다. source를 항상 표시하며 게스트의 원문 이동은 같은 X-Post-Share-Token을 유지한다. 글 수정 후 새 버전만 생성하고 실패한 같은 버전을 FE polling으로 자동 재시도시키지 않는다. 삭제/비공개404·다른 유형422·잘못된 공유 범위 오류는 기존 처리에 연결한다. 사용자 저장 키의 합성 실제 Gemini 정상/정보 부족 호출2개는 확인했다. 다양한 원문 품질/쿼터·배포 환경 및 프로젝트 FE adapter/화면 연결은 #20/#30/#31 대기다.
+
+2026-10-08 확인: origin/front/develop ad0700c의 frontend/src/features/summary/service.ts/model.ts는 FE 표시 계약이며 실제 HTTP adapter가 없다. SummaryResult에는 PENDING이 없으므로 실제 연결 시 생성 중 표시와 최신 source/authorDisplayName/updatedAt/originalPath 매핑을 추가해야 한다. 기존 referenceLink를 서버에 없는 필수 입력으로 요구하지 않는다. 서명 공유 헤더 유지와 404/422 처리도 확인한다. 해당 브랜치를 수정하지 않았다.

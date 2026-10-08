@@ -272,6 +272,14 @@ back/feature/19-map, 기준 a9ad5c9. 사용자 채택 regionIds CSV·선택 cent
 23:41 KST 전체 Java17 test build --rerun-tasks --max-workers=2 --offline,336개 통과/실패0/오류0/skip0·build 성공(8분1초). 실제 Supabase SELECT-only 감사3개·Storage4개를 포함했다. 로컬 Schema 제약133개·공개 API 역할 차단9개 통과, 시험 데이터 정리·서버 역할 NOLOGIN 복원을 확인했다. 공유 DB에는 Migration을 적용하지 않았으며 실제 geometry/프로젝트 FE adapter 연결·배포는 #30/#31 대기다. front/develop ad0700c의 지도 인터페이스를 읽기 전용으로 확인하고 통합 지침에 후속 매핑을 기록했다. 현재 back/develop d1f8bcf의 #14는 작업 도중 병합됐으므로 commit/PR 전 최신 기준 갱신·권한/CI 재검증이 필요하다. 아직 commit/push/PR/병합하지 않았다.
 지도 추가 사진 회귀(2026-10-09): 사진2개를 생성 ID와 다른 첨부 순서로 연결해 첫 사진·공개 URL 공백 인코딩을 확인했다. map 관련9개 재실행·실패0/오류0/skip0·build 성공(1분16초). 이 추가 시험은 앞선 전체336개와 구분하며 데이터/사진 참조를 정리했다.
 
+### #20 원문 버전별 AI 요약 구현·검증 (2026-10-08)
+
+back/feature/20-summary, 기준 a9ad5c9. 사용자 채택 최초 요청 생성·원문 revision별 DB 저장/재사용·수정 후 새 버전 생성·실패 자동 재시도 없음·정보 부족 SOURCE_TOO_SHORT를 구현했다. 회원 또는 검증된 공유 범위·공개 LOCAL_AGENDA를 생성 전/저장·응답 전에 재검사하며 DB 잠금을 외부 호출 중 유지하지 않는다. PENDING/요청시각/revision 조건으로 중복/늦은 결과를 차단하고 expired PENDING은 FAILED로 처리한다. 키 미설정/비활성은 영구 캐시 실패를 남기지 않는 원문 fallback이다. 서버 S/I/U·RLS Migration만 새로 추가했으며 공유 DB에는 미적용이다.
+
+23:50 KST Java17 전체 test build --rerun-tasks --max-workers=2 --offline,345개 통과/실패0/오류0/skip0·build 성공(7분33초). 실제 Supabase SELECT-only 감사3개·Storage4개·Gemini2개를 포함했다. 격리된 Migration/Schema 제약133개·공개 역할 차단9개 및 AI 서버 S/I/U·DELETE 차단도 통과했다. 테스트 준비 순서를 명시한 후 AI DB/Controller9개와 실제 Gemini2개를 재실행해11개 통과·build 성공(1분21초)을 확인했다. 정상 합성 출력은 원문의 보행 공간 부족·표지 개선 의견·기관 전달 제안만 3문장 한 문단으로 담았고 정보 부족 원문은 SOURCE_TOO_SHORT다. 새 key는 ignored .env에서만 읽었으며 테스트 출력/문서/Git에 포함하지 않았다.
+
+실제 원본 PostContextReader는 작업 도중 병합된 back/develop d1f8bcf의 #14 PostJdbcRepository에서 준비됐다. commit/PR 전 최신 base와 새 권한/테스트를 반영하고 운영 SharedPostAccess에 연결해 서명 게스트 경로를 검증한다. 다양한 실제 원문 품질/쿼터·배포 환경 key/활성화·FE PENDING 표시/HTTP adapter는 #20/#30/#31에서 확인한다. front/develop ad0700c는 읽기 전용으로 확인했고 변경하지 않았다. 아직 commit/push/PR/배포/병합하지 않았다.
+
 ### #14 게시물 생성과 서버 권한 (2026-10-08)
 
 최신 `back/develop a9ad5c9`에서 `back/feature/14-createpost`를 준비했다. Java17 `gradlew.bat --no-daemon test build --max-workers=2`는 **341개 중334통과·실패0·오류0·7개 건너뜀, build 성공**. 생략 항목은 선택적인 실제 Supabase/Storage 감사이며 이 시험에서는 opt-in을 끄고 실행하지 않았다. 신규 #14 입력 단위·실제 HTTP/JDBC 통합 테스트 13개는 모두 통과했다.
@@ -323,3 +331,13 @@ FE 기준 `origin/front/develop ad0700c`의 post model/service와 대조했다. 
 #14·#15 기준6aa69a6에서 전체361개 통과·실패0·오류0·skip0·build 성공(00:39 KST, 9분3초). 실제 Supabase 감사3개·Storage4개 포함. Schema133개·공개 역할 차단9개 통과. 이후 병합된 #16은 같은 원본/권한과 기준 문서에 반영했고 영향받는 검증·최신 CI는 추가 확인한다. 공유 DB rollout·실제 지도/FE/배포는 후속이며 #19를 자동 종료하지 않는다.
 
 #18/#16 최종 통합 후 재검증: 기준305a793을 반영한1613900에서 메인·지도·서버 권한·실제 감사3/Storage4 관련34개 통과·실패0·오류0·skip0·build 성공(00:52 KST, 1분58초). Schema133/공개 역할 차단9 통과. 앞선 전체361개와 구분하며 최종 원본/권한·빈 동·썸네일·profile 불변을 재검토했다.
+
+### #20 최신 게시물 기준 검증 (2026-10-09)
+#16 포함 기준72969f0을 반영한74a2bcb에서 summary·게시물·서버 권한·실제 감사3/Storage4/Gemini2 관련71개 통과·실패0·오류0·skip0·build 성공(00:49 KST, 4분24초). Schema133/공개 역할 차단9 통과. 이전 전체345개와 이 후속 검증을 구분한다. 합성 안건 정상3문장·정보 부족 처리의 실제 Gemini 호출 성공. 공유 DB summary 권한 적용·Render 비밀 설정/활성화·프로젝트 FE 연동은 대기다.
+
+#18 메인 통합 후 재검증:70c3bf3에서 요약·메인·서버 권한·실제 감사3/Storage4/Gemini2 관련42개 통과·실패0·오류0·skip0·build 성공(00:59 KST, 2분56초). 이후 #19 통합 코드/계약을 보존해 반영하며 지도와 최종 서버 구성 영향은 별도 확인한다.
+
+### #20 PR 최종 통합 검증 (2026-10-09)
+최신 back/develop85cb888(#18·#19 및 BE1 #14~#16)을 반영한3cc1829에서 지도·서버 권한·실제 감사3/Storage4 관련24개 통과·실패0·오류0·skip0·build 성공(01:02 KST, 1분48초). Schema133/공개 역할 차단9 통과. 앞선 요약/게시물71개 및 메인/요약42개(실제 Gemini2개 포함)와 구분한다. 최종 code/API/DB/권한 검토에서 frontend 변경0·secret 유출0·차단 지적 없음. 실제 공유 DB 적용·Render 키/활성화·프로젝트 FE/공유 사용자 흐름은 #30/#31에 유지한다.
+
+#29 추가 병합 후 최종 재검증: 최신86cc67a를 반영한 ab511fc에서 요약·기관 채택·서버 권한·실제 감사3/Storage4/Gemini2 관련45개 통과·실패0·오류0·skip0, build 성공(01:09 KST, 2분3초). 기존 기관 채택 권한52개와 AI 요약3개를 모두 보존해55개 정책으로 검증했다. Schema133/공개 역할 차단9 통과. 공유 DB에 적용한 결과가 아닌 격리 DB 검증이며 배포/FE 잔여 조건은 유지한다.

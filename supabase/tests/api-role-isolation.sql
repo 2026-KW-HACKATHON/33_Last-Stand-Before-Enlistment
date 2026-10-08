@@ -29,6 +29,7 @@ create role service_role nologin bypassrls;
 \ir ../migrations/20261008120014_allow_institution_agenda_adoption_writes.sql
 \ir ../migrations/20261008130000_allow_post_creation.sql
 \ir ../migrations/20261008144530_allow_activity_detail_reads.sql
+\ir ../migrations/20261008135612_allow_summary_storage.sql
 \ir ../migrations/20261008150737_allow_activity_post_updates.sql
 do $checks$
 declare r text;
@@ -175,5 +176,14 @@ begin
     raise exception 'Missing or unexpected institution_agenda_adoptions write policies';
   end if;
 end $server_checks$;
+do $summary_privileges$
+begin
+  if not has_table_privilege('discushion_server','discushion.ai_agenda_summaries','SELECT')
+    or not has_table_privilege('discushion_server','discushion.ai_agenda_summaries','INSERT')
+    or not has_table_privilege('discushion_server','discushion.ai_agenda_summaries','UPDATE')
+    or has_table_privilege('discushion_server','discushion.ai_agenda_summaries','DELETE,TRUNCATE,REFERENCES,TRIGGER') then
+    raise exception 'Unexpected AI summary runtime privileges';
+  end if;
+end $summary_privileges$;
 select 'PASS: API role isolation; adoption writes are limited to the Spring runtime role' as result;
 rollback;
