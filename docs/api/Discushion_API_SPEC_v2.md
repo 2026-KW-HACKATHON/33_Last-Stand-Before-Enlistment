@@ -154,13 +154,13 @@ Authorization: Bearer <access-token>
 
 ### 1.4 공유 컨텍스트·로그인 복귀 [설계 제안]
 
-공유 링크는 공개 게시물 원본에 연결한다. 유효 컨텍스트를 서버가 확인할 전달 방식은 코드와 대조해 합의한다. 이 문서의 제안은 회원의 `GET /posts/{postId}/share-link`가 게시물에 귀속된 shareToken 포함 링크를 반환하고, 공유 화면이 이를 다음 header로 전달하는 방식이다.
+공유 링크는 공개 게시물 원본에 연결한다. #21의 2026-10-08 사용자 채택 경로·서명/수명·재발급·오류 계약은 §5.7을 적용한다. 가입 완료 회원의 `GET /posts/{postId}/share-link`가 게시물에 귀속된 token 포함 링크를 반환하고, 공유 화면이 이를 다음 header로 전달한다. 실제 FE/게시물 adapter 연결 완료 여부와는 구분한다.
 
 ```http
 X-Post-Share-Token: <server-issued-post-bound-token>
 ```
 
-서버는 토큰의 게시물과 대상 postId(댓글/답글이면 그 소속 게시물)를 비교하고 현재 공개 상태를 확인한다. 무토큰/다른 게시물 토큰은 공유 접근을 허용하지 않는다. 토큰 유효기간·재발급·서명/저장 모델은 미확정이다. 공개 링크의 전달 가능성은 공유 기능의 성질이며 특정 수신자 신원 인증을 새로 요구하지 않는다.
+서버는 검증한 토큰의 게시물과 대상 postId(댓글/답글이면 실제 원본의 소속 게시물)를 비교하고 현재 공개 상태를 확인한다. 무토큰/다른 게시물 토큰은 공유 접근을 허용하지 않는다. DB 저장 없는 전용 서명·7일·재사용·기존 링크 유지의 상세 규칙은 §5.7을 따른다. 공개 링크의 전달 가능성은 공유 기능의 성질이며 특정 수신자 신원 인증을 새로 요구하지 않는다.
 
 | 요청 | 회원 | 유효 공유 게스트 |
 | --- | --- | --- |
@@ -210,7 +210,7 @@ X-Post-Share-Token: <server-issued-post-bound-token>
 | --- | --- |
 | 공통/Auth | VALIDATION_ERROR, UNAUTHORIZED, USER_REGISTRATION_REQUIRED, AUTH_PROVIDER_UNAVAILABLE, INTERNAL_ERROR, LOGIN_FAILED, EMAIL_ALREADY_IN_USE, EMAIL_VERIFICATION_INVALID, EMAIL_VERIFICATION_EXPIRED, EMAIL_VERIFICATION_LIMIT_EXCEEDED, EMAIL_DELIVERY_FAILED, PASSWORD_POLICY_VIOLATION, REQUIRED_AGREEMENT_MISSING |
 | User/Region | USER_NOT_FOUND, NICKNAME_ALREADY_IN_USE, REGION_NOT_FOUND, NEIGHBOR_VERIFICATION_REQUIRED, NEIGHBOR_VERIFICATION_LIMIT_EXCEEDED |
-| 공유 | SHARE_CONTEXT_REQUIRED, SHARE_CONTEXT_INVALID, SHARE_SCOPE_MISMATCH |
+| 공유 (#21 §5.7) | UNAUTHORIZED(무토큰·무효·만료/회원 전용 접근), SHARE_SCOPE_MISMATCH(다른 게시물). 이전 SHARE_CONTEXT_REQUIRED/SHARE_CONTEXT_INVALID는 변경 전 제안이며 이번 wire에 새로 추가하지 않음 |
 | Post/Media | POST_NOT_FOUND, POST_DELETED, POST_NOT_EDITABLE, POST_NOT_DELETABLE, POST_TYPE_INVALID, POST_TOPIC_INVALID, ACTIVITY_INFO_REQUIRED, ACTIVITY_STATUS_REQUIRED, VOTE_OPTIONS_INVALID, MEDIA_LIMIT_EXCEEDED, UNSUPPORTED_MEDIA_TYPE |
 | 참여 | COMMENT_NOT_FOUND, COMMENT_FORBIDDEN_WORD, COMMENT_DEPTH_EXCEEDED, REACTION_TYPE_INVALID, COMMENT_EVALUATION_TYPE_INVALID, VOTE_OPTION_INVALID, VOTE_ENDED, VOTE_CHANGE_CONFIRMATION_REQUIRED |
 | 기관 | INSTITUTION_VERIFICATION_NOT_ACTIVE, ADOPTION_NOT_ALLOWED, ADOPTION_NOT_FOUND |
@@ -843,9 +843,21 @@ PENDING은 summary/generatedAt=null과 source 반환, FAILED/SOURCE_TOO_SHORT는
 
 ### 5.7 공개 공유 링크
 
-`GET /posts/{postId}/share-link`, 회원, 200. 공개 대상 여부 확인 후 `{ "data": { "postId": 101, "shareUrl": "https://<서비스도메인>/shared/posts/101?token=<공유토큰>" } }` **[설계 제안]**. 실제 서비스 domain은 환경 설정, 위 URL은 예시. 클라이언트는 복사/공유하고 링크 열기는 로그인 없이 특정 상세로 직행한다. 조회로 개인 활동 +1 없음. 게스트도 받은 링크를 FE에서 복사할 수 있으며 새 링크 발급 API는 호출하지 않는다.
+`GET /posts/{postId}/share-link`, 현재 가입 완료 회원, 200. 공개 대상 여부 확인 후 `{ "data": { "postId": 101, "shareUrl": "https://<서비스도메인>/shared/posts/101?token=<공유토큰>" } }`를 반환하는 경로·기본 응답·발급 주체는 **2026-10-08 #21 사용자 채택**이다. 실제 서비스 domain은 BE2 환경 설정, 위 URL은 예시. 게스트 요청은 기존 `X-Post-Share-Token` 전달안을 유지한다. 클라이언트는 복사/공유하고 링크 열기는 로그인 없이 특정 상세로 직행한다. 조회로 개인 활동 +1 없음. 게스트도 받은 링크를 FE에서 복사할 수 있으며 새 링크 발급 API는 호출하지 않는다.
 
-서버 링크 발급 API/토큰을 사용하지 않는 동등 방식도 가능하지만 공유 대상과 서버 권한 검증 계약을 먼저 합의해야 한다. 공유 링크 만료·재발급은 제품 미정이며 추가 요구로 단정하지 않는다. 삭제된 원본을 링크/토큰으로 복구해 노출하지 않는다.
+**2026-10-08 #21 추가 사용자 채택:** DB 저장 없는 서버 서명 토큰, 발급 후7일, 기간 내 재사용, 다시 발급한 뒤에도 기존 링크는 자기 만료시각까지 유지한다. 새 발급에는 무작위 nonce를 넣어 같은 시각에도 새 URL을 만든다. 요청/응답 필드는 postId/shareUrl이며 expiresAt·자체 회원 토큰·개인정보를 추가하지 않는다. 토큰의 게시물 ID·발급/만료시각·nonce를 전용 HMAC-SHA256 키로 서명한다. 키는 서버 secret이고 토큰은 Privy Bearer가 아니다. 알고리즘은 요청에서 고르지 않으며 변조/비정규 인코딩·미래 발급·정확한7일 규칙·만료 경계를 확인한다. 서명 비교는 Java17 MessageDigest.isEqual을 사용한다([Mac 문서](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/javax/crypto/Mac.html)).
+
+공유 상태/권한 오류는 기존 성공·오류 envelope를 유지한다. 발급은 검증된 Privy subject의 현재 가입 완료를 재조회하며, 공개 대상은 같은 읽기 transaction에서 PostContextReader로 확인한다. 추가 이웃 지역 자격이나 작성자 소유권으로 공개 링크 발급을 제한하지 않는다. 없는/삭제 원본은404 POST_NOT_FOUND, 잘못된 postId는400 VALIDATION_ERROR, 무인증은401 UNAUTHORIZED, 미가입/가입 미완료는403 USER_REGISTRATION_REQUIRED다.
+
+게스트 요청은 X-Post-Share-Token 헤더1개만 사용한다. 무토큰·잘못된/변조/만료 토큰은401 UNAUTHORIZED, 유효 토큰의 다른 게시물 접근은403 SHARE_SCOPE_MISMATCH, 없는/삭제된 원본은404 POST_NOT_FOUND다. 이전 초안의 FORBIDDEN이라는 일반 이름을 새 코드로 추가하지 않는다. 유효 공유 토큰도 메인/목록/지도/개인기록·반응/평가/투표/북마크·새 링크 발급에 사용하면401로 거부한다.
+
+공통 source port는 contracts/share/SharedPostAccess다. 인증된 회원 요청에서 guestForRead/guestForWrite가 Optional.empty()이면 **회원 경로로 처리해야 한다는 뜻**이며 자격 승인 성공이 아니다. 회원 담당 기능이 현재 가입 완료·지역·소유권을 검사하고 공유 토큰으로 우회하지 않는다. 무효 Bearer는 기존 인증 filter에서 거부하고 자동 게스트 전환하지 않는다. 댓글/답글의 대상 postId는 실제 댓글 원본에서 확인하며 클라이언트의 별도 postId를 믿지 않는다.
+
+guestForRead는 상세/요약/공개 집계/댓글 조회의 호출자가 소유한 동일 JDBC transaction을 요구한다. guestForWrite는 실제 게시물/투표 행 잠금을 수행하는 PostContextReader.findForUpdate와 같은 writable transaction을 요구하고 잠금 획득 뒤 토큰 만료·현재 공개 상태를 다시 확인한다. 댓글/답글의 실제 저장·부모 관계·삭제/종료 경합은 #22 등 기능의 최종 검증 조건이다. 게스트 공개 집계는 viewer를 비우며 다른 회원의 선택/반응/북마크를 노출하지 않는다.
+
+실행 설정은 BE2가 조율한다. SHARE_TOKEN_SIGNING_KEY는32bytes 이상 전용 무작위 키의 Base64 secret, PUBLIC_WEB_BASE_URL은 프론트 주소다. HTTPS 또는 localhost/127.0.0.1의 개발 HTTP만 사용하고 userinfo/query/fragment가 있는 설정은 거부한다. 실제 값·secret을 문서/저장소에 넣지 않는다. 임의 fallback key/운영 테스트 adapter는 없으며 키/주소/실제 게시물 adapter가 없으면 안전한500 INTERNAL_ERROR로 실패한다. 기존 링크의 수명을 보장하려면 프로세스 재시작/배포에도 같은 키를 유지해야 하고 키 회전은 #30에서 기존 링크 검증/복구와 함께 조율한다.
+
+FE ShareService.copy(postId)의 실제 adapter는 가입 완료 회원에 한해 이 GET을 호출하고 안전 정수 postId/응답 postId 일치를 확인한 뒤 받은 URL을 복사한다. 공유 화면은 URL의 토큰을 서버 요청 헤더로 전달하며 토큰의 내용/회원 역할을 자체 신뢰하지 않는다. 게스트의 받은 URL 복사는 재발급이 아니다. 로그인 복귀는 기존 returnTo 규칙을 유지하며 행동·댓글 이관을 자동 실행하지 않는다. 실제 FE 주소/adapter·BE2 게시물 조회 연결 및 provider 사용자 흐름은 연동 대기로 기록한다. 토큰 구현이나 테스트 대체 source 성공만으로 전체 실제 연동 완료로 표시하지 않는다.
 
 ## 6. 댓글·반응·평가·투표·북마크
 
