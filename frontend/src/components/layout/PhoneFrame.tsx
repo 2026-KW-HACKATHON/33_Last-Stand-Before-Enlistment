@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import styles from "./PhoneFrame.module.css";
 
-/** Development-demo shell only. Product routes keep rendering their mobile canvas directly. */
+/** Device shell for desktop demo/product previews; compact viewports keep the mobile canvas direct. */
 export function PhoneFrame({ children }: { children: ReactNode }) {
   return (
     <div className={styles.stage}>
