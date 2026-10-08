@@ -5,6 +5,8 @@ export type CommentDisplay = {
   content: string;
   authorName: string;
   createdAtLabel: string;
+  /** FE-only ordering value; the API adapter maps an agreed timestamp later. */
+  createdAtOrder: number;
   parentCommentId?: string;
   targetAuthorName?: string;
 };

@@ -4,8 +4,11 @@ import type { CommentService } from "./service";
 export type CommentMockMode = "success" | "empty" | "load-error" | "create-error" | "forbidden";
 
 const seed: readonly CommentThread[] = [{
-  root: { id: "comment-01", postId: "agenda-photo", content: "보행로 조명이 보완되면 저녁에도 더 안전하게 다닐 수 있을 것 같아요.", authorName: "김이웃", createdAtLabel: "방금 전" },
-  replies: [{ id: "reply-01", postId: "agenda-photo", parentCommentId: "comment-01", targetAuthorName: "김이웃", content: "저도 같은 의견입니다.", authorName: "이주민", createdAtLabel: "방금 전" }],
+  root: { id: "comment-01", postId: "agenda-photo", content: "보행로 조명이 보완되면 저녁에도 더 안전하게 다닐 수 있을 것 같아요.", authorName: "김이웃", createdAtLabel: "방금 전", createdAtOrder: 2 },
+  replies: [{ id: "reply-01", postId: "agenda-photo", parentCommentId: "comment-01", targetAuthorName: "김이웃", content: "저도 같은 의견입니다.", authorName: "이주민", createdAtLabel: "방금 전", createdAtOrder: 1 }],
+}, {
+  root: { id: "comment-02", postId: "agenda-photo", content: "보행 환경 개선 우선순위도 함께 논의하면 좋겠습니다.", authorName: "박주민", createdAtLabel: "방금 전", createdAtOrder: 3 },
+  replies: [],
 }];
 
 const wait = () => new Promise((resolve) => setTimeout(resolve, 350));
@@ -30,13 +33,13 @@ export function createCommentMockService(mode: CommentMockMode = "success"): Com
     },
     async create(postId, input) {
       await failIfNeeded();
-      const comment: CommentDisplay = { id: `comment-${sequence++}`, postId, content: input.content.trim(), authorName: "나", createdAtLabel: "방금 전" };
+      const comment: CommentDisplay = { id: `comment-${sequence++}`, postId, content: input.content.trim(), authorName: "나", createdAtLabel: "방금 전", createdAtOrder: Date.now() };
       threads = [...threads, { root: comment, replies: [] }];
       return comment;
     },
     async createReply(postId, input) {
       await failIfNeeded();
-      const reply: CommentDisplay = { id: `reply-${sequence++}`, postId, parentCommentId: input.parentCommentId, targetAuthorName: input.targetAuthorName, content: input.content.trim(), authorName: "나", createdAtLabel: "방금 전" };
+      const reply: CommentDisplay = { id: `reply-${sequence++}`, postId, parentCommentId: input.parentCommentId, targetAuthorName: input.targetAuthorName, content: input.content.trim(), authorName: "나", createdAtLabel: "방금 전", createdAtOrder: Date.now() };
       threads = threads.map((thread) => thread.root.id === input.parentCommentId ? { ...thread, replies: [...thread.replies, reply] } : thread);
       return reply;
     },
