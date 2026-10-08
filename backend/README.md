@@ -265,6 +265,13 @@ back/feature/18-home, 기준 a9ad5c9에서 사용자 확정 최신 공개6개/�
 전체336개를 새로 실행해 권한 기대값1곳이 실패했다(335개 통과). activity SELECT 허용표를 보완한 후 home·서버 최소 권한·실제 Supabase 감사3개·Storage4개를 다시 실행해24개 통과/실패0/오류0/skip0·build 성공(23:32 KST)을 확인했다. 이후 검사 범위를 전체336개 재통과로 표시하지 않는다. Schema 제약133개와 공개 API 역할 차단9개도 통과했다. 현재 원격 back/develop d1f8bcf의 #14 생성 구현은 작업 도중 병합됐으며 commit/PR 전 최신 base를 반영해 권한 기대값/CI를 재확인해야 한다. 실제 프로젝트 FE·게시물 생성부터 탐색까지의 사용자 흐름 및 배포는 #30/#31 대기다. commit/push/PR/병합은 수행하지 않았다.
 메인 추가 사진 회귀: 실제 로컬 서버 LOGIN에서 사진2개를 생성 ID와 다른 첨부 순서로 연결해 첫 사진·공개 URL의 공백 인코딩을 확인했다. home 전체 관련10개 재실행·실패0/오류0/skip0·build 성공(1분28초). 이 추가 검증은 앞선 원격 감사/Storage24개와 구분한다. 새 사진/참조 fixture는 정리했다.
 
+### #19 지도 대표 조회 구현·검증 (2026-10-08)
+
+back/feature/19-map, 기준 a9ad5c9. 사용자 채택 regionIds CSV·선택 centerRegionId로 실제 catalog를 읽고 동별 공개 안건/투표의 반응 합계·created_at·id 순서 대표를 조회한다. 입력 순서·빈 동 null·임시 중심 지역의 프로필 불변·재조회 대표 변경·삭제/활동/다른 지역 제외·회원 상태·잘못된 query를 검증했다. Batch 지역/대표 조회이며 임의 경계/좌표/GPS/캐시를 추가하지 않는다. endpoint는 no-store다.
+
+23:41 KST 전체 Java17 test build --rerun-tasks --max-workers=2 --offline,336개 통과/실패0/오류0/skip0·build 성공(8분1초). 실제 Supabase SELECT-only 감사3개·Storage4개를 포함했다. 로컬 Schema 제약133개·공개 API 역할 차단9개 통과, 시험 데이터 정리·서버 역할 NOLOGIN 복원을 확인했다. 공유 DB에는 Migration을 적용하지 않았으며 실제 geometry/프로젝트 FE adapter 연결·배포는 #30/#31 대기다. front/develop ad0700c의 지도 인터페이스를 읽기 전용으로 확인하고 통합 지침에 후속 매핑을 기록했다. 현재 back/develop d1f8bcf의 #14는 작업 도중 병합됐으므로 commit/PR 전 최신 기준 갱신·권한/CI 재검증이 필요하다. 아직 commit/push/PR/병합하지 않았다.
+지도 추가 사진 회귀(2026-10-09): 사진2개를 생성 ID와 다른 첨부 순서로 연결해 첫 사진·공개 URL 공백 인코딩을 확인했다. map 관련9개 재실행·실패0/오류0/skip0·build 성공(1분16초). 이 추가 시험은 앞선 전체336개와 구분하며 데이터/사진 참조를 정리했다.
+
 ### #14 게시물 생성과 서버 권한 (2026-10-08)
 
 최신 `back/develop a9ad5c9`에서 `back/feature/14-createpost`를 준비했다. Java17 `gradlew.bat --no-daemon test build --max-workers=2`는 **341개 중334통과·실패0·오류0·7개 건너뜀, build 성공**. 생략 항목은 선택적인 실제 Supabase/Storage 감사이며 이 시험에서는 opt-in을 끄고 실행하지 않았다. 신규 #14 입력 단위·실제 HTTP/JDBC 통합 테스트 13개는 모두 통과했다.
@@ -301,3 +308,8 @@ FE 기준 `origin/front/develop ad0700c`의 post model/service와 대조했다. 
 실제 공유 Supabase의 #14/#15/#16 권한 적용·배포·프로젝트 FE/Privy 사용자 흐름은 #30/#31에서 해소한다. #29 코드는 별도 작업 공간에 보존하며 이번 PR에 포함하지 않는다. 최종 PR의 공통 API/DB/삭제/보존 영향은 필수 승인0명 규칙으로 작성자·Codex가 재검토하며 실제 연동과 로컬 시험을 구분한다.
 
 #16 추가 병합 후 재검증: 최신72969f0을 반영한 db28278에서 메인·게시물 생성/상세/수정삭제·서버 권한·실제 감사3/Storage4 관련64개 통과·실패0·오류0·skip0, build 성공(00:43 KST, 4분). Schema133/역할 차단9 통과. 활동 UPDATE는 #16에 필요한 권한이며 메인의 금지 시험은 물리 DELETE 거부로 조정했다. 앞선 전체362개와 이 후속64개를 구분한다.
+
+### #19 PR 준비 검증 (2026-10-09)
+#14·#15 기준6aa69a6에서 전체361개 통과·실패0·오류0·skip0·build 성공(00:39 KST, 9분3초). 실제 Supabase 감사3개·Storage4개 포함. Schema133개·공개 역할 차단9개 통과. 이후 병합된 #16은 같은 원본/권한과 기준 문서에 반영했고 영향받는 검증·최신 CI는 추가 확인한다. 공유 DB rollout·실제 지도/FE/배포는 후속이며 #19를 자동 종료하지 않는다.
+
+#18/#16 최종 통합 후 재검증: 기준305a793을 반영한1613900에서 메인·지도·서버 권한·실제 감사3/Storage4 관련34개 통과·실패0·오류0·skip0·build 성공(00:52 KST, 1분58초). Schema133/공개 역할 차단9 통과. 앞선 전체361개와 구분하며 최종 원본/권한·빈 동·썸네일·profile 불변을 재검토했다.

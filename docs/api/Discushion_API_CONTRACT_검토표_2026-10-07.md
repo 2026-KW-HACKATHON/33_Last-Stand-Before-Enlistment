@@ -1089,4 +1089,8 @@ EvaluationService.list는 기존 댓글 GET의 부모/replies에 있는 본인 �
 
 ## #18 메인 계약 확정 (2026-10-08)
 
-사용자가 공개 게시물 최신6개·진행 중 투표 최신3개, created_at/id 내림차순, 전체 공개 원본 boardCounts를 채택했다. API 정본 §5.1을 따른다. 최신 프로필 기본 지역과 임시 지역을 구분하며 회원 상태·지역 유효성은 요청 시 재검사한다. 공유 원본 읽기·투표 batch 집계만 수행하고 별도 추천/인기도/카운터를 추가하지 않는다. activity_post_details의 서버 SELECT/RLS만 새 Migration으로 준비한다. 로컬 Migration 검증과 공유 DB 적용·FE 실제 확인은 별도다. #14~#17 사용자 이관은 BE1이며 게시물 쓰기를 이 PR 범위에 포함하지 않는다.
+사용자가 공개 게시물 최신6개·진행 중 투표 최신3개, created_at/id 내림차순, 전체 공개 원본 boardCounts를 채택했다. API 정본 §5.1을 따른다. 최신 프로필 기본 지역과 임시 지역을 구분하며 회원 상태·지역 유효성은 요청 시 재검사한다. 공유 원본 읽기·투표 batch 집계만 수행하고 별도 추천/인기도/카운터를 추가하지 않는다. activity_post_details의 서버 SELECT/RLS는 통합된 #15 Migration을 재사용하며 미적용 중복 #18 Migration은 제외했다. 로컬 Migration 검증과 공유 DB 적용·FE 실제 확인은 별도다. #14~#17 사용자 이관은 BE1이며 게시물 쓰기를 이 PR 범위에 포함하지 않는다.
+
+## #19 지도 계약 확정 (2026-10-08)
+
+사용자가 FE viewport의 실제 지역 ID 집합을 서버에 전달하는 방식을 채택했다. API 정본 §5.2: regionIds 필수 CSV·centerRegionId 선택, 요청 순서 보존·빈 동 null·미등록 지역404. 반응 합계/created_at/id 내림차순으로 공개 안건/투표 대표 한 건을 계산한다. FE 경계/좌표/SDK 및 실제 지도 연동은 대기다. 사용자의 계약 채택을 실제 FE 확인으로 대신하지 않는다.
