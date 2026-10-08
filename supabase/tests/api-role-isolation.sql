@@ -25,6 +25,7 @@ create role service_role nologin bypassrls;
 \ir ../migrations/20261008090000_allow_comment_evaluation_transitions.sql
 \ir ../migrations/20261008100000_allow_vote_selection_writes.sql
 \ir ../migrations/20261008104330_bookmarks_server_runtime_permissions.sql
+\ir ../migrations/20261008113000_allow_officer_agenda_reads.sql
 do $checks$
 declare r text;
 begin
@@ -97,6 +98,18 @@ begin
       and tablename='bookmarks' and policyname='server_delete'
       and roles=array['discushion_server']::name[] and cmd='DELETE' and qual='true') then
     raise exception 'Missing or unexpected bookmarks server RLS policies';
+  end if;
+  if not has_table_privilege('discushion_server','discushion.institution_agenda_adoptions','SELECT')
+    or has_table_privilege('discushion_server','discushion.institution_agenda_adoptions','INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER')
+    or has_table_privilege('anon','discushion.institution_agenda_adoptions','SELECT,INSERT,UPDATE,DELETE')
+    or has_table_privilege('authenticated','discushion.institution_agenda_adoptions','SELECT,INSERT,UPDATE,DELETE')
+    or has_table_privilege('service_role','discushion.institution_agenda_adoptions','SELECT,INSERT,UPDATE,DELETE') then
+    raise exception 'Unexpected institution_agenda_adoptions access for server or API roles';
+  end if;
+  if not exists(select 1 from pg_policies where schemaname='discushion'
+      and tablename='institution_agenda_adoptions' and policyname='server_select'
+      and roles=array['discushion_server']::name[] and cmd='SELECT' and qual='true') then
+    raise exception 'Missing institution_agenda_adoptions server SELECT policy';
   end if;
 end $server_checks$;
 select 'PASS: 3 API role names x schema/table/sequence denial = 9 checks' as result;
