@@ -918,7 +918,15 @@ DELETE /api/v1/posts/{postId}/reactions/{reactionType}
 { "data": { "postId": 101, "reactionCounts": { "EMPATHY": 3, "NEEDED": 2, "CURIOUS": 1, "total": 6 }, "myReactions": ["EMPATHY", "NEEDED"] } }
 ```
 
-동일 PUT 재시도는 관계/횟수 추가 없음, DELETE 부재 상태 재시도도 유지 **[설계 제안]**. 실제 없는→있는 등록은 유형별 +1, 취소 +0, 취소 뒤 재등록 +1. 집계 total은 3유형 합계이며 댓글/투표 수와 분리.
+2026-10-08 #23 사용자 채택: 동일 PUT 재시도는 관계/집계 추가 없음, DELETE 부재 상태 재시도도200으로 유지한다. 세 반응은 독립이고 다른 유형·다른 회원의 관계를 변경하지 않는다. 요청 body는 없으며 본인 ID/선택 상태 등 body 필드는400 VALIDATION_ERROR다. reactionType은 위3개 대문자 값만 허용하고 잘못된 유형은400 REACTION_TYPE_INVALID, 잘못된 postId는400 VALIDATION_ERROR다. myReactions는 EMPATHY·NEEDED·CURIOUS 고정 순서의 본인 현재 선택만 반환한다.
+
+실제 없는→있는 등록은 유형별 +1, 취소 +0, 취소 뒤 재등록 +1이라는 기존 활동 규칙은 유지하되 사용자의 #5 건너뜀 지시로 이번 구현은 activity_events/+1을 제공하지 않는다. 미구현을 활동 완료로 기록하지 않는다. 집계 total은 3유형 합계이며 댓글/투표 수와 분리한다.
+
+같은 writable JDBC transaction에서 현재 users→posts→polls 잠금·가입 완료·이웃 완료 지역·공개 원본을 재검사하고 변경/집계/본인 선택을 반환한다. 회원이 없는 공유 게스트는401, 미가입/가입 미완료는403 USER_REGISTRATION_REQUIRED, 지역 자격 없음은403 NEIGHBOR_VERIFICATION_REQUIRED, 없는/삭제 원본은404 POST_NOT_FOUND다. 유효 공유 토큰으로 회원 무권한을 우회하지 않는다. 알림·다른 반응 자동 취소·자체 세션은 추가하지 않는다. PUT은 기존 복합 PK와 ON CONFLICT로 관계를 하나만 유지하며 최초 created_at을 덮어쓰지 않는다. DELETE는 검증된 본인·게시물·유형만 삭제한다. DB/내부 실패는 기존500 INTERNAL_ERROR이며 성공한 것처럼 빈 집계를 반환하지 않는다.
+
+추가 Migration `20261008080000_allow_reaction_reads_and_transitions.sql`은 post_reactions SELECT/INSERT/DELETE·서버 역할 전용 정책3개만 추가한다. UPDATE·직접 시퀀스·다른 테이블 권한 확대는 없다. 실제 Supabase 적용은 BE2 조율 후이며 기존 적용 Migration은 유지한다. 최초에는 #166 댓글 미병합 상태에서 별도 Feature/격리 로컬 DB로 검증했다. 2026-10-08 #166 병합 기준 back/develop bf98ecd를 반영해 댓글·반응 권한15테이블/33정책 및 두 추가 Migration·계약 문단을 모두 보존하고 재검증한다. 통합 기록은 계약 검토표 §18.4를 따른다.
+
+FE ReactionService.set은 selected=true→PUT/false→DELETE와 응답 reactionCounts/myReactions→counts/selected/total 변환으로 연결한다. 초기 get은 기존 게시물 상세/ParticipationSnapshotReader 소비 경로에서 연결하며 별도 GET 반응 endpoint를 임의 추가하지 않는다. 반응 실제 저장/집계 원본을 공통 batch adapter의 반응 부분에 연결해야 한다. 댓글/표/북마크 미연결 항목을0으로 채운 가짜 ParticipationSnapshotReader bean은 등록하지 않는다. 실제 공통 batch adapter/BE2 게시물 원본·FE/Privy 연결은 후속으로 유지한다.
 
 ### 6.3 댓글/답글 좋아요·싫어요
 

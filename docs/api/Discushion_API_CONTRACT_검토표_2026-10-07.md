@@ -207,8 +207,8 @@ API §11.1의 모든 미정 분류를 위 표에 대응했다. 실제 금칙어�
 | C·BE1 | GET | /posts/{postId}/comments | #22 |
 | C·BE1 | POST | /posts/{postId}/comments | #22 |
 | C·BE1 | POST | /comments/{commentId}/replies | #22 |
-| C·BE2 | PUT | /posts/{postId}/reactions/{reactionType} | #23 |
-| C·BE2 | DELETE | /posts/{postId}/reactions/{reactionType} | #23 |
+| C·BE1 | PUT | /posts/{postId}/reactions/{reactionType} | #23 |
+| C·BE1 | DELETE | /posts/{postId}/reactions/{reactionType} | #23 |
 | C·BE2 | PUT | /comments/{commentId}/evaluation | #24 |
 | C·BE2 | DELETE | /comments/{commentId}/evaluation | #24 |
 | C·BE2 | PUT | /posts/{postId}/vote | #25 |
@@ -950,3 +950,53 @@ BE2는 실제 PostContextReader의 동일 DataSource/transaction·posts→polls 
 - 운영 JAR의 댓글 test fixture0, diff 공백 검사 통과. 로컬 새 Migration 적용 외 원격 DB/배포/비밀 설정/FE 변경은 없다. 실제 기본6개 원격 Migration과 로컬 추가1개 차이는 승인 전 rollout 대기로 명시하며 원격 이력 기대값을 미리 바꾸지 않았다.
 
 변경은 Feature 작업 트리에 보존한다. 이번 #22 commit/push/PR·병합은 아직 수행하지 않았으며 이후 요청 시 최종 diff·최신 base·필수 CI·BE2 상대 리뷰 조건을 확인한다. 실제 BE2 adapter·권한 rollout·FE/Privy 연동과 사용자 지시로 미구현인 #5 활동 횟수는 후속으로 유지하고 #22 전체 완료로 기록하지 않는다.
+
+## 18. #23 독립 반응 등록·취소·집계 계약 (2026-10-08)
+
+사용자가 기존 PUT/DELETE와 재시도 멱등·3종 독립 선택·200 count/본인 선택 응답 및 필요한 최소 DB 권한 추가를 채택했다. 정본은 API §6.2다. #5 활동 횟수 건너뜀 지시를 유지하며 원본 반응 관계는 실제 DB에 기록하지만 activity_events/+1은 구현하지 않는다. 제품 규칙 자체를 삭제하거나 미구현을 완료로 표시하지 않는다.
+
+초기 독립 착수 기준은 back/develop 04d60fa693c5fb1c0dbbe0d70f9826df351c938a이고 당시 #166 댓글 PR은 미병합이었다. back/feature/23-reactions는 이 기준에서 별도로 시작해 #22 로컬 DB를 보존하고 별도 PostgreSQL cluster에 기준6개 Migration만 적용한 기본241개/실패0/오류0/skip0·build 및 원격 SELECT-only3개 통과를 확인했다. 현재는 #166이 병합된 bf98ecd11a73b6b3790e5e2707182e9b4b406e98을 반영했으며 최신 통합 상태는 §18.4를 따른다.
+
+### 18.1 실행·권한 규약
+
+현재 가입 완료·이웃 완료 지역만 회원 guard로 검사한다. 공유 게스트는 반응을 쓰지 못하고 유효 공유 토큰도 회원 자격을 대체하지 않는다. 같은 transaction에서 users→posts→polls 잠금을 사용하고 현재 공개/삭제 상태·지역을 검증한다. 본인 ID는 검증된 서버 주체만 사용한다. PUT의 기존 복합 PK와 ON CONFLICT DO NOTHING은 중복 등록/최초 created_at 덮어쓰기를 막는다. DELETE는 본인의 해당 유형만 취소하며 다른 유형·다른 회원을 건드리지 않는다. 집계/본인 상태는 같은 post_reactions 원본을 한 SQL로 조회한다.
+
+신규 20261008080000_allow_reaction_reads_and_transitions.sql은 post_reactions SELECT/INSERT/DELETE·역할 전용 정책3개만 추가한다. UPDATE·직접 시퀀스·활동/댓글/다른 테이블 권한은 추가하지 않는다. 초기 독립 Feature 로컬은13테이블/30정책이었고, #166 반영 후 로컬 합계는15테이블/33정책이다. 원격은 적용된 기존12테이블/27정책·이력6개를 유지하며 원격 미적용을 숨기거나 감사 기대값을 미리 바꾸지 않는다. BE2 최신 리뷰 및 실제 적용 조율이 필요하다.
+
+#166이 먼저 병합되면 #23 최종 PR 전에 최신 base를 반영하고 댓글 권한2테이블/3정책과 반응 권한1테이블/3정책을 모두 유지해야 한다(공통 합계15테이블/33정책). 반대 순서도 같은 원칙이다. ServerRuntimePermissionsIntegrationTests·API 역할 SQL·API/검토표 문서의 겹치는 변경은 한쪽으로 버리지 않고 실제 합계를 검증한다. 실제 공유 DB 적용된 파일은 수정하지 않는다.
+
+### 18.2 FE·공통 adapter와 미완료 경계
+
+현재 FE frontend/src/features/reaction/model.ts·service.ts·ReactionControls.tsx를 대조했다. ReactionSnapshot은 counts/selected/total 표시 port다. Backend의 data.postId를 요청 대상과 대조한 뒤 JSON 안전 정수 ID를 FE 문자열 ID와 연결하고 reactionCounts.EMPATHY/NEEDED/CURIOUS 및 total·myReactions를 변환한다. 본인 선택을 타 회원에게 캐시/표시하지 않는다. set은 selected를 PUT/DELETE로 변환하고 body 없이 보내며 오류를 성공 선택 상태로 바꾸지 않는다.
+
+초기 get은 기존 상세 조회의 공개 집계/회원 myState와 연결해야 한다. 새 GET 반응 API를 임의로 만들지 않는다. 실제 ParticipationSnapshotReader batch adapter의 반응 부분이 같은 post_reactions 원본을 사용하도록 연결·검증해야 하며, 아직 없는 댓글/표/북마크 값을0으로 채우는 운영 fallback bean은 만들지 않는다. 이 adapter 전체 완료를 현재 반응 저장/집계 테스트 통과로 대신하지 않는다. 실제 PostContextReader/게시물 삭제·수정 경합의 통합은 BE2와 확인한다. FE/Privy 연결은 사용자 지시에 따라 통합 #30/#31에서 확인하며 문서 대조는 FE 담당자 승인이나 실제 연동 성공을 의미하지 않는다.
+
+현재 변경은 BE1 API·반응 구현·필요 권한 Migration과 검증 준비다. 실제 원격 권한 적용·adapter/FE 연결·#5 활동은 미완료로 유지하고 #23 전체 완료로 기록하지 않는다. commit/push/PR은 이번 Issue의 별도 요청 때 수행한다.
+
+### 18.3 #23 독립 검증 결과 (2026-10-08)
+
+기준 back/develop 04d60fa693c5fb1c0dbbe0d70f9826df351c938a,Feature back/feature/23-reactions의 미커밋 변경을 검증했다. FE 대조 기준은 front/develop 5fc0bc755ae2205540ec4d1cc619d983b0f47eca다.
+
+- 16:27 KST Java17 gradlew.bat --no-daemon test build --console=plain --rerun-tasks: 전체250개/실패0/오류0/skip0·build 성공. 당시 신규 입력2/실제 서버 LOGIN HTTP7 및 기존 권한8, 실제 원격 Supabase SELECT-only 감사3개 포함.
+- DB 집계 읽기 실패 rollback·users 잠금 중 자격 철회 검사2개를 추가한 뒤 16:28 KST 관련19개(입력2/실제 HTTP9/권한8) 전부 통과·실패0/오류0/skip0·build 재통과. 최종 추가 테스트를 포함한 전체252개를 재실행한 것으로 표시하지 않는다. 운영 코드에는 이 두 테스트 추가 시 변경이 없다.
+- production 반응 Controller/store·공통 서명 filter·실제 localhost discushion_server LOGIN을 사용했다. PostContextReader만 test-only JDBC source다. 세 반응 독립성·중복 PUT 최초 시각 유지·중복 DELETE/재등록·다른 사용자/유형 보존·전체 수와 본인 선택 분리, 동시12개 등록, 삭제 원본/게스트/미가입/미완료/타지역/무효 Bearer 거부를 확인했다.
+- 실제 posts 잠금 대기 중 삭제와 users 잠금 중 지역 자격 철회는 저장 전에 거부했다. 실제 SQL 집계 실패의500·DB 원문 비노출·새 관계 rollback, UPDATE/TRUNCATE/DDL 및 미병합 댓글 읽기 거부를 확인했다. 테스트용 실패 정책/함수는 localhost fixture에서만 생성하고 제거하며 운영 Migration에 넣지 않는다.
+- 추가 Migration의 재실행, Schema SQL128개, API 역할 이름 모의 격리9개 통과. 운영 JAR의 반응 테스트 fixture0, diff 공백 검사 통과. 실제 원격 감사3개는 기존6개 Migration/12테이블 권한·27정책 및 TLS/공개 역할 SELECT-only 감사다. 신규 반응 권한 적용·원격 runtime 사용자 흐름 완료를 뜻하지 않는다.
+- 최신 origin/back/develop은 동일하다. #166 댓글 변경/데이터/브랜치를 보존했고 이 Feature에 합치지 않았다. 별도 테스트 cluster의 역할은 NOLOGIN/password null로 복구하고 이번에 시작한 PostgreSQL을 종료했다. 원격 DB/배포/실제 secret·FE 코드를 변경하지 않았다.
+
+실제 PostContextReader/ParticipationSnapshotReader 소비 연결·공유 DB 권한 rollout·FE/Privy·#5 활동 기록은 후속이다. 변경은 작업 트리에 보존하고 이번 Issue commit/push/PR·병합은 아직 수행하지 않았다. PR 분류는 API/권한·Migration 영향에 따른 상대 리뷰 필요이며 최신 BE2 승인/필수 CI/최신 base·충돌/미해결 리뷰 없음 조건을 적용한다.
+
+### 18.4 #166 병합 기준 반영·충돌 해결 (2026-10-08)
+
+사용자가 최신 develop pull 및 #23 반영/수정을 요청했다. #166은 BE2 최신 승인 후 병합되어 origin/back/develop bf98ecd11a73b6b3790e5e2707182e9b4b406e98에 통합된 상태였다. 작업 트리 clean을 확인한 뒤 로컬 back/develop을 git pull --ff-only로 갱신하고 #23 Feature에 origin/back/develop을 merge했다. 직접 develop/main push·force/rebase·원격 DB 적용은 수행하지 않는다.
+
+충돌3파일은 각 변경의 의미를 대조해 다음과 같이 해결했다.
+- ServerRuntimePermissionsIntegrationTests: 기존 댓글 SELECT/INSERT·평가 SELECT를 보존하고 반응 SELECT/INSERT/DELETE를 더해15테이블·33정책으로 검증한다. 동일하게30으로 자동 합쳐지는 정책 수를 그대로 두지 않았다.
+- api-role-isolation.sql: 두 추가 Migration을 시간 순서로 모두 포함하고 공개 API 역할 접근 차단 검사 유지.
+- 계약 검토표: #166 댓글 §17을 보존하고 반응을 §18로 옮겼다. 댓글/반응 API 작성자는 모두 BE1로 표시하고 기존 정책·실제 연결/원격 적용/FE·#5 후속을 유지했다.
+
+반응 HTTP 권한 회귀의 이전 '미병합 댓글 SELECT 거부' 기대는 새 기준과 충돌하므로 댓글 SELECT 허용을 확인하고, 여전히 미허용인 activity_events SELECT 거부로 갱신했다. 반응 UPDATE/TRUNCATE/DDL 거부는 그대로 유지한다. #166 댓글 운영 코드·테스트·Migration과 #23 반응 운영 코드·Migration은 변경하지 않았다. 최신 develop과 댓글 파일 차이가 없음을 확인했다.
+
+검증은 같은 격리 #23 로컬 DB에 통합된 댓글 권한을 추가해8개 Migration·15테이블/33정책으로 실행한다. 원격은 적용된 기존6개/12테이블·27정책의 SELECT-only 감사를 유지하고 댓글/반응의 실제 공유 DB 적용은 BE2 조율 후로 남긴다. 통합 전체 test/build와 최종 PR diff·CI·BE2 최신 재검토 결과는 이어 기록한다. 기존 독립 검증 기록을 통합 전체 검증으로 대신하지 않는다.
+
+통합 검증 완료 — 2026-10-08 17:19 KST: 기준 bf98ecd + 이번 #23 병합 해결 작업 트리에서 Java17 gradlew.bat --no-daemon test build --console=plain --rerun-tasks 실행. 전체272개/실패0/오류0/skip0·build 성공. 댓글20개·반응11개·통합 최소 권한 회귀8개·실제 Supabase SELECT-only 감사3개 포함. Schema SQL128개·모의 API 역할 격리9개 통과, 두 추가 Migration의 로컬 적용/재실행과 runtime 권한15테이블·33정책을 확인했다. 댓글·반응 test fixture의 운영 JAR 포함0, 미해결 충돌0·공백 검사 통과. 새 통합 commit/push는 기존 PR #167에 반영하고 최종 head에 대한 BE2 재검토/필수 CI를 확인한다. #166 승인이나 기존 #167 CI를 새 head의 승인/CI로 대신하지 않는다. 공유 DB 적용·실제 adapter/FE·#5 후속은 유지한다.
