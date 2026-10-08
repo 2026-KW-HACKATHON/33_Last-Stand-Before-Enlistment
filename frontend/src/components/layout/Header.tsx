@@ -47,16 +47,11 @@ export function Header({ title, onBack, rightAction, variant = "default", classN
         </button>
       )}
       {brand ? (
-        <div className="flex h-header min-w-0 flex-1 items-start pl-px">
-          <div className="shrink-0 pt-1">
-            <Image src="/icons/brand.png" alt="" width={35} height={32} unoptimized />
-          </div>
-          <div className="min-w-0 pt-2 pb-3">
-            <h1 className="flex h-6 items-center text-[20px] leading-[27px] font-bold text-black">
-              Dis<span className="text-primary">cushion</span>
-            </h1>
-            <p className="flex h-[14px] items-center truncate text-[9px] leading-[12.15px] text-secondary">우리의 이야기가, 더 나은 동네를 만듭니다.</p>
-          </div>
+        <div className="flex h-header min-w-0 flex-1 items-center gap-1 pl-px">
+          <Image src="/icons/brand.png" alt="" width={30} height={28} unoptimized className="shrink-0 -translate-y-px" />
+          <h1 className="flex h-7 min-w-0 -translate-y-px items-center text-[20px] leading-none font-bold text-black">
+            Dis<span className="text-primary">cushion</span>
+          </h1>
         </div>
       ) : (
         <h1 className="min-w-0 flex-1 truncate text-header" title={title}>{title}</h1>
