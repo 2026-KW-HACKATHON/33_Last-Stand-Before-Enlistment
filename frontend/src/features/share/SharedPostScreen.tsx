@@ -19,7 +19,11 @@ import { createVoteMockService } from "../vote/mock";
 
 export function SharedPostScreen({ postId, shareService, mode = "ready" }: { postId: string; shareService: ShareService; mode?: "ready" | "loading" | "error" | "unavailable" }) {
   const navigation = useNavigation(); const post = postFixtures[postId];
-  const [retry, setRetry] = useState(0); const entry = { destination: { id: "sharedPost" as const, params: { postId } }, sharedContextRef: `shared:${postId}` };
+  const [retry, setRetry] = useState(0);
+  /** Preserve the opaque shared context during authentication; direct loads get a non-secret local reference. */
+  const entry = navigation.state.current?.destination.id === "sharedPost" && navigation.state.current.destination.params.postId === postId
+    ? navigation.state.current
+    : { destination: { id: "sharedPost" as const, params: { postId } }, sharedContextRef: `shared:${postId}` };
   const state = useMemo(() => mode === "loading" ? { kind: "loading" as const } : mode === "error" ? { kind: "error" as const, message: retry ? "공유 게시물을 다시 불러오지 못했습니다." : "공유 게시물을 불러오지 못했습니다.", onRetry: () => setRetry(v => v + 1) } : !post || mode === "unavailable" ? { kind: "unavailable" as const, message: "삭제되었거나 더 이상 볼 수 없는 공유 게시물입니다." } : { kind: "success" as const, post: { ...post, viewer: { mode: "guest" as const }, capabilities: { ...post.capabilities, canBookmark: true, canReact: true, canVote: true, canReport: true } } }, [mode, post, retry]);
   const login = () => navigation.beginAuthentication(entry);
   const gate = <Notice tone="info"><p>회원 전용 기능입니다. 로그인 후 원 공유 상세로 돌아와 다시 눌러 주세요.</p><Button className="mt-2" onClick={login}>로그인·가입</Button></Notice>;
