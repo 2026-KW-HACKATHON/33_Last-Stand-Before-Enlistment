@@ -323,3 +323,46 @@ flowchart TD
 각자는 별도 작업 공간/Feature 브랜치에서 작은 단위로 구현한다. 공유 전 최신 origin/integration/develop을 fetch→merge하고 최종 diff/의도하지 않은 파일·미커밋 보존·관련 test/lint/typecheck/build·실제 API/브라우저 결과를 확인한 뒤 integration/develop으로 fast-forward 가능한 결과를 push한다. 상대가 먼저 push해 원격이 전진하면 다시 merge·영향 검증한 뒤 push한다. Git push 성공이나 한 사람의 Mock 통과를 실제 FE/배포 완료로 기록하지 않는다.
 
 이번 계획 변경은 GitHub 이슈10개 갱신·#200/#201 생성 및 이 문서 갱신만 포함한다. 실제 assignee 변경·이슈 종료·환경 저장·DB 적용·배포·main 병합은 수행하지 않는다.
+
+## 2026-10-09 재분배 — A/B가 독립적으로 완료하는 실행 계약
+
+이 절은 바로 앞의 2인 계획에서 A/B 사이에 남아 있던 구현 의존을 제거한 최신 기준이다. 같은 범위의 이전 표·"협력" 표현은 아래 완료 단위와 파일 경계를 따른다. **공동 작업은 #31/#68 최종 인수와 #201 main PR·배포뿐이다.**
+
+### A 완료 단위 — 실제 연결 기반
+
+A는 #30·#168·#171·#75를 하나의 완료 단위로 맡는다. B의 기능 adapter 구현이나 UI 변경을 기다리지 않는다.
+
+1. #30: 실제 FE origin·API base URL·CORS allowlist·Privy allowed origin·Vercel/Render 배포 SHA·TLS·최소 권한 DB rollout을 적용하고 확인한다.
+2. #168: Privy SDK OTP, Bearer 공급, #8 로그인 상태 조회, #7 가입, session·공통 ApiClient의 `prepareRequest`를 연결한다.
+3. #171: `returnTo`의 허용 내부 경로 보존·로그인/가입 후 화면 복귀의 공통 동작을 구현한다. 게시물/공유 상세 데이터 호출은 포함하지 않는다.
+4. #75: 일반 회원·완료 지역·타지역·유효/만료 기관·게스트의 시연 계정/데이터와 안전한 재현 절차를 준비한다.
+
+A의 완료 기준은 **프로젝트 FE에서 OTP → #8 세 회원 상태 → #7 가입 → 로그인 완료·안전한 복귀까지 실제로 확인**하고, 기능 adapter가 소비할 `ApiClient`/Bearer/환경값·시연 계정 시나리오를 integration/develop에 제공하는 것이다. A가 수정하는 파일은 root layout/providers, 공통 API client·환경변수, auth/signup/session, CORS·배포·DB/seed 절차로 한정한다.
+
+### B 완료 단위 — 기능 화면과 실제 API adapter
+
+B는 #200에 #169·#170·#172·#173의 범위를 묶어 독립 완료한다. A의 파일을 수정하거나 별도 인증/토큰 저장 방식을 만들지 않는다.
+
+1. 기존 공통 `ApiClient`를 인자로 받는 기능별 실제 adapter와 decoder를 만든다. 홈/게시판/지도, 생성/상세/수정/삭제, 사진, 댓글/반응/평가/투표, 공유, AI, 지역 참여, 북마크, 기관 채택, 프로필 조회·수정, 개인 목록이 범위다.
+2. 기존 Mock과 화면 모델 사이의 숫자 ID·상태 enum·nullable·시간·cursor·오류 변환을 기능별 테스트로 고정한다. 이 단계는 A의 배포 완료를 기다리지 않고 시작·완료할 수 있다.
+3. B는 `createFeatureServices(apiClient)`처럼 기능 service 묶음과 필요한 타입만 제공한다. A가 root/provider에 한 번만 주입한다.
+4. A가 integration-ready 결과를 push하면, B는 실제 시연 계정으로 각 기능의 저장·재조회·거부·삭제/종료·재시도 화면을 검증해 B 범위를 완료한다.
+
+B는 `frontend/src/features/**`의 인증/가입 이외 기능, 기능별 decoder/service/UI와 필요한 backend 기능 수정만 담당한다. root layout/providers·공통 API client·환경변수·CORS·Privy·DB rollout/seed는 수정하지 않는다.
+
+### 동시에 시작할 수 있는 일과 순서
+
+| 지금 동시에 시작 | A | B |
+| --- | --- | --- |
+| 코드·계약 작업 | #30의 CORS/주소/배포 설정, #168의 Privy/session·#8/#7 연결, #171의 returnTo 공통 처리 | #200·#169·#170·#172·#173의 adapter·decoder·기능 화면과 transport 기반 계약 테스트 |
+| 각자 완료 후 | #75 시연 계정/권한 데이터와 실제 로그인·가입 검증 | A가 제공한 ApiClient와 시연 계정으로 실제 기능 저장/재조회·권한 화면 검증 |
+| 두 사람이 함께 | #31/#68 실제 전체 사용자 여정 | #201 main PR·최종 배포 |
+
+위 표의 "B 실제 기능 검증"만 A의 integration-ready handoff 이후 실행한다. 이것은 B의 구현을 멈추라는 의존이 아니라, 실제 서버 결과를 확인할 때 필요한 환경 입력이다. B가 코드·기능 단위 테스트를 마친 뒤 그 입력으로 최종 검증을 수행하면 B 범위를 독립적으로 종료할 수 있다.
+
+### 공유와 직접 push 규칙
+
+- A와 B 모두 자기 Feature/worktree에서 검증한다. 공유 전에 최신 origin/integration/develop을 merge하고 영향받은 검사만 다시 실행한 뒤 integration/develop에 직접 push한다.
+- A는 B의 service 묶음이 준비된 commit을 integration/develop에서 받아 root/provider에 연결한다. B는 A의 공통 client를 소비할 뿐 root를 수정하지 않는다.
+- 새 Migration·공통 권한이 필요하면 B는 변경안을 commit으로 제공하고, A가 실제 DB 적용과 최소 권한 검증을 실행한다. 기능 코드·Migration 작성과 실제 공유 DB 적용은 같은 사람이 동시에 책임지지 않는다.
+- #5 활동 횟수와 #10 프로필 사진, 아직 제공하지 않는 서버 API는 각각 보류로 남긴다. 대체 데이터나 Mock 결과를 실제 완료로 기록하지 않는다.
