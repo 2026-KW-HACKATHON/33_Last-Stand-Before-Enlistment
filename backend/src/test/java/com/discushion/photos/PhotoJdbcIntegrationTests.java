@@ -188,6 +188,22 @@ class PhotoJdbcIntegrationTests {
         assertThat(service.get(id).status()).isEqualTo("DELETE_PENDING");
         assertThat(service.get(id).uploadAuthorizationExpiresAt()).isEqualTo(clock.instant().plusSeconds(8000));
     }
+    @Test void issuanceOutsidePersistedBoundIsTrackedButNeverReturned() {
+        storage.grantSeconds=8000;
+        assertReason(this::reserve,PHOTO_STORAGE_UNAVAILABLE);
+        long id=store.jdbc.queryForObject("select id from discushion.media_files where owner_user_id=?",Long.class,owner);
+        assertThat(service.get(id).status()).isEqualTo("DELETE_PENDING");
+        assertThat(service.get(id).uploadAuthorizationExpiresAt()).isEqualTo(clock.instant().plusSeconds(8000));
+        cleanup.runBatch(20);
+        assertThat(service.get(id).deletionCompleted()).isFalse();
+    }
+    @Test void expiredIssuanceResponseIsImmediatelyReservedForDeletion() {
+        storage.grantSeconds=-1;
+        assertReason(this::reserve,PHOTO_STORAGE_UNAVAILABLE);
+        long id=store.jdbc.queryForObject("select id from discushion.media_files where owner_user_id=?",Long.class,owner);
+        assertThat(service.get(id).status()).isEqualTo("DELETE_PENDING");
+        assertThat(service.get(id).uploadAuthorizationExpiresAt()).isEqualTo(clock.instant().plusSeconds(7300));
+    }
     @Test void pollEndingWhileWaitingForFileLockRejectsAllPhotoWrites() throws Exception {
         long file=completed(),post=post();
         Instant end=clock.instant().plusSeconds(10);

@@ -10,6 +10,8 @@ public interface PhotoStorage {
     /** A verified provider bound, including issuance latency and clock uncertainty, before calling it. */
     Instant authorizationUpperBound(Instant now);
     Upload createUpload(String key, String contentType);
+    /** Returns only after a confirmed successful write. Any thrown failure has an uncertain remote outcome. */
+    default void write(String key,String contentType,byte[] bytes) {throw new PhotoFailure(PhotoFailure.Reason.PHOTO_STORAGE_UNAVAILABLE);}
     Optional<InputStream> open(String key);
     void remove(String key);
     String publicUrl(String key);

@@ -1270,6 +1270,8 @@ GET    /users/me/activity
 
 ## 13. #74 사진 API — FE 계약 확인·BE1 최종 승인 대기
 
+> 2026-10-08 갱신: 새 예약의 전송·인증·기한·삭제 장벽은 사용자 팀 합의가 확인된 **§13.9**를 따른다. §13.2~13.8의 직접 Storage 전송 예시는 변경 전 기록이다. 팀 합의와 GitHub PR 최신 상대 승인·공유 DB 적용·실제 FE 연동은 구분한다.
+
 2026-10-08 FE 계약 확인 기록: FE 담당 sungjin0616은 [PR #107 코멘트](https://github.com/2026-KW-HACKATHON/33_Last-Stand-Before-Enlistment/pull/107#issuecomment-6041114660)에서 상세 사진 DTO·PUT/RAW 전송·응답 유실 재시도·meta 보존을 구현 가능한 계약으로 확인했다. 사용자는 같은 날 FE에게 계약 자체에 문제가 없고 구현 가능하다는 확인을 전달받았다고 명시했다. 아래 과거 FE 확인 대기 표시는 이 기록으로 갱신한다. FE 코드 구현·실제 연동 완료나 GitHub Approve를 뜻하지 않는다. 최신 사진 계약에 대한 BE1 승인 1명과 back/develop 통합은 아직 필요하며, 실제 Storage/서버 계정 검증과 사용자 흐름은 #13/#30/#31에서 수행한다.
 
 BE1 검토안과 병합된 PR #85를 바탕으로, 사용자가 남은 사진 계약 정리를 요청해 BE2 실행 기준을 구체화했다. §13.5~13.7의 같은 주제에 대한 기준은 기존 재발급 허용·제한 수치 미정 표현을 대체한다. API 경로/DTO·숫자 ID·10MB 환산·삭제 대기 의미는 FE wire 확인 대상으로 유지하며 실제 확인자·날짜·PR/SHA는 #74에 기록한다. Backend 실행 방향 정리는 FE 승인·#13 구현·Storage 검증 완료를 뜻하지 않는다. §5.4~5.5의 변경 전 multipart/newImageIndex 예시는 현재 구현 계약으로 사용하지 않는다. 인증은 합의된 Privy Bearer 직접 검증이며 실제 회원/오류 adapter는 해당 인증 계약을 따른다.
@@ -1411,6 +1413,23 @@ FE의 공통 ApiClient는 앱 API base 밖으로 요청하지 않는 경계를 �
 fileId 미확보 때문에 즉시 취소할 수 없는 대가는 시연용 최소 범위의 명시적 제약이다. 입력/파일 선택은 유지하고 부분 업로드 실패를 게시물 완료로 표시하지 않는다. 24시간은 정리 후보 시각이지 즉시 DELETED 보장이 아니며 worker/권한 만료/전송 종료 조건을 만족해야 슬롯을 반환한다. 즉시 예약 복구가 필요해지면 요청 식별자·DB 유니크·소유권·payload 비교를 포함한 별도 계약 변경으로 검토한다.
 
 #13 검증에는 PUT·RAW 실제 전송, 소유자 전용 fileId, PATCH meta decoder 전달, 최초 POST DB commit 후 응답 유실/발급 실패/프로세스 장애, 반복 재시도로 quota 도달, 24시간 정리·늦은 전송/삭제 재생성 방어를 포함한다. 사진 상세·생성/수정/삭제 연결은 #14~16에서 검증한다. 이 보완 문서나 Codex 리뷰를 실제 FE 승인·BE1 승인·연동 완료로 표시하지 않는다.
+
+### 13.9 2026-10-08 확정: 새 사진 서버 중계 업로드
+
+사용자가 서버 중계 검토안의 팀 합의를 확인했다. 새 예약에 대해서는 이 절이 §13.2·13.7·13.8의 Storage 직접 전송·인증 헤더 금지·서명 URL 계약보다 우선한다. 사진 공개 열람, 소유권·가입 자격, fileId/photoFileIds/photoOrder, 최대10장·게시물 합계10,000,000 bytes, 최초24시간 기한은 유지한다. 실제 FE 적용·배포·공유 DB 적용·GitHub 상대 승인은 별도로 확인한다.
+
+1. 기존 `POST /api/v1/photo-uploads`로 예약한다. `upload.url`은 `/api/v1/photo-uploads/{fileId}/content` 상대 경로다. FE는 신뢰한 앱 API base로 해석하고 다른 origin으로 전송하지 않는다. `method=PUT`, `bodyMode=RAW`, 반환 headers는 `Content-Type`이다. `expiresAt`은 DB 시계 기준 예약+2시간의 업로드 시작 허용 기한이다. 외부 signed upload URL을 발급하거나 재발급하지 않는다.
+2. `PUT /api/v1/photo-uploads/{fileId}/content`에 JPG/PNG File/Blob을 RAW로 보낸다. 앱 API에만 현재 Privy access token을 Bearer로 전달한다. 토큰은 반환 headers에 포함하지 않으며 Supabase Storage에는 전달하지 않는다. JSON/base64/FormData/multipart는 사용하지 않는다. 현재 가입 완료·본인 소유·미취소·미전송·허용 기한을 검사한다. 실제 bytes는 예약 sizeBytes와 정확히 같아야 하고 MIME/이미지 내용을 검사한다.
+3. 성공은 `200 {"data": ...}`의 기존 사진 상태 DTO이며 아직 `UPLOADING`이다. 기존 complete POST로 실제 저장 파일을 다시 검사해 `UNLINKED`로 전환한다. 성공 PUT 재전송은 허용하지 않는다. 완료 호출/조회 재시도로 최초 uploadedAt이나 24시간 기한을 늘리지 않는다. PUT 응답이 유실되면 본인 상태 조회와 complete로 확인하며 같은 key에 자동 재전송하지 않는다.
+4. 토큰 없음401, 가입 미완료403, 타인/없는 fileId404, 미지원 형식415, 최대 용량 초과413, 예약 bytes 불일치400, 이미 시도/미완료409 PHOTO_UPLOAD_NOT_READY, 취소/삭제409 PHOTO_DELETION_PENDING, 허용 기한 만료409 PHOTO_UPLOAD_EXPIRED, 처리 한도/외부 응답 불명확503 PHOTO_STORAGE_UNAVAILABLE를 사용한다. 공통 오류 envelope는 유지한다. 취소 DELETE는 삭제 대기202, 이미 삭제 완료된 재호출은200이며 최종 완료는 GET의 deletionCompleted로 확인한다.
+
+Spring은 요청 수신·이미지 검사에 합산30초 제한, 인스턴스당 동시 업로드2개·대기 큐 없음을 적용한다. Storage 전체 응답에도30초 제한을 적용한다. timeout/취소는 외부 쓰기의 종료 증거가 아니다. 실제 배포의 10MB 요청 수용은 #30에서 별도로 검증한다.
+
+파일마다 외부 쓰기를 최대1회 시작한다. 같은 파일 잠금 아래 RUNNING을 DB에 commit한 뒤 외부 POST를 수행하고, 기대한 key를 포함한 성공 응답의 종료를 확인해 ACKNOWLEDGED를 저장한다. 응답 유실·프로세스 종료·종료 기록 실패는 UNKNOWN 또는 RUNNING으로 보존하며 시각/lease/object 부재로 종료를 추정하지 않는다. 재시도는 명시적 새 예약이며 기존 시도/용량을 삭제 완료로 오인하지 않는다.
+
+새 Migration `20261008071616_track_server_photo_uploads.sql`은 media_files에 upload_transport 및 시도 ID/상태/시작/종료시각을 추가한다. 기존 행은 DIRECT_UNCONFIRMED, 새 예약만 SERVER_RELAY다. 전송 방식·시도 식별자와 확정/불명확 결과는 되돌리지 않는다. 서버 최소 권한과 RLS는 유지한다. 적용된 Migration은 수정하지 않으며 공유 적용은 통합·상대 리뷰 후 수행한다.
+
+최종 DELETED는 새 쓰기 차단, 활성 참조 없음, 시도 없음 또는 ACKNOWLEDGED, Storage 삭제·실제 부재, 최신 잠금/claim 재검사를 모두 만족해야 한다. 전송 중 취소 후 늦게 생성된 파일은 종료 확인 뒤 다시 삭제한다. 기존 직접 업로드 및 종료 불명확 파일은 DELETE_PENDING을 유지한다. 모든 장애 파일이 일정 시간 내 최종 삭제된다는 보장은 없다.
 
 ## 내부 독립 개발 규약 (2026-10-07)
 

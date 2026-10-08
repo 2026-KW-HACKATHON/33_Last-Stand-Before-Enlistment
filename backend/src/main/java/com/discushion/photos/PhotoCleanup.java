@@ -39,8 +39,10 @@ public final class PhotoCleanup {
         try {
             storage.remove(claimed.key());
             // An expired signed URL and one successful DELETE are insufficient proof of final absence.
-            if(claimed.authorizationExpires()!=null && !clock.instant().isBefore(claimed.authorizationExpires())
-                    && storage.uploadsDrained(claimed.key(),claimed.authorizationExpires())) {
+            boolean drained=claimed.relay()?claimed.writesFinished():
+                claimed.authorizationExpires()!=null && !clock.instant().isBefore(claimed.authorizationExpires())
+                    && storage.uploadsDrained(claimed.key(),claimed.authorizationExpires());
+            if(drained) {
                 var remaining=storage.open(claimed.key());
                 if(remaining.isEmpty()) complete=true;
                 else {try(var input=remaining.get()) {} error="OBJECT_STILL_PRESENT";}
@@ -53,7 +55,8 @@ public final class PhotoCleanup {
             var now=clock.instant();
             if(fresh==null || store.referenced(id) || !claimed.claim().equals(fresh.claim())) return;
             long retry=Math.min(3600L,60L*(1L<<Math.min(6,Math.max(0,fresh.attempts()-1))));
-            store.finish(id,claimed.claim(),now,finalComplete,finalError,now.plusSeconds(retry));
+            boolean safe=finalComplete && (!fresh.relay() || fresh.writesFinished());
+            store.finish(id,claimed.claim(),now,safe,safe?null:finalError,now.plusSeconds(retry));
         });
         return true;
     }
