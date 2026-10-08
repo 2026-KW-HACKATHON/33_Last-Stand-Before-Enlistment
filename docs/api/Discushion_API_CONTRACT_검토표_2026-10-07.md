@@ -168,7 +168,7 @@ Privy 이메일 OTP로 인증·로그인한다. 최초 사용자는 필수/선�
 | D08 | 제목/본문/질문/옵션 길이·URL 검증·과거 투표 종료시각·중복 선택지·활동 일정 구조 | 제품 확인 + BE1·BE2·FE | #14·#16·#25, 각 입력 구현 전 |
 | D09 | 사진 저장 파일 삭제 확정. 다른 관계의 물리 보존·소프트 삭제·투표 상태 필터는 미정 | BE1·BE2·FE | #3·#13·#16·#26·#27 |
 | D10 | cursor 형식·size 기본/상한·기본 정렬·ID 동률 정렬·초기 댓글 수/답글 페이지. #9의 사용자 채택·구현/FE 확인 경계는 §14, 다른 목록의 미정 조건 유지 | BE1·BE2·FE | #9·#15·#17·#22·#27·#28, 목록 구현 전 |
-| D11 | Region 계층·지도 원천·기관 정본 식별/seed·동시 유효 기관 인증 개수 | BE1·BE2, 기관 정책 제품 확인 | #3·#9·#12·#19·#29, Schema·권한 구현 전 |
+| D11 | Region 계층·지도 원천·기관 정본 식별/seed는 확인 필요. #12 동시 유효 기관 자격 1개·달력 1년/윤년 계산은 §15 사용자 채택 기준 | BE1·BE2, 남은 원천/seed 확인 | #3·#9·#12·#19·#29, Schema·권한 구현 전 |
 | D12 | 공유 토큰 저장/서명·TTL·재발급·링크 원문 재사용 | BE2·BE1·FE | #21, 공유 구현 전 |
 | D13 | Gemini 3.5 Flash-Lite 선택. 실제 API 모델 ID·생성/저장/재생성·재시도·짧은 원문은 확인/합의 필요 | BE2·BE1·FE | #74·#20·#30 |
 | D14 | 이벤트 저장·원자성·생성 POST 멱등 키의 범위/TTL/payload 비교 | BE1·BE2 | #5 및 각 생성 이슈, 쓰기 구현 전 |
@@ -195,7 +195,6 @@ API §11.1의 모든 미정 분류를 위 표에 대응했다. 실제 금칙어�
 | A·BE1 | GET | /users/me/neighbor-verifications | #11 |
 | A·BE1 | POST | /users/me/neighbor-verifications | #11 |
 | A·BE1 | GET | /institution-verifications | #12 |
-| A·BE1 | POST | /institution-verifications | #12 |
 | B·BE2 | GET | /home | #18 |
 | B·BE2 | GET | /map/dongs | #19 |
 | B·BE2 | GET | /posts | #17 |
@@ -840,3 +839,39 @@ DB 보존은 원본/감사 이력 유지를 위한 기술 기준이며 삭제된
 **리뷰 분류: 상대 리뷰 필요.** 새 공개 지역 API 계약과 소비 DTO/인증 예외, 원격 Schema 검증 기대값을 포함하므로 최신 변경에 대한 BE2 승인1명이 필요하다. AGENTS.md Backend PR 리뷰 기준과 협업전략 §5.1에 따라 필수 CI·최신 base·충돌/미해결 지적 없음·작성자/Codex 최종 diff 검토를 함께 확인한다. GitHub의 일괄 승인 수0이나 합성 시험/다른 PR의 승인을 이번 상대 승인으로 대신하지 않는다.
 
 PR은 Refs #9를 사용한다. 후보 조회·공통 FK의 로컬 실제 구현 검증은 끝났으나 §14.2의 실제 지역 원천/지도 대응·소비 계약 공동 확인과 서버 역할·FE 연결 완료 조건은 남아 있어 Issue를 자동 종료하지 않는다. BE2 리뷰 요청에는 현재 조회 계약의 정합성과 남은 지도/기관 지역 연결 기준 확인을 명시한다. FE 실제 사용자 흐름은 기존 #30/#31 이관 조건을 유지한다. 별도 사용자 요청이 없었던 main/develop 직접 push·배포는 수행하지 않는다. 조건 충족 여부와 실제 PR 링크·CI/리뷰·병합 결과는 PR 및 Issue에 기록한다.
+
+## 15. #12 기관 조회 wire와 FE 표시 port 변환 (2026-10-08)
+
+### 15.1 결정과 근거
+
+PR [#154](https://github.com/2026-KW-HACKATHON/33_Last-Stand-Before-Enlistment/pull/154)의 BE2 리뷰 요청에 따라 API 정본 §4.8을 현재 구현의 인증·200 JSON·오류·상태 의미로 갱신했다. 사용자가 #12에서 채택한 사항은 대표 상태 하나 조회, 같은 기간에 유효 자격 1개, 한국 시간 달력 1년(윤년 2월29일 → 다음해2월28일 같은 시각)이다. 대표 선택은 기존 #10의 유효 이력 우선·최근 완료/ID 순서를 유지한다. 증빙/신청·배지 플래그 수동 부여·이웃 자격 확대를 추가하지 않는다.
+
+Backend wire는 API 정본 §4.8을 사용한다. FE InstitutionQualification은 표시 port이며 wire DTO가 아니다. 대조한 FE 기준은 front/develop c473af32bdc84e7eef67072631fd7b6541dbb949의 [model.ts](https://github.com/2026-KW-HACKATHON/33_Last-Stand-Before-Enlistment/blob/c473af32bdc84e7eef67072631fd7b6541dbb949/frontend/src/features/institution/model.ts), provider.tsx, README.md다. 코드의 배열/문자열 표현 차이는 아래 adapter로 연결할 수 있으며 Backend의 공통 ID 타입이나 FE 표시 port를 변경할 근거가 아니다.
+
+### 15.2 adapter 변환 계약
+
+| Backend wire | FE InstitutionQualification 표시 값 | 조건 |
+| --- | --- | --- |
+| data.id | subjectId | 응답 ID는 로컬 회원 ID. adapter가 검증된 현재 회원의 localMemberId와 일치하는지 확인한 뒤, 그 회원에 이미 결합된 Session subjectKey를 subjectId로 사용 |
+| institutionVerification.institutionId / institutionName | institution {id, name} | ID를 양의 JSON 안전 정수로 검증한 뒤 10진 문자열로 변환. 기관명으로 ID를 만들거나 정본을 병합하지 않음 |
+| responsibleRegion {id, name} | responsibleRegions: [{id, name}] | 같은 ID 검증/문자열 변환 후 길이1 배열로 감쌈. 이 배열은 현재 단일 담당 지역을 나타내며 복수 자격·지역 정책을 새로 허용하지 않음 |
+| status NOT_SUBMITTED | status none | 기관 정보/시각 null, isActive/institutionVerified false인 정상200에서만 변환. 이력 없음과 조회 오류를 혼동하지 않음 |
+| status COMPLETED | status completed | 필수 기관/지역/시각을 검증. 미래 completedAt의 completed 상태도 현재 자격을 뜻하지 않으며 기간 비교로 표시 |
+| status EXPIRED | status expired | 원본 기관/지역/완료·만료시각을 보존하고 배지/업무 허용은 false |
+| completedAt / validUntil | 같은 ISO-8601 문자열 | 유효 날짜 및 completedAt < validUntil 확인. FE에서 승인일/만료일을 생성하지 않음 |
+| isActive / institutionVerified | 표시 port의 시간 기반 배지 판정과 대조하는 서버 스냅샷 | 두 값의 일치 확인. 현재 자격은 completedAt ≤ 평가시각 < validUntil일 때만 true. FE timer/focus/visibility 갱신은 화면 표시용이며 실제 업무는 서버가 다시 검사 |
+
+Session subjectKey의 전역 형식을 바꾸지 않는다. 구현 adapter는 인증/회원 adapter에서 신뢰할 수 있게 얻은 localMemberId ↔ subjectKey 결합을 사용해야 한다. 현재 회원 GET /users/me의 id 등 검증된 서버 응답을 통해 이 결합을 준비할 수 있다. Privy subject, 로컬 회원 ID, FE subjectKey가 같은 값이라고 가정하거나 이메일·기관명·요청 userId로 연결하지 않는다. 결합이 없거나 응답 회원이 다르거나 요청 도중 Session이 바뀌면 결과를 표시 상태에 반영하지 않는다. 이 검사는 FE 표시 주체의 정합성 검증이며 Backend 권한 근거는 계속 검증된 Bearer다.
+
+adapter의 실행 순서는 현재 검증된 회원 결합과 Session 세대를 고정 → Bearer GET(AbortSignal 전달) → 같은 Session 유지/회원 ID 일치 확인 → ID·필수 필드·Enum·시간·서버 플래그 검증 → 위 변환 → FE validateQualification(value, subjectKey)다. 취소/이전 Session의 늦은 결과는 폐기한다.
+HTTP401은 인증 안내, 403 USER_REGISTRATION_REQUIRED는 가입 안내, 503 AUTH_PROVIDER_UNAVAILABLE와500 INTERNAL_ERROR는 기존 오류/재시도 처리로 연결한다. 오류를 none/completed로 성공 변환하거나 배지·Session 권한을 임의 부여하지 않는다. 미지 Enum/잘못된 필드는 조회 오류로 처리하며 기존 FE unknown/error 차단 동작을 사용한다.
+
+### 15.3 검토·구현·실제 연동 경계
+
+- 확인된 근거: 사용자 제품/조회 방식 채택, Backend wire의 기존 ID·시간·envelope 유지, 현재 FE 표시 port 소스와 위 필드별 변환 가능성 대조.
+- 이번 수정은 문서/계약 기록이다. FE adapter·Session 회원 결합·화면 코드를 이 Backend Feature에 추가하지 않는다.
+- FE 담당자의 실제 합의/승인 기록은 아직 없다. 이 절을 FE 승인으로 표시하지 않는다. BE2 최신 정합성 재검토는 PR #154에서 요청한다.
+- 실제 FE adapter를 연결할 때 검증된 회원 결합, 정상/미등록/만료/미래·타 회원 응답·잘못된 ID/필드·오류·요청 취소/Session 전환과 반환 시점의 기간 경계를 확인한다. 실제 Privy/FE 사용자 흐름은 #30/#31, FE #65/#68의 완료 전 검증 조건으로 유지한다.
+- 기관 상태 GET은 본인 전용이다. 다른 작성자의 배지를 본인의 응답으로 채우지 않는다. 작성자 표시/기관 안건 업무의 실제 조회·최종 권한 연결은 각 관련 Issue에서 처리한다.
+- #75는 지정된 관리자 등록 도구와 공통 회원 잠금으로 상태를 준비한다. 기간 겹침1개 제한은 이 작성 경로에서 보장하며 임의 관리자 SQL까지 막는 DB exclusion 제약 추가/실제 시연 데이터 준비 완료를 뜻하지 않는다.
+- PR #154의 3731c1b 검증: Java17 전체224개/실패0/오류0/skip0·build 성공, 신규 JDBC10+실제 localhost 서버 LOGIN HTTP5, 실제 원격 SELECT-only 감사3. 이는 실제 provider/FE 연결 완료와 구분한다. 문서 보완 commit의 diff·검증·CI·BE2 리뷰는 PR에서 갱신한다.

@@ -251,7 +251,7 @@ UI에서 확정 문구를 우선 사용한다: 로그인 `로그인에 실패했
 | A User | GET/PATCH | `/users/me` | 프로필·지역·권한 조회/수정 | F-RBVFZX, F-QQKYLC |
 | A Region | GET | `/regions` | 활동/인증 지역 선택 후보 | F-QQKYLC, F-ATWJDJ |
 | A Verification | GET (기존 제안) | `/users/me/neighbor-verifications` | 본인 완료 지역/자격 조회; DTO #74 대조 | F-ATWJDJ |
-| A Institution | GET (기존 제안) | `/institution-verifications` | 본인 기관 유효 상태/담당 지역 조회; DTO #74 대조 | F-OPNIXL, S-YLSPHQ |
+| A Institution | GET (#12 사용자 채택, §4.8) | `/institution-verifications` | 본인 대표 기관 상태·담당 지역·유효기간·배지 조회 | F-OPNIXL, S-YLSPHQ |
 | B Home | GET | `/home` | 현재 탐색 지역 메인 | F-UPRLMN |
 | B Map | GET | `/map/dongs` | 동별 대표 게시물 | F-QIGKAK |
 | B Post | GET/POST | `/posts` | 통합 목록/세 유형 게시 | F-EAJPVC, F-FTLHCX, S-TBFIHO |
@@ -504,7 +504,56 @@ GET 200 응답은 `{ "data": { "requests": [], "verifiedRegions": [] } }` 형태
 
 기관 증빙 입력·첨부·자료 제출·접수·실제 심사는 이번 MVP에서 제외한다. 별도 시연용 계정의 기관 정본·담당 지역·유효기간/완료 상태를 준비하고 현재 유효 상태 기반 역할·배지·업무 권한은 유지한다. 기관 자격이 주민 참여의 이웃 자격을 대신하지 않는다. 계정 준비는 #75, 조회 계약은 #74/#12를 따른다.
 
-기존 GET 경로는 조회 제안으로 대조한다. 본인 현재 유효 상태·담당 지역·유효기간·기관 표시만 필요한 계약을 #74에서 고정한다. 증빙 POST/파일 DTO는 현재 MVP에서 제외한다.
+#### #12 사용자 채택 조회 계약 (2026-10-08)
+
+사용자가 대표 기관 상태 조회, 같은 기간에 유효한 기관 자격 1개, 한국 시간 기준 달력 1년을 채택했다. PR [#154](https://github.com/2026-KW-HACKATHON/33_Last-Stand-Before-Enlistment/pull/154)의 코드 기준은 `3731c1b`다. 아래는 구현 가능한 Backend wire 계약이며 FE 담당자의 승인·실제 adapter 연결·Privy 사용자 흐름 완료를 뜻하지 않는다. FE 표시 port 변환과 확인 경계는 [계약 검토표 §15](./Discushion_API_CONTRACT_검토표_2026-10-07.md#15-12-기관-조회-wire와-fe-표시-port-변환-2026-10-08)을 따른다.
+
+```http
+GET /api/v1/institution-verifications
+Authorization: Bearer <Privy access token>
+```
+
+- 요청 body와 조회 조건은 없다. 공통 인증 계층이 검증한 Privy subject의 **현재 가입 완료 회원**만 본인 상태를 조회한다. 클라이언트 `userId`·기관/지역/역할 값으로 주체나 자격을 지정하지 않는다.
+- 기관 자격이 없거나 만료돼도 조회는 200이다. 기관 업무 실행 권한을 승인하는 endpoint는 아니며 각 업무가 쓰기 시점에 대상·현재 자격·담당 지역·소유권을 재검사한다.
+- 응답 `data.id`는 기관 신청 ID가 아닌 본인 로컬 회원 ID다. `institutionId`는 DB 기관 정본 ID, `responsibleRegion.id`는 지역 정본 ID다. 기존 JSON number/양의 안전 정수 규약을 유지하고 시각은 ISO-8601 `+09:00`으로 반환한다.
+
+200 예시(설명용 값, 실제 시연 데이터 등록 아님):
+
+```json
+{
+  "data": {
+    "id": 101,
+    "institutionVerification": {
+      "status": "COMPLETED",
+      "institutionId": 201,
+      "institutionName": "기관 이름",
+      "responsibleRegion": { "id": 301, "name": "담당 지역 이름" },
+      "completedAt": "2026-10-08T09:00:00+09:00",
+      "validUntil": "2027-10-08T09:00:00+09:00",
+      "isActive": true
+    },
+    "institutionVerified": true
+  }
+}
+```
+
+| 상태 | 응답 의미 |
+| --- | --- |
+| `NOT_SUBMITTED` | 기관 이력 없음. institutionId/institutionName/responsibleRegion/completedAt/validUntil은 null, isActive/institutionVerified는 false. 명칭을 신청 UI 제공으로 해석하지 않음 |
+| `COMPLETED` | 선택된 완료 이력이 아직 만료되지 않음. 미래 completedAt 이력도 이 상태이며 **completedAt ≤ 서버 현재시각 < validUntil**일 때만 isActive/institutionVerified가 true |
+| `EXPIRED` | 서버 현재시각 ≥ 선택된 이력의 validUntil. 이력은 유지하고 isActive/institutionVerified는 false |
+
+대표 이력은 #10 프로필과 같은 규칙으로 선택한다. 현재 유효 이력이 있으면 그중 completedAt 내림차순·ID 내림차순의 첫 이력, 없으면 전체 이력의 같은 정렬 첫 이력, 이력 자체가 없으면 NOT_SUBMITTED다. `institutionVerified`는 대표 이력의 `isActive`와 같은 파란 배지 의미이며 고정 역할 플래그가 아니다. 이웃 완료 지역·활동 지역·주민 속성·Privy 로그인으로 기관 자격을 만들지 않는다.
+
+| 오류 | 공통 오류 code·처리 |
+| --- | --- |
+| 401 | `UNAUTHORIZED`: 무토큰/잘못된·위조·만료 토큰. 기존 Bearer 안내 사용 |
+| 403 | `USER_REGISTRATION_REQUIRED`: 로컬 미가입·가입 미완료. 가입 화면으로 안내 |
+| 503 | `AUTH_PROVIDER_UNAVAILABLE`: 검증키/provider 장애. 재시도 안내 |
+| 500 | `INTERNAL_ERROR`: DB/내부 오류. 기존 안전한 message/details/traceId 응답이며 SQL·비밀번호·오류 원문 비노출 |
+| 405 | 공개 POST 등 지원하지 않는 Method. 기존 프레임워크 오류 응답(`VALIDATION_ERROR`) 유지 |
+
+신청·증빙 POST와 파일 DTO는 현재 MVP에서 제외한다. #75 준비 도구는 명시적인 관리자 DataSource와 공통 회원 행 잠금 아래 동일 등록 재요청은 기존 ID를 반환하고 다른 유효기간 겹침을 거부한다. 완료시각을 한국 시간으로 변환한 뒤 달력상 1년을 더하며 2월29일은 다음해2월28일 같은 시각에 만료한다. 기존 이력은 보존하고 인접 기간은 허용한다. 일반 서버 계정에 자격 쓰기 권한을 주지 않으며, 임의 관리자 SQL까지 제한하는 DB exclusion 제약은 이번 구현에 추가하지 않았다.
 
 <details>
 <summary>변경 전 v10.1 / API 초안 — 이번 MVP에 적용하지 않음</summary>
@@ -1140,7 +1189,7 @@ FE/BE 같은 Part끼리 Method+Path, Request 필수/선택, Response 타입/null
 
 순서는 의존성 기준이며 단일 Part 전체 일괄 구현 요청이 아니다. 각 기능 ID에 세부 작업·허용 범위·API·검증을 연결해 순차 구현하고 선행 검증된 공통 변경을 develop에서 받는다.
 
-아래는 3절과 같은 39개 Method+Path 계약안이다. 비-MVP 경로를 섞지 않는다.
+아래는 기존 39개 Method+Path 초안에서 기관 증빙 POST를 제외한 목록이다. 기관 GET은 §4.8의 #12 채택 계약을 적용하며 다른 변경 대상의 확정 여부는 해당 절을 따른다. 비-MVP 경로를 섞지 않는다.
 
 ```text
 GET    /health
@@ -1154,7 +1203,6 @@ GET    /regions
 GET    /users/me/neighbor-verifications
 POST   /users/me/neighbor-verifications
 GET    /institution-verifications
-POST   /institution-verifications
 GET    /home
 GET    /map/dongs
 GET    /posts
