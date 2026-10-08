@@ -581,6 +581,18 @@ SENT 행은 code_digest/sent_at/expires_at/resend_available_at이 필수라는 �
 
 ### 5.7 media_files — 업로드 파일 메타데이터
 
+**2026-10-08 #13 서버 중계 합의:** 새 게시물 사진은 SERVER_RELAY 방식으로 예약하며 Supabase 업로드 URL을 FE에 발급하지 않는다. 새 Migration `20261008071616_track_server_photo_uploads.sql`은 아래 컬럼을 추가한다. 기존 적용 파일은 보존하고 기존 행은 DIRECT_UNCONFIRMED로 유지한다. 공유 DB 적용/운영 활성화는 별도 상태로 기록한다.
+
+| 후속 컬럼 | 타입·NULL | 역할·규칙 |
+| --- | --- | --- |
+| upload_transport | TEXT NOT NULL | DIRECT_UNCONFIRMED / SERVER_RELAY. 예약 이후 변경 불가. SERVER_RELAY는 POST_PHOTO와 DB의 허용 종료시각 필요 |
+| upload_attempt_id | UUID NULL | 한 fileId/key당 외부 쓰기 시도 하나. 외부 호출 전에 commit하고 삭제/재시도 때 제거하지 않음 |
+| upload_attempt_status | TEXT NULL | 미시도=NULL. RUNNING → ACKNOWLEDGED 또는 UNKNOWN. UNKNOWN/ACKNOWLEDGED는 변경 불가. TTL/worker lease로 종료 처리하지 않음 |
+| upload_attempt_started_at | TIMESTAMPTZ NULL | DB 기준 시도 시작시각. created_at 이후·허용 종료시각 전에 기록하고 변경 불가 |
+| upload_attempt_finished_at | TIMESTAMPTZ NULL | 확인된 성공 응답 이후 DB 기준 종료시각. ACKNOWLEDGED에서만 존재하며 시작 이후 |
+
+media_files의 기존 SELECT/INSERT/UPDATE·RLS를 재사용하고 서버 역할에 DELETE나 새 테이블 권한을 부여하지 않는다. 직접 업로드 파일은 기존 권한 만료/전송 종료 조건을 유지한다. 서버 중계 파일은 취소로 새 시도가 차단되므로 허용 TTL이 남아도 미시도 또는 ACKNOWLEDGED 상태에서 실제 Storage 삭제/부재를 확인한 뒤 DELETED로 전환할 수 있다. RUNNING/UNKNOWN이면 DB CHECK도 최종 삭제를 거부한다. 상태 전환·시도 기록 불변성은 SECURITY INVOKER trigger로 검사하며 로컬 fixture 정리는 관리자만 수행한다.
+
 > **2026-10-07:** 게시물 사진은 Supabase Storage에 저장하며 회원·게스트·사진 URL을 아는 앱 외부 사람 모두 열람할 수 있다. JPG/PNG·최대 10장·게시물 합계 10MB를 유지한다. 사진 제거·교체 및 게시물 전체 삭제 시 해당 저장 파일을 지운다. 미완료 업로드는 임시 보관 후 24시간이 지나면 정리한다. 업로드 권한·최종 연결·bytes 환산·삭제 보상·24시간 기준시각/정리 간격/경합·임시 파일 공개 시점은 #74/#13/#30에서 합의한다. 이는 게시물 임시저장 기능을 추가한다는 뜻이 아니다.
 
 | 컬럼 | 타입·NULL | 역할·규칙 |

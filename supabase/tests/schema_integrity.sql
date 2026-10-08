@@ -292,6 +292,23 @@ select pg_temp.assert_ok('PHOTO74_14_verified_uses_uploaded_clock',(select creat
  and uploaded_at > now()-interval '24 hours' from media_files where storage_key='synthetic/photo74-newly-verified'));
 select pg_temp.assert_error('PHOTO74_15_claim_only_pending',$q$update media_files set deletion_claim_token='00000000-0000-0000-0000-000000000075',
  deletion_claimed_at=now(),deletion_claim_expires_at=now()+interval '1 hour' where storage_key='synthetic/photo74-newly-verified'$q$,'23514','media_deletion_claim_shape');
+insert into media_files(owner_user_id,storage_key,original_name,mime_type,size_bytes,purpose,created_at,lifecycle_status,
+ upload_authorization_expires_at,upload_transport) values(3,'synthetic/photo13-relay','a.png','image/png',100,'POST_PHOTO',now()-interval '1 minute','UPLOADING',now()+interval '2 hours','SERVER_RELAY');
+update media_files set upload_attempt_id='00000000-0000-0000-0000-000000000013',upload_attempt_status='RUNNING',upload_attempt_started_at=now()
+ where storage_key='synthetic/photo13-relay';
+select pg_temp.assert_error('PHOTO13_01_transport_immutable',$q$update media_files set upload_transport='SERVER_RELAY'
+ where storage_key='synthetic/photo74-live-grant'$q$,'23514',null);
+select pg_temp.assert_error('PHOTO13_02_attempt_immutable',$q$update media_files set upload_attempt_id=null,upload_attempt_status=null,upload_attempt_started_at=null
+ where storage_key='synthetic/photo13-relay'$q$,'23514',null);
+update media_files set lifecycle_status='DELETE_PENDING',delete_requested_at=now() where storage_key='synthetic/photo13-relay';
+select pg_temp.assert_error('PHOTO13_03_running_not_final',$q$update media_files set lifecycle_status='DELETED',deleted_at=now()
+ where storage_key='synthetic/photo13-relay'$q$,'23514','media_relay_deleted_safe');
+update media_files set upload_attempt_status='ACKNOWLEDGED',upload_attempt_finished_at=now(),lifecycle_status='DELETED',deleted_at=now()
+ where storage_key='synthetic/photo13-relay';
+select pg_temp.assert_ok('PHOTO13_04_confirmed_before_ttl',(select lifecycle_status='DELETED' and deleted_at<upload_authorization_expires_at
+ from media_files where storage_key='synthetic/photo13-relay'));
+select pg_temp.assert_error('PHOTO13_05_confirmed_cannot_be_reset',$q$update media_files set upload_attempt_status='RUNNING',upload_attempt_finished_at=null
+ where storage_key='synthetic/photo13-relay'$q$,'23514',null);
 select count(*) as passed_assertions from schema_test_results;
 select case_id from schema_test_results order by case_id;
 rollback;

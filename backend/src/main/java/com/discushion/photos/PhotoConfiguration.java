@@ -23,20 +23,31 @@ public class PhotoConfiguration {
     @ConditionalOnProperty(name="PHOTO_STORAGE_WIRE_VERIFIED",havingValue="true")
     PhotoStorage photoStorage(Environment env,Clock clock) {
         if(!env.getProperty("PHOTO_STORAGE_WIRE_VERIFIED",Boolean.class,false))
-            throw new IllegalStateException("Verify real Storage PUT/RAW/bucket/capability bounds before enabling photos");
+            throw new IllegalStateException("Verify relay Storage write/read/delete and deployment limits before enabling photos");
         return new SupabasePhotoStorage(URI.create(env.getRequiredProperty("SUPABASE_URL")),
             env.getRequiredProperty("SUPABASE_SECRET_KEY"),env.getRequiredProperty("SUPABASE_STORAGE_BUCKET"),
-            Duration.ofSeconds(Long.parseLong(env.getRequiredProperty("PHOTO_VERIFIED_ISSUANCE_ALLOWANCE_SECONDS"))),clock);
+            clock);
     }
-    @Bean PhotoService photoService(JdbcPhotoStore store,MemberAuthorization authorization,PhotoStorage storage,
+    @Bean @ConditionalOnMissingBean(PhotoService.class)
+    PhotoService photoService(JdbcPhotoStore store,MemberAuthorization authorization,PhotoStorage storage,
             PlatformTransactionManager manager,Clock clock) {
-        return new PhotoService(store,authorization,storage,new TransactionTemplate(manager),clock);
+        return new PhotoService(store,authorization,storage,new TransactionTemplate(manager),new PhotoDatabaseClock(store),true);
     }
-    @Bean PhotoCleanup photoCleanup(JdbcPhotoStore store,PhotoStorage storage,PlatformTransactionManager manager,Clock clock) {
-        return new PhotoCleanup(store,storage,new TransactionTemplate(manager),clock,Duration.ofMinutes(2));
+    @Bean @ConditionalOnMissingBean(PhotoCleanup.class)
+    PhotoCleanup photoCleanup(JdbcPhotoStore store,PhotoStorage storage,PlatformTransactionManager manager,Clock clock) {
+        return new PhotoCleanup(store,storage,new TransactionTemplate(manager),new PhotoDatabaseClock(store),Duration.ofMinutes(2));
     }
     @Bean PhotoAttachments photoAttachments(JdbcPhotoStore store,MemberAuthorization authorization,Clock clock) {
-        return new PhotoAttachments(store,authorization,clock);
+        return new PhotoAttachments(store,authorization,new PhotoDatabaseClock(store));
+    }
+    @Bean org.springframework.boot.web.server.WebServerFactoryCustomizer<org.springframework.boot.tomcat.servlet.TomcatServletWebServerFactory>
+    photoUploadTimeouts() {
+        return factory->factory.addConnectorCustomizers(connector->{
+            if(!connector.setProperty("disableUploadTimeout","false")
+                || !connector.setProperty("connectionUploadTimeout","30000")
+                || !connector.setProperty("maxSwallowSize","0"))
+                throw new IllegalStateException("Photo upload receiving limits were not applied");
+        });
     }
     @Configuration(proxyBeanMethods=false)
     @EnableScheduling

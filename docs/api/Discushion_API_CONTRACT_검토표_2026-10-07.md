@@ -1000,3 +1000,45 @@ BE2는 실제 PostContextReader의 동일 DataSource/transaction·posts→polls 
 검증은 같은 격리 #23 로컬 DB에 통합된 댓글 권한을 추가해8개 Migration·15테이블/33정책으로 실행한다. 원격은 적용된 기존6개/12테이블·27정책의 SELECT-only 감사를 유지하고 댓글/반응의 실제 공유 DB 적용은 BE2 조율 후로 남긴다. 통합 전체 test/build와 최종 PR diff·CI·BE2 최신 재검토 결과는 이어 기록한다. 기존 독립 검증 기록을 통합 전체 검증으로 대신하지 않는다.
 
 통합 검증 완료 — 2026-10-08 17:19 KST: 기준 bf98ecd + 이번 #23 병합 해결 작업 트리에서 Java17 gradlew.bat --no-daemon test build --console=plain --rerun-tasks 실행. 전체272개/실패0/오류0/skip0·build 성공. 댓글20개·반응11개·통합 최소 권한 회귀8개·실제 Supabase SELECT-only 감사3개 포함. Schema SQL128개·모의 API 역할 격리9개 통과, 두 추가 Migration의 로컬 적용/재실행과 runtime 권한15테이블·33정책을 확인했다. 댓글·반응 test fixture의 운영 JAR 포함0, 미해결 충돌0·공백 검사 통과. 새 통합 commit/push는 기존 PR #167에 반영하고 최종 head에 대한 BE2 재검토/필수 CI를 확인한다. #166 승인이나 기존 #167 CI를 새 head의 승인/CI로 대신하지 않는다. 공유 DB 적용·실제 adapter/FE·#5 후속은 유지한다.
+
+## 19. #13 서버 중계 사진 업로드·안전 삭제 결정과 검증 (2026-10-08)
+
+**상태: 사용자 합의에 따라 구현했고 최신 back/develop 통합 검증을 마쳤다.** 이 절은 최초 검토안을 보존한 작업 결정 기록이다. 현재 정본은 API 명세 §13.9와 Migration `20261008071616_track_server_photo_uploads.sql`이다. 새 예약은 앱 API 상대 경로 PUT/RAW, 앱 origin에만 Privy Bearer 전달, DB 시계 기준 2시간 허용 기한, 파일별 단일 외부 쓰기와 영속 종료 추적을 사용한다. 기존 직접 업로드 행은 보수적으로 유지한다. 구현 완료는 GitHub 상대 승인·공유 DB 적용·배포·FE 실제 연동 완료를 뜻하지 않는다.
+
+### 19.1 직접 업로드에서 확인하지 못한 보장
+
+[공식 서명 업로드 안내](https://supabase.com/docs/reference/javascript/storage-from-createsigneduploadurl)는 URL의 2시간 유효성을 명시한다. 이는 발급 요청이 timeout된 뒤 공급자가 처리를 언제 마치는지, 만료 전에 시작한 전송이 언제 종료되는지를 보장하지 않는다. 이번 실제 시험은 삭제한 key가 같은 유효 URL의 PUT으로 다시 생성됨을 확인했다. 두 번 삭제·시간 경과·lease 만료를 업로드 종료 증거로 사용할 수 없다. 현 방식의 uploadsDrained=false·DELETE_PENDING 유지가 필요한 이유다.
+
+### 19.2 합의된 구현 방식: FE → Spring → Supabase
+
+Supabase 공개 사진 저장과 관리 키의 서버 보관을 유지하되 새 예약에서는 Supabase signed upload URL을 발급하지 않는다. FE는 사진 bytes를 Spring으로 보내고, Spring만 예약 key에 Storage 쓰기를 수행한다. 서버 중계만으로 모든 장애를 해결했다고 취급하지 않는다. 전송 종료의 확인이 없는 쓰기 시도는 영속 추적하고 최종 삭제를 보류한다.
+
+| 접점 | 제안 | 기존 계약 대비 영향 |
+| --- | --- | --- |
+| 예약 | 기존 POST /api/v1/photo-uploads와 fileId·수량/용량·빈도 제한 유지. upload.url은 앱 API origin의 PUT /api/v1/photo-uploads/{fileId}/content, method=PUT·bodyMode=RAW | 업로드 대상은 Storage에서 앱 서버로 변경했고 신규 endpoint를 구현했다. 정본은 API 명세 §13.9 |
+| 업로드 인증 | 공통 Privy Bearer 검증과 현재 가입 완료 회원·소유권 검사. 반환 headers에는 관리 키·Privy 토큰을 넣지 않음. FE가 앱 origin에만 현재 access token을 전달 | 기존 Storage 전송의 Bearer 금지/별도 client 규칙을 앱 서버 전송 규칙과 다시 합의해야 함. Storage 주소에 Bearer를 보내지 않음 |
+| 권한 만료 | 외부 URL 발급 없이 예약 DB에 서버 업로드 허용 종료시각을 기록한다. 유효 시간은 DB 시계 기준 2시간이다. 발급·PUT 허용 판정은 같은 DB 시간 기준을 사용 | 공급자 발급 지연 여유 설정을 제거했다. 취소/24시간 정리/회원 자격은 TTL과 별도로 최종 재검사 |
+| 전송 입력 | JPG/PNG bytes를 최대10,000,000 bytes로 제한해 읽고 내용 검사. 명세상 게시물 합계·10장 제한과 최초 24시간 기준 유지 | FE raw body 전송 지원 및 실제 배포의 요청 크기·메모리·동시 전송 한도를 #30에서 확인. 10MB 수용을 가정하지 않음 |
+| 완료·조회·취소 | 기존 complete/GET/DELETE와 photoFileIds·202 삭제 대기·deletionCompleted 유지. 취소 이후 새 쓰기 시도는 거부 | 삭제 완료의 의미를 완화하지 않음. 완료 호출/검증 재시도로 최초 보관 기한을 늘리지 않음 |
+
+### 19.3 영속 쓰기 추적과 삭제 장벽
+
+내부 상태는 Migration `20261008071616_track_server_photo_uploads.sql`에 추가했다. 적용된 Migration 파일은 수정하지 않았다. 현재 Migration은 Feature PR에 포함하며, 공유 DB 적용은 상대 검토·승인과 BE2 조율 이후 진행한다.
+
+- 파일별 전송 방식 구분이 필요하다. 기존 행은 직접 업로드 또는 안전성 미확인으로 보존하고 서버 중계 완료 행으로 임의 backfill하지 않는다. 새 서버 중계 예약만 외부 업로드 권한이 발급되지 않았다는 사실을 보장한다.
+- 각 Storage 쓰기에 재사용하지 않는 시도 ID·파일/key·시작시각·종료 확인·불명확 결과를 영속 기록한다. users→media_files 잠금 아래 가입/소유권·허용기한·UPLOADING·미완료 시도 여부를 확인하고, 쓰기 시작 기록을 commit한 뒤에만 외부 호출한다. 동일 key 동시 전송·중복 외부 쓰기는 허용하지 않는다.
+- 외부 Storage 호출은 DB transaction 밖에서 수행한다. 잠금/lease가 만료돼도 살아 있던 작업자의 외부 쓰기는 늦게 진행될 수 있으므로, 시도 기록을 자동 종료하거나 새 쓰기로 대체하지 않는다. 예약 당시의 실제 key는 재사용하지 않는다.
+- 의미가 확인된 공급자 응답으로 쓰기 종료가 확인되면 해당 시도의 종료를 commit한다. 성공 응답 유실·timeout·프로세스 장애·종료 commit 유실은 UNKNOWN 또는 미종료로 보존한다. 단순 object 존재/부재 조회나 HTTP client 취소로 종료를 확정하지 않는다. 모르는 시도의 자동 재전송도 금지한다.
+- 취소/기한 만료/관계 제거는 현재처럼 같은 파일 잠금으로 DELETE_PENDING을 기록한다. 이후 새 쓰기 시작을 차단한다. 이미 시작한 작업자는 취소 뒤 파일을 쓸 수 있으므로 해당 시도가 끝나기 전 최종 삭제를 기록하지 않는다.
+- 최종 삭제는 새 쓰기 차단·모든 쓰기 시도 종료 확인·활성 참조 없음이 충족된 파일만 가능하다. 이어 Storage 삭제와 실제 부재를 확인하고 최신 파일 잠금/삭제 claim 아래 같은 조건을 다시 검사해 DELETED를 저장한다. 늦은 작업자 결과는 새 쓰기 시작을 허용하지 않는다.
+- 정상 전송의 종료가 확인된 새 서버 중계 파일은 위 절차로 최종 삭제할 수 있다. 결과 불명확 시도 및 기존 직접 업로드 파일은 종료 증거를 확보할 때까지 DELETE_PENDING을 유지한다. **장애가 있어도 반드시 유한 시간 안에 DELETED가 된다는 보장은 이 안에 없다.** 공급자 종료 확인 기능이 없는 경우 운영 조치/추가 계약이 필요하며, 삭제 대기만으로 #13 인수를 완료하지 않는다.
+
+### 19.4 합의 및 검증 기준
+
+BE1 확인: 새 시도 추적 Schema/권한/RLS, 기존 직접 업로드와의 구분, 잠금·종료 기록·삭제 장벽·장애 복구. FE 확인: 앱 origin 업로드 경로·Bearer 전달·RAW client·complete 호출·202/오류 처리. BE2 확인: 실제 배포의 10MB 요청 수용과 메모리/동시 전송 제한, 관리 키 서버 보관, 실제 Storage 성공/실패 의미.
+
+합의 뒤 구현 검증은 정상 업로드→공개 조회→완료→취소→DELETED, 취소 후 PUT 차단, 업로드 중 취소 및 마지막 쓰기 종료 후 삭제, timeout/서버 재시작/종료 commit 유실의 삭제 대기 보존, lease 만료 뒤 늦은 작업자, 중복 PUT·타인 소유·회원 상태 변경, 최초24시간 경계, 기존 직접 업로드 행의 보수적 처리를 포함한다. 실제 Supabase와 격리 DB 검증을 실제 Privy OTP/FE 사용자 흐름과 구분해 기록한다. 공급자 응답 의미나 배포 제약이 확인되지 않으면 해당 완료 판정을 보류한다.
+
+2026-10-08 KST 최신 통합 검증: 최신 `origin/back/develop` `ff922f1`을 Feature에 병합하고 #166 댓글·#167 반응 변경 및 세 권한 Migration과 함께 검증했다. Java17 `gradlew.bat --no-daemon test build --console=plain --rerun-tasks --max-workers=2 --offline` 결과 **287개 통과·실패0·오류0·skip0, build 성공(6분20초)**. 실제 Supabase SELECT-only 감사3개, 실제 Storage direct 회귀2개, 서버 중계 Storage2개, 서버 중계 JDBC 안전성9개가 포함됐다. 실제 사진 시험은 합성 회원과 격리된 서버 LOGIN으로 Spring PUT→Storage 저장→익명 공개 조회→완료·취소·DELETED 및 늦은 PUT 차단을 확인했고 10,000,000 bytes PNG도 통과했다. 실제 Privy OTP·FE 화면·배포 환경의10MB 수용 검증은 별도다.
+
+깨끗한 localhost PostgreSQL에서 전체 Migration을 적용한 뒤 스키마 무결성133개, API 역할 격리9개, ERD 대조 27테이블/185컬럼·단일 FK47·복합 FK8을 통과했다. 시험용 댓글·반응 Migration은 별도 localhost 통합 DB에만 적용했으며 공유 Supabase에는 새 Migration을 적용하지 않았다. 테스트 Storage 파일 정리와 운영 JAR의 test fixture 비포함을 확인했다. 사용자 자격·공유 DB 적용·PHOTO 활성화·BE1 상대 승인·GitHub 필수 CI·FE 실제 연결은 남아 있다. 결과 불명확한 쓰기와 기존 직접 업로드 행은 종료 증거 전까지 삭제 대기로 유지한다.

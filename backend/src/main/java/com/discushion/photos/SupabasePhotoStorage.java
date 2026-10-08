@@ -21,7 +21,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import tools.jackson.databind.json.JsonMapper;
 import static com.discushion.photos.PhotoFailure.Reason.*;
 
-/** HTTP adapter is gated until actual bucket/wire and issuance bounds have been verified in #30. */
+/** Server-only Storage adapter; production relay disables signed capability issuance. */
 public final class SupabasePhotoStorage implements PhotoStorage {
     private final URI origin;
     private final String secret;
@@ -30,7 +30,13 @@ public final class SupabasePhotoStorage implements PhotoStorage {
     private final Clock clock;
     private final HttpClient http;
     private final Duration timeout;
+    private final boolean directIssuanceAllowed;
     private final JsonMapper json=JsonMapper.builder().build();
+    /** Production relay mode never issues a provider upload capability. */
+    public SupabasePhotoStorage(URI origin,String secret,String bucket,Clock clock) {
+        this(origin,secret,bucket,Duration.ZERO,clock,HttpClient.newBuilder()
+            .connectTimeout(Duration.ofSeconds(10)).followRedirects(HttpClient.Redirect.NEVER).build(),Duration.ofSeconds(30),false);
+    }
     public SupabasePhotoStorage(URI origin,String secret,String bucket,Duration issuanceAllowance,Clock clock) {
         this(origin,secret,bucket,issuanceAllowance,clock,HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(10)).followRedirects(HttpClient.Redirect.NEVER).build());
@@ -39,17 +45,21 @@ public final class SupabasePhotoStorage implements PhotoStorage {
         this(origin,secret,bucket,issuanceAllowance,clock,http,Duration.ofSeconds(30));
     }
     SupabasePhotoStorage(URI origin,String secret,String bucket,Duration issuanceAllowance,Clock clock,HttpClient http,Duration timeout) {
+        this(origin,secret,bucket,issuanceAllowance,clock,http,timeout,true);
+    }
+    private SupabasePhotoStorage(URI origin,String secret,String bucket,Duration issuanceAllowance,Clock clock,HttpClient http,Duration timeout,boolean direct) {
         if(origin==null || origin.getHost()==null || !"https".equals(origin.getScheme()) || origin.getUserInfo()!=null
             || origin.getQuery()!=null || origin.getFragment()!=null || !"".equals(origin.getPath()))
             throw new IllegalArgumentException("Storage origin must be an HTTPS origin without a trailing slash");
         if(secret==null || secret.isBlank() || secret.startsWith("<") || bucket==null || !bucket.matches("[a-zA-Z0-9_-]+")
-            || issuanceAllowance==null || issuanceAllowance.isNegative() || issuanceAllowance.isZero())
+            || issuanceAllowance==null || issuanceAllowance.isNegative() || (direct && issuanceAllowance.isZero()))
             throw new IllegalArgumentException("Verified Storage configuration is required");
         if(timeout==null || timeout.toMillis()<1) throw new IllegalArgumentException("Positive response deadline required");
-        this.origin=origin; this.secret=secret; this.bucket=bucket; this.issuanceAllowance=issuanceAllowance; this.clock=clock; this.http=http; this.timeout=timeout;
+        this.origin=origin; this.secret=secret; this.bucket=bucket; this.issuanceAllowance=issuanceAllowance; this.clock=clock; this.http=http; this.timeout=timeout;this.directIssuanceAllowed=direct;
     }
-    @Override public Instant authorizationUpperBound(Instant now) {return now.plusSeconds(7200).plus(issuanceAllowance);}
+    @Override public Instant authorizationUpperBound(Instant now) {if(!directIssuanceAllowed)throw unavailable();return now.plusSeconds(7200).plus(issuanceAllowance);}
     @Override public Upload createUpload(String key,String mime) {
+        if(!directIssuanceAllowed) throw unavailable();
         requireKey(key);
         var response=text(request("/object/upload/sign/"+bucket+"/"+key)
             .header("x-upsert","false").header("Content-Type","application/json")
@@ -71,6 +81,19 @@ public final class SupabasePhotoStorage implements PhotoStorage {
             if(!expires.isAfter(clock.instant())) throw unavailable();
             return new Upload(upload.toString(),"PUT","RAW",Map.of("Content-Type",mime,"x-upsert","false"),expires);
         } catch(Exception error) {throw unavailable();}
+    }
+    @Override public void write(String key,String mime,byte[] bytes) {
+        requireKey(key);
+        if(bytes==null || bytes.length==0 || bytes.length>PhotoContent.MAX_BYTES
+            || (!"image/png".equals(mime) && !"image/jpeg".equals(mime))) throw unavailable();
+        var response=text(request("/object/"+bucket+"/"+key).header("Content-Type",mime).header("x-upsert","false")
+            .POST(HttpRequest.BodyPublishers.ofByteArray(bytes)).build());
+        if(response.statusCode()<200 || response.statusCode()>=300) throw unavailable();
+        try {
+            var body=json.readTree(response.body());
+            String actual=body.has("Key")?body.get("Key").asString():body.has("key")?body.get("key").asString():"";
+            if(!(bucket+"/"+key).equals(actual)) throw unavailable();
+        } catch(Exception failure) {throw unavailable();}
     }
     @Override public Optional<InputStream> open(String key) {
         requireKey(key);
