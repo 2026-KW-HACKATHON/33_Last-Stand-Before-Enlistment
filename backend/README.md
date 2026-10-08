@@ -251,3 +251,9 @@ Storage 버킷의 public=true·파일 상한10,000,000 bytes·JPEG/PNG 허용을
 Storage object0개·초기 최종 DELETED 검증 이력2행·시연 회원1명·활동 지역1건을 확인했다. 삭제 이력과 사용자 승인된 회원은 보존한다. 이 배포 검증 시점에는 제품 코드/Schema/Migration 변경이나 commit/push/PR/병합을 수행하지 않았다. 이후 문서·감사 테스트 변경은 별도 PR로 통합한다.
 
 22:06:30 KST 실제15분 무요청 후 graceful shutdown을 확인했다. 휴면 중 생성한 별도25시간 전 만료 예약은 UPLOADING·정리 시도0회로 유지됐다. Health 요청으로 서버를 깨운 뒤76.29초에 UP 응답을 확인했고22:10:56에 새 worker가 후보1개를 DELETED·시도1회·오류 없음으로 처리했다. 수동 재배포/재시작으로 자연 휴면 검증을 대신하지 않았다. 최종 DELETED 이력3행·Storage object0개이며 이 결과로 휴면 후 재개 검증 대기를 해소한다. 실제24시간 대기와 프로젝트 FE SDK/adapter·배포 origin/CORS·화면 및 게시물 사진 연결은 이 시험과 구분한다. 무료 플랜의 정리는 휴면 동안 지연될 수 있다.
+
+### 배포 검증 기록 PR의 최신 기준 재검증 (2026-10-08)
+
+최신 `origin/back/develop 26cb5e8`을 Feature에 반영한 `1d6e6fa`에서 Java17 전체 `test build --rerun-tasks --max-workers=2 --offline`을 실행했다. 22:31 KST 종료, 소요8분19초, **328개 통과·실패0·오류0·skip0·build 성공**이다. 실제 Supabase SELECT-only 감사3개와 직접/서버 중계 Storage 시험4개를 모두 실행했다. 격리 PostgreSQL에는 최신 북마크/기관 조회 권한 Migration2개를 추가 적용했고 제약133개·공개 역할 차단9개를 확인했다. 공유 DB의 추가 기능 권한은 이 검증으로 적용하지 않았다.
+
+종료 후 로컬 시험 회원/사진0개·임시 서버 역할 NOLOGIN/password null·운영 JAR의 테스트 클래스/fixture0개를 확인하고 시험 DB를 정상 종료했다. 기존6파일만 PR에 포함하고 frontend·제품 코드·적용된 Migration 파일은 변경하지 않는다. 실제 프로젝트 FE 및 게시물 사진 연결이 남아 있으므로 PR은 #13/#30을 참조하며 이슈를 자동 종료하지 않는다. 병합 후에도 Render 자동 배포는 꺼져 있고 현재 Live `4fffb1e`와 개발 브랜치 최신 코드를 구분한다.
