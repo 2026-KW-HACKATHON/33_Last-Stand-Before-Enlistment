@@ -169,7 +169,7 @@ Privy 이메일 OTP로 인증·로그인한다. 최초 사용자는 필수/선�
 | D09 | 사진 저장 파일 삭제 확정. 다른 관계의 물리 보존·소프트 삭제·투표 상태 필터는 미정 | BE1·BE2·FE | #3·#13·#16·#26·#27 |
 | D10 | cursor 형식·size 기본/상한·기본 정렬·ID 동률 정렬·초기 댓글 수/답글 페이지. #9의 사용자 채택·구현/FE 확인 경계는 §14, 다른 목록의 미정 조건 유지 | BE1·BE2·FE | #9·#15·#17·#22·#27·#28, 목록 구현 전 |
 | D11 | Region 계층·지도 원천·기관 정본 식별/seed는 확인 필요. #12 동시 유효 기관 자격 1개·달력 1년/윤년 계산은 §15 사용자 채택 기준 | BE1·BE2, 남은 원천/seed 확인 | #3·#9·#12·#19·#29, Schema·권한 구현 전 |
-| D12 | 공유 토큰 저장/서명·TTL·재발급·링크 원문 재사용 | BE2·BE1·FE | #21, 공유 구현 전 |
+| D12 | #21 사용자 채택: DB 미저장 전용 서명·7일·기간 내 재사용·기존 링크 유지. 세부 wire/port/실제 연결 경계는 §16 | BE1 작성, BE2 소비/환경·FE 연결 확인 | #21, 실제 adapter·환경·FE 연결은 기능 완료 전 |
 | D13 | Gemini 3.5 Flash-Lite 선택. 실제 API 모델 ID·생성/저장/재생성·재시도·짧은 원문은 확인/합의 필요 | BE2·BE1·FE | #74·#20·#30 |
 | D14 | 이벤트 저장·원자성·생성 POST 멱등 키의 범위/TTL/payload 비교 | BE1·BE2 | #5 및 각 생성 이슈, 쓰기 구현 전 |
 | D15 | 득표율 소수 자릿수·반올림·결과 재조회 방식·서버 시각 전달 세부 | BE2·BE1·FE | #25·#27, 투표·개인 결과 구현 전 |
@@ -203,7 +203,7 @@ API §11.1의 모든 미정 분류를 위 표에 대응했다. 실제 금칙어�
 | B·BE2 | PATCH | /posts/{postId} | #16 |
 | B·BE2 | DELETE | /posts/{postId} | #16 |
 | B·BE2 | GET | /posts/{postId}/summary | #20 |
-| C·BE2 | GET | /posts/{postId}/share-link | #21 |
+| C·BE1 | GET | /posts/{postId}/share-link | #21 |
 | C·BE2 | GET | /posts/{postId}/comments | #22 |
 | C·BE2 | POST | /posts/{postId}/comments | #22 |
 | C·BE2 | POST | /comments/{commentId}/replies | #22 |
@@ -875,3 +875,37 @@ HTTP401은 인증 안내, 403 USER_REGISTRATION_REQUIRED는 가입 안내, 503 A
 - 기관 상태 GET은 본인 전용이다. 다른 작성자의 배지를 본인의 응답으로 채우지 않는다. 작성자 표시/기관 안건 업무의 실제 조회·최종 권한 연결은 각 관련 Issue에서 처리한다.
 - #75는 지정된 관리자 등록 도구와 공통 회원 잠금으로 상태를 준비한다. 기간 겹침1개 제한은 이 작성 경로에서 보장하며 임의 관리자 SQL까지 막는 DB exclusion 제약 추가/실제 시연 데이터 준비 완료를 뜻하지 않는다.
 - PR #154의 3731c1b 검증: Java17 전체224개/실패0/오류0/skip0·build 성공, 신규 JDBC10+실제 localhost 서버 LOGIN HTTP5, 실제 원격 SELECT-only 감사3. 이는 실제 provider/FE 연결 완료와 구분한다. 문서 보완 commit의 diff·검증·CI·BE2 리뷰는 PR에서 갱신한다.
+
+## 16. #21 공유 발급·게스트 source port 계약 (2026-10-08)
+
+### 16.1 사용자 결정과 wire
+
+사용자가 GET /api/v1/posts/{postId}/share-link 및 /shared/posts/{postId}?token=... 주소, X-Post-Share-Token 헤더, DB 미저장 서버 서명, 발급 후7일·기간 내 재사용·새 발급 뒤 기존 링크 유지 추천을 채택했다. 기본200 data는 postId/shareUrl이며 회원 토큰이나 개인정보를 담지 않는다. 범위/JSON/오류의 정본은 API §1.4·§5.7이다. 경로는 가입 완료 회원의 공개 게시물 링크 발급이며 소유권/이웃 자격을 추가 발급 조건으로 만들지 않는다.
+
+HMAC-SHA256 전용 토큰은 v1.postId.issuedAt.expiresAt.nonce.signature 형식이다. ID는 JSON 안전 정수, 시각은 Unix 초, expiresAt=issuedAt+604800, nonce는16bytes의 Base64url이다. 서명은 고정 domain prefix와 payload 전체에 적용하며 Privy token/다른 서명 protocol과 혼용하지 않는다. 형식/길이/정규 Base64url·서명·미래 발급·만료를 검증하며 서명 비교는 Java17 MessageDigest.isEqual을 사용한다. 만료시각 이상에서는 거부한다. 원문을 로그/DB에 저장하거나 임의 fallback key를 만들지 않는다.
+
+무토큰·변조/만료·미지원 guest 행동은401 UNAUTHORIZED, 유효한 다른 게시물 토큰은403 SHARE_SCOPE_MISMATCH, 없는/삭제 원본은404 POST_NOT_FOUND다. 질문 초안의 일반 FORBIDDEN 이름은 기존 공유 코드로 정정했고 새 공통 오류 코드를 만들지 않는다. 무효 Bearer는 기존 인증 filter의401로 처리하며 공유 토큰으로 자동 게스트 전환하지 않는다.
+
+### 16.2 공통 source port와 소비 규약
+
+공통 인터페이스는 backend/src/main/java/com/discushion/contracts/share/SharedPostAccess.java다.
+
+| port | 호출자의 조건 | 결과·의미 |
+| --- | --- | --- |
+| guestForRead(resolvedPostId, action) | 동일 실제 JDBC transaction, 서버가 결정한 action 및 원본 postId | guest context는 게시물 ID/만료시각만 제공. 실제 공개 상태를 매 호출 조회 |
+| guestForWrite(resolvedPostId, action) | 동일 writable JDBC transaction, CREATE_COMMENT/CREATE_REPLY | PostContextReader.findForUpdate로 게시물/투표 잠금 후 현재 공개 상태와 만료 재검사 |
+| 인증된 회원 요청의 Optional.empty() | 호출자가 회원 인증·가입/지역/소유권 경로로 처리 | 회원 권한 승인이라는 뜻이 아니며 미가입/미완료/무자격을 guest 예외로 바꾸지 않음 |
+
+게스트는 대상 상세·요약·공개 집계·댓글 조회·댓글/답글 생성 범위만 허용한다. 메인/목록/지도/개인 기록·반응/평가/투표/북마크·재발급은 허용하지 않는다. 헤더1개에서 토큰을 검증하고 실제 대상과 비교하며 요청 userId/역할은 받지 않는다.
+댓글/답글은 실제 원본으로 게시물 귀속을 조회하고 게시물→투표→댓글 등의 기존 잠금/보존 규칙을 유지한다. 허용 context를 장기 캐시하거나 다른 transaction/원본에 재사용하지 않는다. 댓글 실제 저장 직전의 대상/부모·제약·권한 재검사는 #22의 완료 조건이다.
+공개 참여 조회는 ParticipationSnapshotReader의 viewer를 비우고 개인 선택/반응/북마크를 반환하지 않는다. 이 port는 상세/집계 DTO를 대신 구현하지 않는다. 실제 게시물 adapter는 BE2, 실제 참여/댓글 adapter는 각 담당자 책임이다. 테스트용 source를 운영 bean으로 등록하지 않는다.
+PostContextReader 실제 bean이 준비되지 않으면 발급/검증은 안전한 INTERNAL_ERROR로 실패한다. 운영 테스트 fallback으로 우회하지 않는다. 공통 port의 최신 소비/transaction 정합성은 BE2 리뷰 후 back/develop에 통합하고 다른 Issue는 통합된 규약으로 사용한다.
+
+### 16.3 FE·환경과 실제 확인
+
+FE front/develop df7b4003454f385d62d9d953f38561ade5a0f599의 frontend/src/features/share/service.ts는 copy(postId:string):Promise<void> 표시 port이며 아직 wire adapter가 아니다. 최신 fetch 후 기존 대조 기준과 공유 port 변경이 없음을 확인했다. 회원 adapter는 양의 안전 정수 postId로 발급 GET을 호출하고 응답 postId를 같은 대상으로 대조한 뒤 shareUrl을 복사한다. 수신 화면은 기존 공유 경로의 token을 헤더로 전달한다. 게스트의 받은 URL 복사는 API 발급과 구분한다. 오류를 유효 guest/member 상태로 변환하지 않으며 returnTo/원 화면 복귀 규칙과 행동 자동 실행 금지는 유지한다.
+실제 FE 담당자의 승인·adapter 연결·브라우저 사용자 흐름은 미확인이다. 이번 문서 대조/사용자 결정은 FE 확인자 승인이나 실제 연동 성공을 뜻하지 않는다. #30/#31 및 FE 연동 Issue에서 이 경계를 해소한다.
+
+BE2 준비값은 SHARE_TOKEN_SIGNING_KEY(32bytes 이상 전용 무작위 키의 Base64 secret), PUBLIC_WEB_BASE_URL(프론트 주소)다. 실제 secret·.env·배포 설정 변경은 이번 구현 범위에 없다. 같은 키를 재시작/배포에도 보존하고 회전/복구는 기존 링크의 남은7일 검증과 함께 조율한다. DB Migration/GRANT/RLS 변경은 없다.
+2026-10-08 14:43 KST 검증: 기준 back/develop 3c4b6aaf85920b646105849f5386172067927760 + back/feature/21-share 미커밋 구현에서 Java17 `gradlew.bat --no-daemon test build --console=plain --rerun-tasks` 실행. **전체241개/실패0/오류0/skip0·build 성공**이며 신규 공유17개와 실제 원격 Supabase SELECT-only 감사3개를 포함한다. 공유17개는 정책5·토큰6·실제 localhost 서버 LOGIN HTTP6으로, HMAC 변조/만료/재사용, 공통 Bearer filter, 실제 JDBC 게시물 읽기/잠금, 잠금 대기 중 만료·삭제, 회원 무권한 우회 거부 및 게스트 회원 기능 차단을 확인했다.
+게시물 JDBC source와 소비 endpoint는 src/test 전용 fixture이며 실제 BE2 adapter·댓글 저장 구현·FE 연결 완료를 뜻하지 않는다. 운영 JAR에 공유 test fixture 클래스가 없음을 확인했다. 원격 감사는 TLS·Schema/Migration·공개 역할 접근 차단의 SELECT-only 검사이며 실제 원격 서버 LOGIN 사용자 흐름 검증을 대신하지 않는다. 최신 origin/back/develop은 위 기준과 동일하고 diff 공백 검사를 통과했다. API/권한·공통 port 변경이므로 최종 PR에는 상대 리뷰 필요로 분류하고 BE2의 최신 정합성 승인을 받는다. commit·push·PR 및 실제 연결은 별도 진행 조건으로 남긴다.
