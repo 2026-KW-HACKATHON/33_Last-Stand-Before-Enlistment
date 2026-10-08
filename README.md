@@ -1,5 +1,7 @@
 # Discushion
 
+2026-10-07 현재 서비스 선택·MVP 변경은 [결정 변경 기록](docs/specs/Discushion_MVP_결정변경_2026-10-07.md)과 각 기준 문서의 같은 날짜 반영을 확인하세요. 계약/문서 후속은 #74, 시연용 계정 준비는 #75입니다. 기존 비밀번호/증빙 신청 예시는 현재 MVP 계약이 아닙니다. API 내부 버전은 v1.1.2이며 변경된 경로/DTO는 합의 대기입니다.
+
 지역 주민이 지역 문제를 확인하고 의견을 나누며, 주민 참여와 기관의 지역 안건 확인·채택을 연결하는 지역 참여 서비스입니다.
 
 ## 저장소 구성
@@ -10,11 +12,11 @@ backend/   백엔드 애플리케이션 영역
 docs/      제품 기준·API·설계·협업 문서
 ```
 
-현재 저장소에는 기준 문서와 개발 협업 자료가 있습니다. Frontend/Backend 프레임워크와 애플리케이션 코드는 아직 초기화되지 않았습니다.
+현재 저장소에는 기준 문서와 개발 협업 자료, Spring Boot Backend 실행 골격이 있습니다. 실행·테스트·Supabase 연결·Vercel 배포 준비는 [Backend 안내](backend/README.md)를 확인하세요. Frontend 애플리케이션은 아직 초기화되지 않았습니다.
 
 ## 개발 기준
 
-- 제품 요구사항과 MVP 범위는 `docs/specs/`의 PRD v10.1, 기능명세서 v10.1, MVP 통합 지침서를 따릅니다.
+- 제품 요구사항과 MVP 범위는 `docs/specs/`의 PRD v10.2, 기능명세서 v10.2, MVP 통합 지침서를 따릅니다.
 - API 문서는 구현 전에 FE/BE가 검토·합의할 계약 초안입니다. 문서의 기술 제안이나 미확정 항목을 확정 정책으로 간주하지 않습니다.
 - 저장소 작업 지침은 루트의 [`AGENTS.md`](AGENTS.md)를 참고하세요.
 
@@ -32,7 +34,7 @@ main
 
 ## 문서 안내
 
-- [PRD v10.1](docs/specs/Discushion_PRD_2026-10-06_MVP반영_정리본_v10.1.md) · [기능명세서 v10.1](docs/specs/Discushion_기능명세서_2026-10-06_MVP반영_정리본_v10.1.md)
+- [PRD v10.2](docs/specs/Discushion_PRD_2026-10-07_MVP반영_정리본_v10.2.md) · [기능명세서 v10.2](docs/specs/Discushion_기능명세서_2026-10-07_MVP반영_정리본_v10.2.md)
 - [MVP FE/BE 통합 지침서](docs/specs/Discushion_MVP_백엔드_프론트엔드_통합_지침서.md)
 - [MVP API 계약 초안](docs/api/Discushion_API_SPEC_v2.md)
 - [현재 와이어프레임 기반 유저플로우](docs/specs/Discushion_유저플로우_와이어프레임기반_2026-10-06.md): 화면 흐름 참고 자료이며 제품 정책 정본을 대체하지 않습니다.

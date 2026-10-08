@@ -1,0 +1,3 @@
+# Keep the Gradle shell wrapper runnable on Linux and in containers.
+backend/gradlew text eol=lf
+backend/gradlew.bat text eol=crlf

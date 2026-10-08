@@ -19,8 +19,11 @@ logs/
 # Temporary
 tmp/
 temp/
+.local-db/
 
 # Build / generated
+.gradle/
+.vercel/
 dist/
 build/
 out/

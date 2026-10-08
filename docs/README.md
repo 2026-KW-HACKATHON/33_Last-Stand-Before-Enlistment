@@ -1,5 +1,7 @@
 # Discushion 문서
 
+2026-10-07 현재 서비스 선택·MVP 변경은 [결정 변경 기록](specs/Discushion_MVP_결정변경_2026-10-07.md)과 각 기준 문서의 같은 날짜 반영을 확인하세요. 계약/문서 후속은 #74, 시연용 계정 준비는 #75입니다. 기존 비밀번호/증빙 신청 예시는 현재 MVP 계약이 아닙니다. API 내부 버전은 v1.1.2이며 변경된 경로/DTO는 합의 대기입니다.
+
 프로젝트 제품 기준, API·데이터 설계, GitHub 협업 문서를 관리합니다.
 
 ## 디렉터리
@@ -11,15 +13,15 @@
 
 ## 제품 기준 문서
 
-- [PRD v10.1](specs/Discushion_PRD_2026-10-06_MVP반영_정리본_v10.1.md)
-- [기능명세서 v10.1](specs/Discushion_기능명세서_2026-10-06_MVP반영_정리본_v10.1.md)
+- [PRD v10.2](specs/Discushion_PRD_2026-10-07_MVP반영_정리본_v10.2.md)
+- [기능명세서 v10.2](specs/Discushion_기능명세서_2026-10-07_MVP반영_정리본_v10.2.md)
 - [MVP 백엔드·프론트엔드 통합 지침서](specs/Discushion_MVP_백엔드_프론트엔드_통합_지침서.md)
 
 제품 정책과 MVP 범위는 PRD·기능명세서의 확정 정책 및 범위 표기를 우선합니다. 통합 지침과 API·ERD 자료의 기술 권장안은 FE/BE가 검토·합의하기 전까지 확정 계약이 아닙니다.
 
 ## API 설계
 
-- [MVP API 계약 초안](api/Discushion_API_SPEC_v2.md): 내부 버전 v1.1. 경로·필드·Enum은 FE/BE 합의와 실제 구현 대조가 필요합니다.
+- [MVP API 계약 초안](api/Discushion_API_SPEC_v2.md): 내부 버전 v1.1.2. 경로·필드·Enum은 FE/BE 합의와 실제 구현 대조가 필요합니다.
 
 ## 화면 흐름 참고
 
