@@ -4,8 +4,8 @@ import { MapScreen } from "@/features/map/MapScreen";
 import type { ExploreContext } from "@/features/explore/model";
 
 const unavailableContext: ExploreContext = {
-  defaultActivityRegion: { id: "pending", name: "Activity region", neighborVerified: false },
-  currentExploreRegion: { id: "pending", name: "Explore region", neighborVerified: false },
+  defaultActivityRegion: { id: "pending", name: "활동 지역", neighborVerified: false },
+  currentExploreRegion: { id: "pending", name: "탐색 지역", neighborVerified: false },
   exploreRegionCandidates: [], neighborVerifiedRegions: [], institutionRegions: [],
 };
 
