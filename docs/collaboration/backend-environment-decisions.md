@@ -134,3 +134,16 @@ FE의 Privy 앱 ID 환경변수 이름은 FE 담당자가 확인한다. 사진 U
 | BE1·FE 계약 확인 | 확인 완료 근거 없음. 대기 유지 |
 
 공식 자료: [Supabase 키](https://supabase.com/docs/guides/getting-started/api-keys), [Privy 토큰 확인](https://docs.privy.io/authentication/user-authentication/access-tokens), [Privy 서버 설정](https://docs.privy.io/basics/nodeJS-node/setup), [Gemini API 키](https://ai.google.dev/gemini-api/docs/api-key). 2026-10-07 조회. Supabase changelog Markdown 조회는 도구의 content-type 오류와 실행환경 DNS 제한으로 실패했으며 변경 로그 확인 완료로 기록하지 않는다. 이 작업은 실제 Supabase 프로젝트·Schema·Storage 권한을 변경하지 않는다.
+
+## #30 Render 무료 배포 진행 기록 (2026-10-08)
+
+PR #178은 `back/develop`에 병합됐다(4fffb1e). 현재 배포 대상은 Vercel FE와 별도 Render Spring API이며 이전 Vercel Backend 예시를 대체한다. Render 설정은 저장소 루트 `render.yaml`과 Backend README의 배포 환경 절을 따른다. 무료 플랜·Singapore·자동 배포 꺼짐·사진 플래그 비활성 상태를 유지한다.
+
+- Render GitHub 로그인 권한과 신규 가입 약관 동의는 사용자가 확인했고 이메일 인증도 완료했다. Discushion Workspace에 공개 저장소 URL로 Blueprint `discushion-api`를 생성했다. 서비스는 Docker·Free·Singapore이며 `back/develop`의 `4fffb1e`를 배포했다. 자동 배포와 PR Preview는 꺼져 있다.
+- [Render 서비스](https://dashboard.render.com/web/srv-db3mtql9fdbs73efdhng)의 API 주소는 `https://discushion-api.onrender.com`이다. 승인된 서버 계정의 DB_URL·DB_USERNAME·DB_PASSWORD를 비밀 환경변수에 등록했고 관리자 감사 계정은 등록하지 않았다. CA는 Secret File `prod-ca-2021.crt`로 등록해 `/etc/secrets/prod-ca-2021.crt`를 참조한다. TLS `verify-full`과 기존 pooler 연결 설정을 유지했다. 실제 비밀 값은 이 문서와 Git에 저장하지 않는다.
+- 최신 병합 코드에서 `DISCUSHION_VERIFY_SUPABASE=true`로 `gradlew.bat --no-daemon test --tests com.discushion.SupabaseJdbcSmokeTests --rerun-tasks --offline --max-workers=2 --console=plain`을 실행했다. 관리자 감사 3개 통과, 실패/오류/skip 0이다. Schema/적용 이력·서버 RLS·공개 API 역할 접근 차단을 SELECT-only로 확인했다.
+- 로컬 `.env`의 실제 서버 계정으로 별도 JDBC SELECT-only 연결을 확인했다. TLS `verify-full`, 비-SUPERUSER·비-BYPASSRLS, `media_files` SELECT 허용·물리 DELETE 거부·Schema CREATE 거부, `regions` 조회가 통과했다. DB 데이터·역할·권한은 변경하지 않았다. 이는 Render 호스트에서의 연결 검증을 대신하지 않는다.
+- CA 저장 후 최신 commit을 수동 재배포했다. [최종 배포](https://dashboard.render.com/web/srv-db3mtql9fdbs73efdhng/deploys/dep-db3mv8mgekts73fefing)는 2026-10-08 19:27 (Asia/Seoul)에 Live로 전환됐다. 첫 배포에서 Docker/JAR build가 통과했고 재배포는 같은 이미지의 캐시를 사용했다. Java 17·Spring Boot 4.0.8·supabase profile·포트 10000 서버 시작 로그를 확인했다.
+- 배포 후 실제 HTTPS 호출: `GET /health` → HTTP 200, `{"data":{"status":"UP"}}`; `GET /api/v1/regions` → HTTP 200, `{"data":[],"meta":{"nextCursor":null,"hasNext":false}}`. 지역 데이터는 아직 0건이다. DB 의존 API 성공으로 Render 호스트의 서버 계정·CA/TLS 연결과 지역 조회 허용을 확인했다. Render에서 모든 테이블의 쓰기/거부 권한을 검증한 것은 아니며 로컬 감사 결과와 구분한다. 이 검증은 Backend API 검증이고 FE/BE 실제 연동 완료를 뜻하지 않는다.
+- 무료 서비스 휴면 중에는 정리 worker가 계속 실행되지 않는다. 다음 #13 검증에서 재기동 후 만료 후보 정리 재개를 확인하며, 24시간 기준을 항상 켜진 worker의 정확한 실행 시각 보장으로 표현하지 않는다.
+- 공유 DB의 사진 서버 중계 Migration 적용·최소 권한 확인·사진 활성화·배포 경계 10 MB/삭제/정리·FE 실제 연결은 #13/#30 잔여 조건이다. 로컬 Privy 설정이 미준비된 상태를 실제 로그인/가입 연동 성공으로 표시하지 않는다.

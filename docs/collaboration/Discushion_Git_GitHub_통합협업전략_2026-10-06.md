@@ -196,9 +196,9 @@ PR 충돌·검증 실패가 있으면 병합하지 않는다. develop에서 로�
 
 `main`, `front/develop`, `back/develop`에는 보호 규칙을 적용하고 직접 push를 제한하며 PR과 필수 CI로 통합한다. FE와 `main` 대상 PR의 기존 리뷰 정책은 유지한다.
 
-2026-10-07 Backend 변경: `back/develop` 대상 일반 PR은 PR 생성 후 작성자·Codex의 최종 diff 재검토와 결과 기록·관련 test/build·필수 CI 통과 후 작성자가 병합할 수 있다. 공통 인터페이스·API 계약·DB 구조/Migration·인증/권한·타 영역 영향 변경은 상대 Backend 담당자 1명의 리뷰·승인을 받는다. 문서만 바꾸더라도 계약이나 협업 규칙을 바꾸면 상대 리뷰 대상이며 이 정책 변경 PR도 포함한다. 상세 기준과 PR 분류는 [AGENTS.md의 Backend PR 리뷰 기준](../../AGENTS.md#backend-pr-리뷰-기준-2026-10-07-변경)과 [Backend 전략 §5.1](Discushion_백엔드_Git_GitHub_협업전략_2026-10-06.md#51-변경-영향별-리뷰와-병합-조건)을 따른다.
+2026-10-08 Backend 변경: `back/develop` 대상 모든 PR의 필수 승인 수는 0명이다. 공통 인터페이스·API 계약·DB 구조/Migration·인증/권한·타 영역 영향 및 협업 규칙 변경도 포함한다. PR 생성 후 작성자·Codex의 최종 diff 재검토와 결과 기록·관련 test/build·필수 CI·최신 base 검증을 통과하고 충돌·미해결 리뷰 지적이 없으면 작성자가 병합할 수 있다. 필요 시 상대 리뷰를 요청할 수 있으나 승인 부재 자체를 병합 차단 조건으로 삼지 않는다. 미정 정책·계약의 사전 합의와 영향받는 담당자에 대한 변경 통보는 유지한다. 상세 기준과 영향 분류는 [AGENTS.md의 Backend PR 리뷰 기준](../../AGENTS.md#backend-pr-리뷰-기준-2026-10-07-변경)과 [Backend 전략 §5.1](Discushion_백엔드_Git_GitHub_협업전략_2026-10-06.md#51-변경-영향별-리뷰와-병합-조건)을 따른다.
 
-`back/develop`의 일괄 필수 승인 수는 0으로 조정하며 필수 CI 등 다른 보호 조건은 유지한다. 상대 리뷰가 필요한 변경은 PR 운영 규칙으로 확인하고 GitHub가 변경별 승인을 자동 강제한다고 기록하지 않는다. 작성자는 자기 PR을 승인할 수 없으며 필요한 상대 승인을 Codex 검사로 대체하지 않는다. 동일 파일이나 API 계약에 영향이 겹치는 작업은 Issue/PR에서 선행 순서를 조율한다.
+`back/develop`의 필수 승인 수는 0으로 유지하고 변경별 상대 승인 요구도 없앤다. 2026-10-08 실제 보호 설정 조회에서 승인 수 0과 필수 CI·최신 base·관리자 적용·대화 해결을 확인했다. PR 통합·force push/삭제 금지 등 다른 보호 조건은 유지한다. Codex 검사나 develop pull 검증을 팀원 승인으로 기록하지 않는다. 동일 파일이나 API 계약에 영향이 겹치는 작업은 Issue/PR에서 선행 순서를 조율한다. FE와 `main`의 승인 정책은 기존 기준을 따른다.
 
 ## 14. 동시 개발
 
@@ -248,7 +248,7 @@ main 전체 검증
 - `feature/fe-*`, `feature/be-*` 이름 사용
 - FE Feature를 `back/develop`에, BE Feature를 `front/develop`에 PR
 - Issue 없는 일반 Feature 개발 또는 PR 없는 develop/main 반영
-- 미검증 PR 또는 필요한 상대 담당자 승인이 없는 PR 병합
+- 미검증 PR·미해결 리뷰 지적·충돌이 남은 PR 병합 또는 대상 브랜치에서 요구하는 승인 조건 미충족 PR 병합 (`back/develop`은 필수 승인 0명)
 - FE/BE Feature 간 직접 merge
 - 타인의 변경 임의 삭제, 관련 없는 대규모 리팩터링, 전역 포맷팅
 - API 계약 변경 무통보
