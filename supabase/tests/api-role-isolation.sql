@@ -22,6 +22,7 @@ create role service_role nologin bypassrls;
 \ir ../migrations/20261008070000_allow_comment_reads_and_creation.sql
 \ir ../migrations/20261008071616_track_server_photo_uploads.sql
 \ir ../migrations/20261008080000_allow_reaction_reads_and_transitions.sql
+\ir ../migrations/20261008100000_allow_vote_selection_writes.sql
 do $checks$
 declare r text;
 begin
@@ -36,5 +37,45 @@ begin
       then raise exception '시퀀스 접근 허용: %',r; end if;
   end loop;
 end $checks$;
+do $server_checks$
+begin
+  if not has_table_privilege('discushion_server','discushion.vote_selections','SELECT')
+    or not has_table_privilege('discushion_server','discushion.vote_selections','INSERT')
+    or not has_table_privilege('discushion_server','discushion.vote_selections','UPDATE')
+    or has_table_privilege('discushion_server','discushion.vote_selections','DELETE')
+    or has_table_privilege('discushion_server','discushion.vote_selections','TRUNCATE')
+    or has_table_privilege('discushion_server','discushion.vote_selections','REFERENCES')
+    or has_table_privilege('discushion_server','discushion.vote_selections','TRIGGER') then
+    raise exception 'Unexpected vote_selections privileges for discushion_server';
+  end if;
+  if not exists(select 1 from pg_policies where schemaname='discushion'
+      and tablename='vote_selections' and policyname='server_select'
+      and roles=array['discushion_server']::name[] and cmd='SELECT' and qual='true')
+    or not exists(select 1 from pg_policies where schemaname='discushion'
+      and tablename='vote_selections' and policyname='server_insert'
+      and roles=array['discushion_server']::name[] and cmd='INSERT' and with_check='true')
+    or not exists(select 1 from pg_policies where schemaname='discushion'
+      and tablename='vote_selections' and policyname='server_update'
+      and roles=array['discushion_server']::name[] and cmd='UPDATE' and qual='true' and with_check='true')
+    then raise exception 'Missing or unexpected vote_selections server RLS policies';
+  end if;
+  if has_table_privilege('anon','discushion.vote_selections','SELECT,INSERT,UPDATE,DELETE')
+    or has_table_privilege('authenticated','discushion.vote_selections','SELECT,INSERT,UPDATE,DELETE')
+    or has_table_privilege('service_role','discushion.vote_selections','SELECT,INSERT,UPDATE,DELETE')
+    or has_table_privilege('anon','discushion.poll_options','SELECT')
+    or has_table_privilege('authenticated','discushion.poll_options','SELECT')
+    or has_table_privilege('service_role','discushion.poll_options','SELECT') then
+    raise exception 'Client/API role must not access vote tables/options';
+  end if;
+  if not has_table_privilege('discushion_server','discushion.poll_options','SELECT')
+    or has_table_privilege('discushion_server','discushion.poll_options','INSERT')
+    or has_table_privilege('discushion_server','discushion.poll_options','UPDATE')
+    or has_table_privilege('discushion_server','discushion.poll_options','DELETE')
+    or not exists(select 1 from pg_policies where schemaname='discushion'
+      and tablename='poll_options' and policyname='server_select'
+      and roles=array['discushion_server']::name[] and cmd='SELECT' and qual='true') then
+    raise exception 'Unexpected poll_options server access';
+  end if;
+end $server_checks$;
 select 'PASS: 3 API role names x schema/table/sequence denial = 9 checks' as result;
 rollback;
