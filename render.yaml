@@ -1,0 +1,31 @@
+services:
+  - type: web
+    name: discushion-api
+    runtime: docker
+    repo: https://github.com/2026-KW-HACKATHON/33_Last-Stand-Before-Enlistment.git
+    branch: back/develop
+    dockerfilePath: ./backend/Dockerfile.vercel
+    dockerContext: ./backend
+    region: singapore
+    plan: free
+    autoDeployTrigger: 'off'
+    healthCheckPath: /health
+    envVars:
+      - key: SPRING_PROFILES_ACTIVE
+        value: supabase
+      - key: DB_POOL_SIZE
+        value: "1"
+      - key: PHOTO_UPLOADS_ENABLED
+        value: "false"
+      - key: PHOTO_STORAGE_WIRE_VERIFIED
+        value: "false"
+      - key: PHOTO_CLEANUP_ENABLED
+        value: "false"
+      - key: PHOTO_CLEANUP_INTERVAL_MS
+        value: "60000"
+      - key: DB_URL
+        sync: false
+      - key: DB_USERNAME
+        sync: false
+      - key: DB_PASSWORD
+        sync: false

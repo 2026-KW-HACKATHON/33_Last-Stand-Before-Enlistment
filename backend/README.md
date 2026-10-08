@@ -63,19 +63,19 @@ java -jar build/libs/discushion.jar
 
 테스트는 실제 임시 HTTP 서버에서 익명 Health 응답, 지원하지 않는 HTTP Method, 없는 경로를 확인한다. 별도 설정 테스트는 `supabase` 프로필을 가짜 접속값으로 확인하며 DB에 연결하지 않는다. 테스트는 `backend/.env`를 읽지 않는다. 결과는 `build/reports/tests/test/index.html`, JAR는 `build/libs/discushion.jar`에 생성된다.
 
-## Vercel 배포 준비
+## 배포 환경
 
-사용자가 선택한 배포 도구는 Vercel 플러그인이다. Spring Boot는 `Dockerfile.vercel`로 컨테이너 빌드하도록 준비했다. Vercel Container Images는 베타이며, 서버는 `$PORT`에 HTTP 요청을 받는다. [Vercel 공식 문서](https://vercel.com/docs/functions/container-images)
+Vercel은 프론트엔드 프로젝트로 유지하고 Spring Boot API는 별도 Render Web Service에서 실행한다. 저장소 루트의 [`render.yaml`](../render.yaml)은 `back/develop`을 기준으로 `backend/Dockerfile.vercel`을 빌드하며, 싱가포르 리전·`/health` 확인·자동 배포 꺼짐을 설정한다. Render가 `PORT`를 주입하며 Spring 설정은 이를 사용한다. Render는 현재 Web Service 지역으로 싱가포르를 제공한다. [Render Blueprint](https://render.com/docs/blueprint-spec), [Render 리전](https://render.com/docs/regions)
 
-```powershell
-# Docker가 실행 중인 backend/에서 검증한다.
-docker build -f Dockerfile.vercel -t discushion-backend:local .
-docker run --rm -p 8080:8080 -e SPRING_PROFILES_ACTIVE=local discushion-backend:local
-```
+사용자 결정으로 `plan: free`를 사용한다. 무료 Web Service는 15분 동안 요청이 없으면 휴면에 들어가고 다음 요청 때 다시 시작하며, 재시작에 약 1분이 걸릴 수 있다. 시연 전에 `/health` 응답을 확인하고 첫 요청 지연을 고려한다. 무료 인스턴스 시간은 워크스페이스당 월 750시간이며 공유 사용량·전송량·빌드 한도를 대시보드에서 확인한다. 설정 파일 준비만으로 실제 서비스 생성이나 배포를 완료 처리하지 않는다. [Render 무료 플랜 제한](https://render.com/docs/free)
 
-실제 배포는 Issue #30에서 프로젝트·요금제·리전·이미지 실행·DB 연결과 FE 연동을 검증한다. Backend를 별도 Vercel 프로젝트로 배포한다면 Root Directory는 `backend/`, `PORT=8080`을 프로젝트 환경변수로 설정한다. FE와 같은 프로젝트에 배포할 경우에는 Services와 `/health`, `/api/v1/*` 라우팅을 FE 담당자와 합의한다. 현재 루트 `vercel.json`, 외부 프로젝트 생성, 배포는 포함하지 않는다.
+휴면 중에는 Spring의 사진 정리 스케줄도 실행되지 않는다. 미완료 업로드의 24시간 만료 기준과 삭제 안전성 정책은 유지하며, 휴면으로 늦어진 후보를 재시작 후 처리하는지 #30에서 검증한다. 정시 실행이 필요한 별도 스케줄 방식은 활성화 전에 확인하며, 무료 Web Service만으로 24시간 정리 작업의 상시 실행을 보장했다고 기록하지 않는다. 사진과 DB 데이터는 기존 Supabase에 보관하고 Render의 임시 로컬 파일에 영구 저장하지 않는다.
 
-Vercel의 요청 본문 제한(4.5MB)과 게시물 사진 합계 10MB를 함께 만족할 전송 경로는 #74/#13/#30에서 합의한다. 저장 서비스는 Supabase Storage이며 JPG/PNG·최대 10장·합계 10MB, 저장 파일 삭제, 미완료 업로드 24시간 정리 정책을 따른다. 기관·이웃 증빙 제출은 이번 MVP에서 제외한다. 제품 한도를 임의로 줄이거나 업로드 계약을 만들지 않는다. [Vercel 요청 제한](https://vercel.com/docs/functions/limitations#request-body-size)
+Render Blueprint의 `sync: false` 항목은 비밀값을 YAML/Git에 넣지 않도록 대시보드에서 별도로 입력하게 한다. 실제 서버 계정이 준비·승인된 뒤 `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`를 Render 대시보드에 설정한다. Supabase CA는 `prod-ca-2021.crt` 이름의 Secret File로 업로드하고, `DB_URL`의 JDBC URL에는 `sslmode=verify-full`, `sslrootcert=/etc/secrets/prod-ca-2021.crt`, `prepareThreshold=0`, `connectTimeout=10`, `socketTimeout=30`을 사용한다. 비밀번호나 인증서 본문을 저장소에 커밋하지 않는다. [Render 비밀 변수와 파일](https://render.com/docs/configure-environment-variables)
+
+사진 API는 `PHOTO_UPLOADS_ENABLED=false`, `PHOTO_STORAGE_WIRE_VERIFIED=false`, `PHOTO_CLEANUP_ENABLED=false`로 유지한다. #13의 공유 DB Migration·서버 권한·실제 Storage lifecycle·배포 요청 한도를 검증한 뒤에만 활성화한다. 게시물 사진 규격은 JPG/PNG, 최대 10장, 합계 10,000,000 bytes다. FE가 별도 API 호스트를 직접 호출하도록 연결하며, 실제 Render 배포 후 10 MB 경계 업로드를 검증해야 한다. Vercel Function을 통해 사진 요청을 중계하면 4.5 MB 요청 제한이 다시 적용된다. [Vercel 요청 제한](https://vercel.com/docs/functions/limitations#request-body-size)
+
+이 문서는 Render 서비스 생성, 도메인 연결, 비밀값 등록, 배포 또는 FE 환경 변수 변경을 수행했다는 뜻이 아니다. 실제 API 주소/도메인, CORS 허용 origin, FE의 API base URL 환경 변수 이름은 FE 담당자와 확인한 뒤 연결한다. 첫 배포 후 `/health`, 실제 Supabase 서버 계정의 TLS/권한, 10 MB 업로드와 삭제 작업을 검증한다. Docker 이미지는 로컬 Docker daemon을 사용할 수 있을 때 별도 검증한다.
 
 FE/BE 실제 연동은 실제 FE가 실행 중인 Backend를 호출해야 한다. Health API 직접 호출이나 Backend 테스트만으로 FE/BE 연동을 완료 처리하지 않는다. API 오류·인증·권한 계약은 BE1의 Issue #2·#4와 맞춘다.
 
@@ -131,7 +131,7 @@ var reader = new ContractFixtures.Posts()
 
 CI 비밀번호는 격리된 컨테이너용 합성값이며 운영 비밀값이 아니다. Schema 시험은 실제 PostgreSQL 제약 검증이지만 모의 역할 검사는 실제 Supabase 서버 역할/GRANT 검증을 대신하지 않는다. SQL 직접 적용 CI는 기존 Windows `run-schema-tests.ps1`의 Supabase CLI Migration history/재실행 검사를 대신하지 않는다. 코드 소유권/리뷰 규칙은 AGENTS.md를 따르며 GitHub 관리자가 `Backend tests and build`를 필수 검사로 설정하고 리뷰 강제 여부를 확인해야 한다.
 
-워크플로 파일은 PR 통합/원격 반영 후 GitHub에서 실행된다. CD는 #30에서 실제 Vercel 대상·배포 방식·리전·환경별 비밀 변수·DB 연결과 health/실패 복구를 확인한 뒤 연결한다. 현재 자동 배포 워크플로는 제공하지 않으며 CI JAR 생성은 배포 성공을 뜻하지 않는다.
+워크플로 파일은 PR 통합/원격 반영 후 GitHub에서 실행된다. CD는 #30에서 Vercel FE와 별도 Render API의 실제 대상·배포 방식·리전·환경별 비밀 변수·DB 연결과 health/실패 복구를 확인한 뒤 연결한다. 현재 Render 자동 배포는 꺼져 있고 CI JAR 생성은 배포 성공을 뜻하지 않는다.
 
 ## #13 사진 처리 구현 준비 (2026-10-08)
 
