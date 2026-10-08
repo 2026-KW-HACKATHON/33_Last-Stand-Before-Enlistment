@@ -1044,7 +1044,13 @@ DELETE는 현재 유효 기관·담당 지역·`adoptionId`의 `postId`·본인 
 
 type/topic 전체는 생략한다. 내가 만든/참여한 게시물은 유형 필터를 사용하며 북마크의 주제 필터를 모든 개인 목록에 일괄 추가하지 않는다. 투표 카드의 남은 기간은 endsAt와 서버 시각/상태를 기준으로 FE가 표시하고 최다 득표를 내 선택으로 추정하지 않는다.
 
-참여 목록 item은 공통 카드에 다음 `myParticipation` 제안을 추가한다.
+**2026-10-09 #27 사용자 채택:** 세 GET은 가입 완료한 본인 회원만 사용한다. 내가 만든 게시물은 작성시각, 참여 게시물은 현재 남아 있는 본인 행동의 가장 최근 시각, 참여 투표는 마지막 제출/선택 변경시각의 내림차순이다. 동률은 큰 게시물 ID 순이다. `size` 기본20/최대100, 양의 정수만 허용하며 다음 페이지는 `meta.nextCursor`/`hasNext`로 조회한다. cursor는 본인 회원·API 종류·type/status 필터에 귀속되며 다른 회원/목록/필터에서 재사용하면400 VALIDATION_ERROR다. size는 변경할 수 있다. 참여 취소·변경으로 정렬 위치가 바뀔 수 있으므로 필터 변경/새로고침은 첫 페이지부터 조회한다. type 전체는 생략하고 LOCAL_AGENDA/LOCAL_ACTIVITY/VOTE만 받는다. 투표의 status는 생략 시ALL이며 ALL/OPEN/CLOSED만 받는다. userId·regionId·topic·미지원 상태 필터·중복/빈 query 값은400 VALIDATION_ERROR다.
+
+작성/참여 목록은 공통 카드의 `id,type,topic,title,excerpt,region,author,thumbnailUrl,reactionCounts,commentCount,createdAt,updatedAt,capabilities`를 사용한다. capabilities는 현재 작성자/완료 지역/투표 종료 조건의 canEdit/canDelete이며 실제 수정/삭제 API가 다시 검사한다. 활동 카드에는 activityStatus, 투표 카드에는 vote(question/status/endsAt/participantCount/myOptionId/options)를 포함한다. options는 id/content/voteCount/votePercentage이며 #25와 같은 소수 둘째 자리 HALF_UP 반올림이다. 본인 선택은 실제 현재 표에서 조회하고 최다 득표로 대체하지 않는다. 프로필 사진은 기존 #10 미완료 범위대로 null이며 사진 URL은 공개 파일 adapter를 사용하고 내부 fileId를 목록에 노출하지 않는다.
+
+참여 목록에는 아래 myParticipation과 가장 최근 남은 행동시각 participatedAt를 추가한다. 참여 투표 목록의 공개 item은 `{postId,availability:"AVAILABLE",participatedAt,post,vote}`이며 post는 vote를 제외한 공통 투표 카드, vote는 위 투표 데이터다. participatedAt는 최초 투표 제출시각을 보존하고 정렬만 마지막 변경시각을 사용한다. 모든 결과는200 `{data:[],meta:{nextCursor:null,hasNext:false}}` 형식을 사용한다. 활동 횟수/#5 이벤트는 기존 사용자 건너뜀 결정을 유지해 기록하거나 계산하지 않는다.
+
+참여 목록 item은 공통 카드에 다음 사용자 채택 `myParticipation`을 추가한다.
 
 ```json
 {
@@ -1071,7 +1077,7 @@ type/topic 전체는 생략한다. 내가 만든/참여한 게시물은 유형 �
 }
 ```
 
-사용자에게 접근 불가 안내만 제공한다. 삭제된 본문/선택지·본문 excerpt·이미지·선택 텍스트를 별도 사본에서 반환하지 않는다. status=OPEN/CLOSED 필터와 삭제 기록의 관계·내부 보존 모델은 **[확인 필요]**이며 전체 목록에는 기록 유지가 보장되어야 한다. 북마크 삭제 정책(카드 제거)과 혼동하지 않는다.
+사용자에게 접근 불가 안내만 제공한다. 삭제된 본문/선택지·본문 excerpt·이미지·선택 텍스트를 별도 사본에서 반환하지 않는다. **2026-10-09 #27 사용자 채택:** 삭제 투표는 ALL에만 위 최소 이력을 유지하고 OPEN/CLOSED에서는 제외한다. 내가 만든/참여한 게시물 목록에서는 삭제물을 제외한다. 원본 vote_selections의 최초 참여시각과 게시물 관계를 유지하며 삭제 콘텐츠·본인 선택·집계를 UNAVAILABLE 응답에 옮기지 않는다. 북마크 삭제 정책(카드 제거)과 혼동하지 않는다.
 
 ### 8.3 활동 횟수
 
