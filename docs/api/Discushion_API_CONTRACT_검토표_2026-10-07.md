@@ -1094,3 +1094,7 @@ EvaluationService.list는 기존 댓글 GET의 부모/replies에 있는 본인 �
 ## #19 지도 계약 확정 (2026-10-08)
 
 사용자가 FE viewport의 실제 지역 ID 집합을 서버에 전달하는 방식을 채택했다. API 정본 §5.2: regionIds 필수 CSV·centerRegionId 선택, 요청 순서 보존·빈 동 null·미등록 지역404. 반응 합계/created_at/id 내림차순으로 공개 안건/투표 대표 한 건을 계산한다. FE 경계/좌표/SDK 및 실제 지도 연동은 대기다. 사용자의 계약 채택을 실제 FE 확인으로 대신하지 않는다.
+
+## #20 요약 계약 확정 (2026-10-08)
+
+사용자가 최초 요청 생성·원문 revision별 DB 재사용·수정 후 새 revision 생성·실패 자동 재시도 없음·정보 부족 SOURCE_TOO_SHORT를 채택했다. API 정본 §5.6을 따른다. 네트워크 밖의 transaction에서 원문/권한 재검사, PENDING/revision/requested_at 저장 조건으로 중복/늦은 결과를 차단한다. ai_agenda_summaries 서버 S/I/U와 RLS만 새 Migration으로 준비하며 DELETE·공개 역할 권한은 추가하지 않는다. 공식 모델/REST/구조화 출력 문서는 https://ai.google.dev/gemini-api/docs/models/gemini-3.5-flash-lite 와 https://ai.google.dev/api/generate-content 를 확인했다. 실제 키/provider 및 공유 원본 adapter·FE 연동은 별도 확인한다.

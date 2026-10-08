@@ -820,7 +820,7 @@ POST/PATCH에 알림 생성/예약은 없다. PATCH 200은 최신 상세를 반�
 
 ### 5.6 AI 안건 요약
 
-`GET /posts/{postId}/summary`, 회원 또는 해당 공유 게스트, 200 상태 응답 **[설계 제안]**. 공개 LOCAL_AGENDA만, 다른 유형은 422 AI_SUMMARY_NOT_APPLICABLE. 삭제/비공개는 콘텐츠 없이 404.
+`GET /posts/{postId}/summary`, 가입 완료 회원 또는 해당 서명 공유 게스트, 200 상태 응답. **2026-10-08 사용자 채택:** 최초 요청 시 생성하고 원문 content_revision별 DB 결과를 재사용한다. GET 응답은 Cache-Control: no-store다. 공개 LOCAL_AGENDA만, 다른 유형은 422 AI_SUMMARY_NOT_APPLICABLE. 삭제/비공개는 콘텐츠 없이 404.
 
 ```json
 {
@@ -844,7 +844,9 @@ POST/PATCH에 알림 생성/예약은 없다. PATCH 200은 최신 상세를 반�
 
 source는 실제 원 게시물의 출처 정보/원문 연결이며 안건 작성자에게 비-MVP referenceLink나 활동 source 입력을 요구하지 않는다. guest originalPath 이동도 같은 공유 컨텍스트를 유지한다. AI 3문장은 자연스러운 한 문단, 불릿 3개 아님, 원문 외 사실 추가 금지 **[확정]**.
 
-PENDING은 summary/generatedAt=null과 source 반환, FAILED/SOURCE_TOO_SHORT는 summary=null·fallbackToSource=true와 원문/상태 안내 반환. 실패를 전체 상세 열람 실패로 처리하지 않는다. 조회 GET은 저장된 생성 상태를 읽는 제안이며 생성 착수·동기/비동기/캐시/수정 후 재생성·짧은 원문 임계값·재시도는 구현 전에 합의한다. 원문 갱신 시 이전 버전 요약을 최신 요약으로 표시하지 않는 source version 연결은 권장한다. 별도 사용자 Job API·추천 API·정해진 폴링 간격을 필수로 만들지 않는다.
+PENDING은 summary/generatedAt=null·fallbackToSource=true와 최신 source를 반환한다. 최초 요청자가 동기 생성하고 동시 요청은 같은 revision의 PENDING을 조회한다. SUCCEEDED/FAILED/SOURCE_TOO_SHORT는 같은 revision에서 재사용하며 실패를 자동 재시도하지 않는다. 원문 수정으로 새 revision이 되면 다음 요청이 새 결과를 생성한다. FAILED/SOURCE_TOO_SHORT는 summary/generatedAt=null·fallbackToSource=true이고 상세 열람을 실패로 만들지 않는다. 정보가 부족한지는 모델이 원문 내용으로 판정하며 합의되지 않은 글자 수 임계값을 만들지 않는다. 원문 외 사실 추가는 금지하고 정상 결과는 3문장을 공백으로 연결한 한 문단이다. 불릿·잘못된 개수·복수 문장 항목·provider 오류는 FAILED다.
+
+생성 전과 결과 저장/응답 전에 회원 또는 서명 공유 범위, 공개 LOCAL_AGENDA, 원문 revision을 재검사한다. 원문 행과 같은 transaction에서 읽기 잠금을 사용하고 네트워크 호출 중에는 DB transaction/잠금을 유지하지 않는다. 늦은 결과는 현재 revision의 결과를 덮어쓰지 않으며 삭제/비공개 원문은404, 다른 유형은422다. 저장 완료는 revision·PENDING·requested_at 조건으로 제한한다. 연결 timeout5초·호출 timeout15초·maxOutputTokens1024·PENDING 상한60초는 시연용 기술 보호값이며 폼 글자 수 제한이 아니다. 60초 지난 미완료 생성은 FAILED로 전환하고 같은 버전을 자동 재생성하지 않는다. 모델은 서버 전용 gemini-3.5-flash-lite, 키는 GEMINI_API_KEY, 활성화는 AI_SUMMARIES_ENABLED=true다. 기본 비활성/키 미설정은 원문 fallback을 반환하고 실패를 DB에 영구 저장하지 않는다. redirect/자동 재시도/grounding/외부 링크 방문은 사용하지 않는다. 실제 키·provider 품질/쿼터 검증·프로젝트 FE 연동은 #20/#30/#31에 남긴다. 별도 Job API·추천 API·고정 polling 주기를 만들지 않는다.
 
 ### 5.7 공개 공유 링크
 
