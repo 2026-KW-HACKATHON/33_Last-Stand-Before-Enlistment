@@ -15,12 +15,12 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 /** Owns the post-first/poll-second locks and the post-edit SQL used by this feature. */
-public final class PostJdbcStore implements PostContextReader {
+public final class PostJdbcStore {
     private final JdbcTemplate jdbc;
     public PostJdbcStore(DataSource source) { this.jdbc = new JdbcTemplate(source); }
 
-    @Override public Optional<PostContext> find(long postId) { return context(postId, false); }
-    @Override public Optional<PostContext> findForUpdate(long postId) {
+    public Optional<PostContext> find(long postId) { return context(postId, false); }
+    public Optional<PostContext> findForUpdate(long postId) {
         if (!TransactionSynchronizationManager.isActualTransactionActive()
                 || TransactionSynchronizationManager.isCurrentTransactionReadOnly())
             throw new IllegalStateException("Post write transaction is required");
