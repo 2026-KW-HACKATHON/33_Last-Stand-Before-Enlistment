@@ -11,10 +11,11 @@ import { useOpenInterestKeywords } from "../interest-keywords/InterestKeywordsHo
 import { createSettingsMenuStore, settingsMenus, settingsMenuEntry, type SettingsMenuHandler, type SettingsMenuId } from "./model";
 import { LogoutAction } from "../logout/LogoutAction";
 import { useWithdrawal } from "../withdrawal/provider";
+import { useBookmarks } from "../bookmarks/provider";
 import { usePersonalLists } from "../personal-lists/provider";
 import { useLogout } from "../logout/provider";
 export function SettingsScreen({ onBack, onMenu, onReturn, visible, getScroll, onScroll }: { onBack: () => void; onMenu?: SettingsMenuHandler; onReturn: () => void; visible: boolean; getScroll: () => number; onScroll: (value: number) => void }) {
- const lists = usePersonalLists();
+ const lists = usePersonalLists(); const bookmarks = useBookmarks();
  const withdrawal = useWithdrawal(); const logout = useLogout(); const logoutPending = logout?.store.getState().phase === "pending";
  const openPushPreference = useOpenPushPreference();
  const openKeywords = useOpenInterestKeywords(); const navigation = useNavigation(); const shell = useRef<HTMLDivElement>(null);
@@ -22,7 +23,7 @@ export function SettingsScreen({ onBack, onMenu, onReturn, visible, getScroll, o
  const state = useSyncExternalStore(store.subscribe, store.getState, store.getState);
  useEffect(() => () => store.dispose(), [store]);
  useEffect(() => { const main = shell.current?.querySelector("main"); if (!main) return; if (!visible) return; main.scrollTop = getScroll(); const record = () => onScroll(main.scrollTop); main.addEventListener("scroll", record); return () => main.removeEventListener("scroll", record); }, [onScroll, getScroll, visible]);
- function open(id: SettingsMenuId) { if ((id === "myPosts" || id === "participations") && lists) { lists.store.open(id, "settings"); navigation.navigate(settingsMenuEntry(id)!); return; } if (id === "withdrawal" && withdrawal) { navigation.navigate(settingsMenuEntry(id)!); return; } if (id === "account") { navigation.navigate(settingsMenuEntry(id)!); return; } if (id === "notificationSettings" && openPushPreference) { openPushPreference(); return; } if (id === "interestKeywords" && openKeywords) { openKeywords(); return; } const target = settingsMenuEntry(id); const ref = target ? snapshotReference(navigation.state, target.destination, "list") : undefined; void store.open(id, settingsMenuEntry(id, ref), onReturn); }
+ function open(id: SettingsMenuId) { if (id === "bookmarks" && bookmarks) { bookmarks.store.open("settings"); void bookmarks.store.load(); navigation.navigate(settingsMenuEntry(id)!); return; } if ((id === "myPosts" || id === "participations") && lists) { lists.store.open(id, "settings"); navigation.navigate(settingsMenuEntry(id)!); return; } if (id === "withdrawal" && withdrawal) { navigation.navigate(settingsMenuEntry(id)!); return; } if (id === "account") { navigation.navigate(settingsMenuEntry(id)!); return; } if (id === "notificationSettings" && openPushPreference) { openPushPreference(); return; } if (id === "interestKeywords" && openKeywords) { openKeywords(); return; } const target = settingsMenuEntry(id); const ref = target ? snapshotReference(navigation.state, target.destination, "list") : undefined; void store.open(id, settingsMenuEntry(id, ref), onReturn); }
  const selected = settingsMenus.find(menu => menu.id === state.selected);
  function back() { logout?.store.cancel(); store.cancel(); onBack(); }
  return <div ref={shell}><MobileLayout header={<Header title="설정" onBack={back}/> }><AccessGuard destination={{ id: "settings" }} fallback={(result, retry) => <><Notice role="status">{result.status === "loading" ? "인증 상태 확인 중" : result.status === "error" ? "인증 상태 확인 실패" : "로그인과 가입 완료가 필요합니다."}</Notice>{retry && <Button onClick={() => void retry()}>다시 확인</Button>}{result.status === "login-required" && <Button onClick={() => { back(); navigation.beginAuthentication({ destination: { id: "settings" }, origin: navigation.state.current?.destination }); }}>로그인</Button>}{result.status === "signup-required" && <Button onClick={() => { back(); navigation.beginAuthentication({ destination: { id: "settings" }, origin: navigation.state.current?.destination }, "signup"); }}>가입 계속하기</Button>}</>}>
