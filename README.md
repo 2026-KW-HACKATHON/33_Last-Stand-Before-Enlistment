@@ -12,7 +12,7 @@ backend/   백엔드 애플리케이션 영역
 docs/      제품 기준·API·설계·협업 문서
 ```
 
-현재 저장소에는 기준 문서와 개발 협업 자료, Spring Boot Backend 실행 골격이 있습니다. 실행·테스트·Supabase 연결·Vercel 배포 준비는 [Backend 안내](backend/README.md)를 확인하세요. Frontend 애플리케이션은 아직 초기화되지 않았습니다.
+현재 저장소에는 Next.js 프론트엔드와 Spring Boot 백엔드의 통합 구현이 있습니다. 설치부터 화면 열기, 실제 API·로그인 연결까지는 [로컬 실행 안내](docs/LOCAL_SETUP.md)를 확인하세요. 백엔드 상세 설정은 [Backend 안내](backend/README.md)를 참고하세요.
 
 ## 개발 기준
 
