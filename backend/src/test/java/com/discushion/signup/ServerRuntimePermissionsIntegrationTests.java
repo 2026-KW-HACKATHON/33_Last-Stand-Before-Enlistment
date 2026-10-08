@@ -98,6 +98,7 @@ class ServerRuntimePermissionsIntegrationTests {
     @Test void all27TablesHaveExactlyThePhaseOnePrivilegesAndNoSequenceOrGrantOptions() {
         Map<String,Set<String>> allowed=new HashMap<>();
         for(String table:List.of("regions","institutions","neighbor_verified_regions","institution_credentials")) allowed.put(table,Set.of("SELECT"));
+        allowed.put("institution_agenda_adoptions",Set.of("SELECT"));
         for(String table:List.of("users","profiles","user_agreements","media_files")) allowed.put(table,Set.of("SELECT","INSERT","UPDATE"));
         for(String table:List.of("posts","polls")) allowed.put(table,Set.of("SELECT","UPDATE"));
         allowed.put("poll_options",Set.of("SELECT"));
@@ -213,7 +214,12 @@ class ServerRuntimePermissionsIntegrationTests {
         }
     }
     @Test void serverPoliciesAreExplicitPerOperationAndNeverPublicOrAll() {
-        assertThat(jdbc.queryForObject("select count(*) from pg_policies where schemaname='discushion' and policyname like 'server_%'",Integer.class)).isEqualTo(43);
+        assertThat(jdbc.queryForObject("select count(*) from pg_policies where schemaname='discushion' and policyname like 'server_%'",Integer.class)).isEqualTo(44);
+        assertThat(jdbc.queryForObject("""
+            select exists(select 1 from pg_policies where schemaname='discushion'
+              and tablename='institution_agenda_adoptions' and policyname='server_select'
+              and roles=array['discushion_server']::name[] and cmd='SELECT' and qual='true')
+            """,Boolean.class)).isTrue();
         assertThat(jdbc.queryForObject("""
             select bool_and(roles=array['discushion_server']::name[] and cmd<>'ALL' and permissive='PERMISSIVE'
               and (qual is not distinct from case when cmd<>'INSERT' then 'true' end)
