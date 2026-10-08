@@ -86,3 +86,25 @@
     outline-offset: 2px;
   }
 }
+
+/* Optical text alignment for mint labels/badges and the shared info Notice.
+   Transfer 1px from bottom to top padding: line-height and total height stay intact.
+   Deliberately exclude buttons, cards, progress bars and warning/error notices. */
+@layer utilities {
+  span.bg-soft.rounded-chip[class~="py-0.5"] {
+    --mint-label-padding: calc(var(--spacing) * 0.5);
+  }
+
+  li.bg-soft.rounded-chip.py-1 {
+    --mint-label-padding: var(--spacing);
+  }
+
+  div.bg-soft.rounded-notice.px-page.py-section {
+    --mint-label-padding: var(--spacing-section);
+  }
+
+  :is(span.bg-soft.rounded-chip[class~="py-0.5"], li.bg-soft.rounded-chip.py-1, div.bg-soft.rounded-notice.px-page.py-section) {
+    padding-block-start: calc(var(--mint-label-padding) + 1px);
+    padding-block-end: calc(var(--mint-label-padding) - 1px);
+  }
+}
