@@ -170,7 +170,8 @@ class ReactionHttpIntegrationTests {
     @Test void runtimePermissionsAllowOnlyReactionReadInsertDelete() throws Exception {
         data(set("PUT","EMPATHY",subject));var jdbc=new JdbcTemplate(source);
         assertThat(jdbc.queryForObject("select current_user",String.class)).isEqualTo("discushion_server");
-        for(String sql:List.of("update discushion.post_reactions set reaction_type='CURIOUS'","truncate discushion.post_reactions","create table discushion.reaction23_denied(id int)","select * from discushion.comments"))
+        assertThat(jdbc.queryForObject("select has_table_privilege(current_user,'discushion.comments','SELECT')",Boolean.class)).isTrue();
+        for(String sql:List.of("update discushion.post_reactions set reaction_type='CURIOUS'","truncate discushion.post_reactions","create table discushion.reaction23_denied(id int)","select * from discushion.activity_events"))
             assertThatThrownBy(()->jdbc.execute(sql)).isInstanceOf(org.springframework.dao.DataAccessException.class);
     }
     @Test void snapshotSqlFailureRollsBackTheNewReactionAndHidesDatabaseDetails() throws Exception {

@@ -869,9 +869,9 @@ POST /api/v1/posts/{postId}/comments
 POST /api/v1/comments/{commentId}/replies
 ```
 
-GET은 회원/해당 공유 게스트, POST는 해당 지역 이웃 완료 회원 또는 공유 게스트. 댓글 Request `{ "content": "좋은 의견입니다." }`, 답글 Request `{ "content": "저도 동의합니다.", "replyToCommentId": 302 }`. path commentId는 부모 또는 답글로 해석 가능하도록 설계하되 서버는 항상 원 부모를 찾아 연결한다. replyToCommentId를 지정하면 같은 게시물·같은 부모 하위인지 검증한다 **[설계 제안]**.
+2026-10-08 #22 사용자 채택: GET은 가입 완료 회원/해당 공유 게스트, POST는 해당 지역 이웃 완료 회원 또는 공유 게스트. 댓글 Request `{ "content": "좋은 의견입니다." }`, 답글 Request `{ "content": "저도 동의합니다.", "replyToCommentId": 302 }`. path commentId는 부모 또는 답글이며 서버는 항상 원 부모를 찾아 연결한다. replyToCommentId 생략 시 path의 댓글/답글을 지목한다. 지정 시 같은 게시물·같은 원 부모 또는 그 하위 답글인지 검증한다. 없는 path/지목 대상은404 COMMENT_NOT_FOUND, 다른 게시물·대화의 지정 대상은400 VALIDATION_ERROR, 잘못된 계층 원본은400 COMMENT_DEPTH_EXCEEDED다. 별도 작성자·게스트/배지·부모/게시물 필드를 요청에서 받지 않는다.
 
-생성 201, 댓글 DTO 제안:
+생성201, 사용자 채택 댓글 DTO:
 
 ```json
 {
@@ -892,12 +892,18 @@ GET은 회원/해당 공유 게스트, POST는 해당 지역 이웃 완료 회�
 
 회원 컨텍스트에는 myEvaluation=LIKE/DISLIKE/null 추가. 답글 parentCommentId는 원 부모 ID, replyTo는 대상 commentId/displayName. 게스트 공개명은 정확히 `게스트`, 기관 배지는 false. 회원 이름/배지는 최신 공개 프로필을 참조한다.
 
-- 빈 내용 거부, 댓글/답글과 회원/게스트 모두 동일 사전 정의 문자열 **포함** 검사를 적용. 통과 시 즉시 공개. 실제 금칙어 목록은 **[확인 필요]**, 임의로 만들어 확정하지 않는다. AI 유해 문맥 판정/운영자 관리 UI 없음.
+- 빈 내용(Unicode 공백만 포함하는 경우 포함) 거부, 댓글/답글과 회원/게스트 모두 동일 사전 정의 문자열 **포함** 검사를 적용. 통과 시 즉시 공개. 사용자가 최소 목록 선정을 위임한 초기 목록은 `씨발`, `개새끼`, `병신`, `좆같` 4개다. 포함 시400 COMMENT_FORBIDDEN_WORD와 내용 수정 안내를 반환한다. 초성·띄어쓰기 변형·유사 단어 확장·AI 문맥 판정/운영자 관리 UI는 추가하지 않는다. 본문을 임의 trim/정규화하거나 미합의 최대 글자 수를 새로 정하지 않는다.
 - 답글의 답글도 원 부모 아래 1단계 저장하며 대상명을 표시한다. 2단계 계층을 만들지 않는다.
 - LIKES는 부모 좋아요 내림차순·동률 최신 부모, LATEST는 부모 작성시각 내림차순. 답글 좋아요를 부모 정렬에 합산하지 않고 답글은 부모 아래 유지한다.
-- 커서 페이지는 부모 단위이며 각 부모 replies를 함께 반환하는 안. 답글이 큰 경우 별도 페이지 계약을 합의해야 하며 답글을 누락한 채 전체로 표시하지 않는다. 최종 동률의 ID 보조 정렬은 기술 설계로 합의.
+- 사용자 채택 목록: 기본 sort=LIKES, LATEST 선택 가능, size 기본20·최대100(최소1). LIKES는 부모 좋아요 수→createdAt→id 내림차순, LATEST는 createdAt→id 내림차순. 각 부모 replies를 createdAt·id 오름차순으로 전부 함께 반환한다. 응답은 기존 `{data:[댓글 DTO],meta:{nextCursor,hasNext}}`이고 빈 결과는200/빈 배열/null/false다. cursor는 postId·sort 및 마지막 부모의 정렬 위치에 결합된 version1 Base64url 값이며 권한 토큰이 아니다. 잘못된 값/버전·다른 대상/정렬·중복/미지원 query 필드는400 VALIDATION_ERROR. size 변경은 가능하다. 페이지 간 전체 snapshot을 보장하지 않으며 좋아요 변경·새로고침/정렬 변경 시 첫 페이지부터 재조회한다. 모든 답글을 반환하는 현재 계약의 대용량 응답은 후속 실제 데이터 검증에서 확인하며 임의 truncation은 하지 않는다.
 - 성공 회원 댓글/답글은 개인 행동 +1, 현재 참여 카드에 `댓글 작성` 표시. 게스트 의견은 가입 후 자동 회원 이관/개인 활동 집계 없음.
 - 댓글/답글 수정·삭제 API는 원문 미명시이므로 임의 제공하지 않는다.
+
+#22 실행·후속: 회원 쓰기는 동일 transaction에서 users→posts→polls 잠금 및 현재 가입/이웃 지역 검사, 게스트 쓰기는 #21 SharedPostAccess의 같은 transaction과 실제 원본 잠금·최종 만료 재검사를 사용한다. 답글은 DB 원본에서 postId/원 부모를 결정하고 FK와 서비스 검사로 다른 대화를 막는다. 생성/조회 실패는 rollback 또는500 INTERNAL_ERROR이며 DB 원문/비밀을 노출하지 않는다. GET의 회원은 지역 자격 없이 공개 댓글을 열람하되 미가입/미완료는403 USER_REGISTRATION_REQUIRED이고 무효 Bearer는401, 무효/다른 공유 컨텍스트·삭제 원본은 §5.7을 유지한다.
+
+추가 Migration `20261008070000_allow_comment_reads_and_creation.sql`은 comments SELECT/INSERT, comment_evaluations SELECT 및 해당 역할 전용 RLS3개만 추가한다. 수정/삭제·평가 쓰기·직접 시퀀스 사용은 허용하지 않는다. comments.id의 기존 identity 생성은 실제 서버 LOGIN으로 확인하며 기존 적용 Migration은 수정하지 않는다. 로컬 검증 후 Feature PR에 포함하고 실제 Supabase rollout은 BE2 조율·검토 후 진행한다. 실제 PostContextReader adapter·FE 연결은 후속으로 유지한다.
+
+사용자가 #5를 건너뛰도록 지시했으므로 이번 구현은 activity_events/+1 기록을 제공하지 않는다. 위 개인 활동 제품 규칙 자체를 변경한 것으로 표시하지 않고, #5의 미구현 조건을 유지한다. 실제 회원 댓글 관계는 #27 참여 기록의 원본으로 보존하며 게스트를 회원으로 이관하지 않는다. 같은 POST 재전송을 하나로 묶는 별도 멱등 키/DB 제약은 현재 계약에 없고 각 성공 요청은 새 댓글을 생성한다. FE는 전송 중 중복 클릭을 막고 응답 유실 시 목록 재조회 후 사용자 확인을 거쳐 재시도한다.
 
 ### 6.2 게시물 반응
 
@@ -918,7 +924,7 @@ DELETE /api/v1/posts/{postId}/reactions/{reactionType}
 
 같은 writable JDBC transaction에서 현재 users→posts→polls 잠금·가입 완료·이웃 완료 지역·공개 원본을 재검사하고 변경/집계/본인 선택을 반환한다. 회원이 없는 공유 게스트는401, 미가입/가입 미완료는403 USER_REGISTRATION_REQUIRED, 지역 자격 없음은403 NEIGHBOR_VERIFICATION_REQUIRED, 없는/삭제 원본은404 POST_NOT_FOUND다. 유효 공유 토큰으로 회원 무권한을 우회하지 않는다. 알림·다른 반응 자동 취소·자체 세션은 추가하지 않는다. PUT은 기존 복합 PK와 ON CONFLICT로 관계를 하나만 유지하며 최초 created_at을 덮어쓰지 않는다. DELETE는 검증된 본인·게시물·유형만 삭제한다. DB/내부 실패는 기존500 INTERNAL_ERROR이며 성공한 것처럼 빈 집계를 반환하지 않는다.
 
-추가 Migration `20261008080000_allow_reaction_reads_and_transitions.sql`은 post_reactions SELECT/INSERT/DELETE·서버 역할 전용 정책3개만 추가한다. UPDATE·직접 시퀀스·다른 테이블 권한 확대는 없다. 실제 Supabase 적용은 BE2 조율 후이며 기존 적용 Migration은 유지한다. #166 댓글 미병합 상태에서 별도 Feature/격리 로컬 DB로 검증한다. 이후 어느 PR이 먼저 통합되든 최신 base에 두 권한표/정책/추가 Migration을 보존하고 겹치는 기대값·문서 차이를 다시 검증한다.
+추가 Migration `20261008080000_allow_reaction_reads_and_transitions.sql`은 post_reactions SELECT/INSERT/DELETE·서버 역할 전용 정책3개만 추가한다. UPDATE·직접 시퀀스·다른 테이블 권한 확대는 없다. 실제 Supabase 적용은 BE2 조율 후이며 기존 적용 Migration은 유지한다. 최초에는 #166 댓글 미병합 상태에서 별도 Feature/격리 로컬 DB로 검증했다. 2026-10-08 #166 병합 기준 back/develop bf98ecd를 반영해 댓글·반응 권한15테이블/33정책 및 두 추가 Migration·계약 문단을 모두 보존하고 재검증한다. 통합 기록은 계약 검토표 §18.4를 따른다.
 
 FE ReactionService.set은 selected=true→PUT/false→DELETE와 응답 reactionCounts/myReactions→counts/selected/total 변환으로 연결한다. 초기 get은 기존 게시물 상세/ParticipationSnapshotReader 소비 경로에서 연결하며 별도 GET 반응 endpoint를 임의 추가하지 않는다. 반응 실제 저장/집계 원본을 공통 batch adapter의 반응 부분에 연결해야 한다. 댓글/표/북마크 미연결 항목을0으로 채운 가짜 ParticipationSnapshotReader bean은 등록하지 않는다. 실제 공통 batch adapter/BE2 게시물 원본·FE/Privy 연결은 후속으로 유지한다.
 
