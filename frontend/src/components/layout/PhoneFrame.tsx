@@ -5,11 +5,13 @@ import styles from "./PhoneFrame.module.css";
 export function PhoneFrame({ children }: { children: ReactNode }) {
   return (
     <div className={styles.stage}>
-      <section className={styles.phone} aria-label="Discushion 모바일 데모">
-        <div aria-hidden="true" className={styles.camera}><span /></div>
-        <div className={styles.screen}>{children}</div>
-        <div aria-hidden="true" className={styles.homeIndicator} />
-      </section>
+      <div className={styles.scaleBox}>
+        <section className={styles.phone} aria-label="Discushion 모바일 데모">
+          <div aria-hidden="true" className={styles.camera}><span /></div>
+          <div className={styles.screen}>{children}</div>
+          <div aria-hidden="true" className={styles.homeIndicator} />
+        </section>
+      </div>
     </div>
   );
 }
