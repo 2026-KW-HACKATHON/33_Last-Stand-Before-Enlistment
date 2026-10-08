@@ -55,7 +55,9 @@ const addedColumns = {
     ['deleted_at','timestamp with time zone',true], ['deletion_attempts','integer',false],
     ['next_delete_attempt_at','timestamp with time zone',true], ['last_delete_error_code','text',true],
     ['upload_authorization_expires_at','timestamp with time zone',true], ['deletion_claim_token','uuid',true],
-    ['deletion_claimed_at','timestamp with time zone',true], ['deletion_claim_expires_at','timestamp with time zone',true]]
+    ['deletion_claimed_at','timestamp with time zone',true], ['deletion_claim_expires_at','timestamp with time zone',true],
+    ['upload_transport','text',false], ['upload_attempt_id','uuid',true], ['upload_attempt_status','text',true],
+    ['upload_attempt_started_at','timestamp with time zone',true], ['upload_attempt_finished_at','timestamp with time zone',true]]
 };
 const entities = new Map();
 const typeMap = { bigint: 'bigint', integer: 'integer', text: 'text', boolean: 'boolean', timestamp: 'timestamp with time zone' };

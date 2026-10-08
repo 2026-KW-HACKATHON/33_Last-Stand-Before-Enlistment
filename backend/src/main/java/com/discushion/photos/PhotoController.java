@@ -1,6 +1,7 @@
 package com.discushion.photos;
 
 import java.util.Map;
+import java.io.InputStream;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -24,6 +25,10 @@ public final class PhotoController {
     Map<String,Object> complete(@PathVariable long fileId,@RequestBody Map<String,Object> body) {
         if(body==null || !body.isEmpty()) throw new PhotoFailure(VALIDATION_ERROR);
         return Map.of("data",service.complete(fileId));
+    }
+    @PutMapping("/{fileId}/content")
+    Map<String,Object> upload(@PathVariable long fileId,@RequestHeader(value="Content-Type",required=false) String mime,InputStream body) {
+        return Map.of("data",service.upload(fileId,mime,body));
     }
     @GetMapping("/{fileId}")
     Map<String,Object> get(@PathVariable long fileId) {return Map.of("data",service.get(fileId));}

@@ -40,6 +40,10 @@ class PhotoHttpIntegrationTests {
             return "did:privy:"+token;
         };}
         @Bean FakeStorage photoTestStorage(Clock clock) {return new FakeStorage(clock);}
+        @Bean @Primary PhotoService legacyPhotoTestService(JdbcPhotoStore store,MemberAuthorization auth,FakeStorage storage,
+                org.springframework.transaction.PlatformTransactionManager manager,Clock clock) {
+            return new PhotoService(store,auth,storage,new org.springframework.transaction.support.TransactionTemplate(manager),clock);
+        }
     }
     static class FakeStorage implements PhotoStorage {
         final Map<String,byte[]> objects=new java.util.concurrent.ConcurrentHashMap<>(); final Clock clock;

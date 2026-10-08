@@ -145,7 +145,7 @@ CI 비밀번호는 격리된 컨테이너용 합성값이며 운영 비밀값이
 
 - 기본 PHOTO_UPLOADS_ENABLED=false이므로 현재 local Health 서버에 사진 API/worker를 노출하지 않는다.
 - 실제 DB 프로필과 #4 Privy 공개키·가입 회원 기반이 필요하다. 테스트용 인증/Storage는 src/test에만 있으며 운영 빈에 등록하지 않는다.
-- SupabasePhotoStorage는 공식 REST 요청 형식의 준비 코드다. 실제 public bucket·PUT/RAW·CORS·MIME/10MB·토큰 TTL/발급 지연/시각 오차 상한을 #13/#30에서 검증한 뒤에만 PHOTO_STORAGE_WIRE_VERIFIED=true 및 검증된 PHOTO_VERIFIED_ISSUANCE_ALLOWANCE_SECONDS를 설정한다. client timeout을 provider 발급 종료의 증거로 사용하지 않는다.
+- 새 사진은 아래 2026-10-08 서버 중계 계약을 따른다. `PHOTO_VERIFIED_ISSUANCE_ALLOWANCE_SECONDS`는 새 예약에 사용하지 않는다. 새 Migration·공유 DB 권한·배포 요청 한도와 실제 연결을 검증하기 전에는 PHOTO_STORAGE_WIRE_VERIFIED와 PHOTO_UPLOADS_ENABLED를 활성화하지 않는다. client timeout을 provider 쓰기 종료의 증거로 사용하지 않는다.
 - 실제 provider의 진행 중 업로드 종료/재생성 방어는 아직 입증되지 않았다. 현재 Supabase adapter의 uploadsDrained는 항상 false이며, 단순 권한 만료·DELETE 성공·부재 조회만으로 DELETED를 기록하지 않는다. 파일을 제거해도 DELETE_PENDING과 quota 슬롯을 유지한다. #30에서 실제 증거를 갖춘 종료 확인 구현이 필요하며 시연 중 예약 누적을 관측해야 한다.
 - PHOTO_CLEANUP_ENABLED=true는 위 환경을 검증한 뒤 선택한다. batch 결과와 정제된 실패 분류를 로그로 보고, media_files의 deletion_attempts/next_delete_attempt_at/last_delete_error_code/claim을 확인한다. signed URL·secret·raw provider 오류를 로그에 남기지 않는다.
 - 초기 구현 시 Supabase 플러그인의 조회 가능한 프로젝트는0개였고 원격 DB/Storage/계정/버킷을 변경하지 않았다. 이후 실제 Storage 준비 결과는 아래 02:20 KST 기록을 따른다. 로컬 합성 Storage의 성공은 실제 원격 연결이나 FE 사용자 흐름 검증이 아니다. #13 완료와 Issue 종료는 대기다.
@@ -181,3 +181,45 @@ SupabasePhotoStorage는 헤더부터 응답 본문 전체에30초 deadline을 �
 `ServerRuntimePermissionsIntegrationTests`는 격리 localhost DB에서만 실제 비밀번호 LOGIN, 전체 27개 테이블 작업 권한, 최초 가입/재요청, 사진 예약/연결/참조 제거, DDL/TRUNCATE/불필요한 물리 삭제/legacy·자격 쓰기/권한 상승 거부를 시험한다. provider는 테스트용 대체 구현이며 실제 Privy/Storage/FE 연결 시험이 아니다. 테스트 끝에 LOGIN/비밀번호를 제거한다. CI는 새 Migration을 포함한 격리 DB를 준비하고 이 시험을 실행하며 원격 secret은 사용하지 않는다.
 
 기존 Supabase 원격 smoke 3개는 SELECT-only 관리자 감사다. 실제 런타임을 서버 계정으로 교체한 뒤에도 감사 테스트에는 로컬 secret의 `DB_AUDIT_USERNAME`/`DB_AUDIT_PASSWORD`를 사용할 수 있다. 이 변수는 테스트 전용이며 서버 권한을 넓히기 위한 용도가 아니다. 미설정 시 기존 DB_USERNAME/DB_PASSWORD를 사용하고, 기존 관리자 계정 기대값은 유지한다. 실제 원격 권한 Migration 적용 전후의 카탈로그/이력 차이를 확인하고 기대값을 갱신한다.
+
+## #13 실제 Storage 검증 후속 (2026-10-08)
+
+PR #125의 사진 구현은 이미 병합돼 있으므로 재구현하지 않는다. `PhotoStorageLiveIntegrationTests`는 명시적으로 선택할 때만 지정 개발 프로젝트의 실제 Storage와 운영 사진 HTTP/JWT 검증·회원/사진 JDBC adapter를 연결한다. 로컬 회원·서명키와 `discushion_server` 비밀번호 LOGIN은 격리 테스트 DB에서만 준비한다. 실제 Privy OTP, 공유 DB의 회원 등록/사진 변경 또는 FE 브라우저 연동 시험이 아니다.
+
+실행에는 기존 localhost PostgreSQL의 최신 Migration·서버 RLS, `DISCUSHION_TEST_JDBC_URL`/`DISCUSHION_TEST_DB_PASSWORD`, ignored `.env`의 Supabase URL·버킷·관리 키와 `DISCUSHION_VERIFY_PHOTO_STORAGE=true`가 필요하다. 지정 프로젝트/버킷과 localhost DB를 검사한 뒤 합성 PNG의 예약·PUT/RAW·익명 공개 조회·완료/상태 조회·타 회원 거부·취소·삭제 후 동일 URL 재업로드·재삭제를 검증한다. 시계를 이동해 UPLOADING의 예약+24시간과 UNLINKED의 최초 완료+24시간 경계를 확인하며 반복 완료로 기한이 연장되지 않아야 한다. 이는 실제로 24시간을 기다리거나 provider의 URL을 만료시키는 시험이 아니다.
+
+원격 전체 정리 배치를 호출하지 않고 이번 시험의 fileId만 처리한다. 종료 시 이번 예약의 Storage object 부재를 확인한 뒤 로컬 DB fixture를 제거하고 테스트 LOGIN/비밀번호를 해제한다. 원격 삭제가 실패하면 추적 행을 보존하고 테스트를 실패시킨다. 비밀 키와 서명 URL은 출력/문서/Git에 남기지 않는다. CI에는 외부 secret을 추가하지 않고 이 opt-in 시험을 제외한다.
+
+테스트의 1분 발급 여유는 테스트 입력이며 운영의 발급 지연·시각 오차 상한으로 확정하지 않는다. `uploadsDrained=false`와 `DELETE_PENDING`/`deletionCompleted=false`를 유지한다. Storage DELETE 성공이나 테스트 시계의 24시간 경과는 진행 중 전송 종료의 증거가 아니다. provider 종료 보장 또는 재생성 방어 계약을 확인하기 전에는 실제 `PHOTO_UPLOADS_ENABLED`/`PHOTO_STORAGE_WIRE_VERIFIED`/`PHOTO_CLEANUP_ENABLED`를 활성화하거나 #13 전체 완료로 표시하지 않는다.
+
+검증 기록(2026-10-08 15:00 KST): 기준 back/develop `3c4b6aa`와 이 후속 테스트의 미커밋 변경에서 Java17 `gradlew.bat --no-daemon test build --console=plain --rerun-tasks --max-workers=2 --offline`을 실행했다. **226개 중223통과/실패0/오류0/관리자 감사3skip, build 성공**. 실제 Storage 시험2개 모두 통과했다. 예약→PUT/RAW→익명 공개 GET/bytes 일치→완료/본인 조회→취소202→실제 object 삭제→동일 유효 URL로 재생성→재삭제와 DELETE_PENDING 보존을 확인했다. 24시간 정리 경계·최초 완료시각 보존도 실제 object와 로컬 DB/HTTP로 검증했다. 두 시험이 만든 합성 object3개는 종료 시 부재를 확인했고 로컬 사진 회원/파일 잔여0개·테스트 역할 NOLOGIN/비밀번호 제거·운영 JAR 테스트 클래스0개를 확인한 뒤 이번에 시작한 로컬 DB를 종료했다.
+
+최초 기준 검증의 로컬 포트 오류와 오래된 테스트 DB의 institutions RLS 누락은 격리 환경에서 바로잡고 재검증했다. 새 테스트의 잘못된 익명 요청 입력과 PostgreSQL보다 세밀한 Clock 정밀도도 수정했다. 공용 DB Schema/권한이나 제품 코드는 변경하지 않았다. 현재 ignored `.env`의 실제 서버 계정으로 Supabase TLS verify-full 연결·사진 SELECT/INSERT/UPDATE 허용·물리 DELETE 거부·사진 RLS3개를 별도 읽기 전용으로 확인했다.
+
+관리자 감사3개는 이번 최초 실행에서 실제로 실행했지만 서버 계정이 기존 관리자 감사 username 기대값과 달라 실패했다. `DB_AUDIT_USERNAME`/`DB_AUDIT_PASSWORD`가 없으므로 최종 전체 실행에서는 opt-in을 끄고3skip으로 기록했다. 실제 서버 계정 검증을 이 감사3개 통과로 대체하지 않는다. 아래 후속 실행에서 감사 자격 증명 준비 및 재검증 결과를 기록한다. 사진 Storage 검증 통과와 별도로 운영 발급 상한/전송 종료·재생성 방어, 실제 Privy OTP·FE 연결, #14~16 게시물 연결과 #13 전체 완료 조건은 남아 있다.
+
+### 발급 응답 안전성 보완과 관리자 감사 재실행 (2026-10-08)
+
+로컬 `.env`에 감사 변수가 준비된 것을 확인했다. 첫 재실행은 감사 username 오입력으로 DB 접속 전 실패했으며, 지정 프로젝트 관리자 계정명으로 수정한 뒤 15:52 KST `SupabaseJdbcSmokeTests` 3개가 실패0/오류0/skip0으로 통과했다. TLS 인증서/hostname 검증, 실제 Schema·Migration 내용·서버 RLS 및 공개 API 역할의 private Schema 접근 거부를 SELECT-only로 확인했다. 비밀번호 재설정이나 원격 DB 역할/권한 변경은 수행하지 않았다.
+
+`PhotoService.reserve`는 관측한 실제 만료시각을 먼저 영속 기록하고, 외부 발급 전 기록한 상한을 넘는 응답 또는 만료된/잘못된 전송 응답을 FE에 전달하지 않는다. 아직 UPLOADING이면 즉시 DELETE_PENDING으로 예약해 24시간 동안 방치하지 않는다. 기존 성공/오류 DTO·PUT/RAW·DB Schema는 유지한다. 상한 초과와 만료 응답의 회귀 테스트2개를 추가했다. 알려진 만료시각을 보존하는 보완이며, 응답 유실 시 provider 발급 종료시각이 입증됐다는 의미는 아니다.
+
+[공식 signed upload URL 안내](https://supabase.com/docs/reference/javascript/storage-from-createsigneduploadurl)는 2시간 유효성을 명시한다. 확인한 공식 문서에서는 개별 URL 취소·발급 처리 지연의 최대치·진행 중 전송 종료 장벽을 입증할 수 없었다. HTTP timeout과 테스트용 여유값을 이 보장으로 대체하지 않는다. 현재 adapter의 uploadsDrained=false, DELETE_PENDING 추적과 운영 비활성 플래그를 유지하며, #13 최종 삭제 및 운영 발급 상한 조건은 미완료다. 공급자 보장 확인 또는 직접 업로드/삭제 계약 변경안의 BE1·FE 공동 확인이 필요하다. 검증 없이 상한을 임의 확정하거나 전송 방식을 변경하지 않는다.
+
+2026-10-08 16:01 KST 최종 검증: 최신 back/develop `04d60fa`를 현재 Feature에 fast-forward하고 위 보완 및 기존 미커밋 후속 테스트를 포함해 Java17 test/build를 새로 실행했다. **245개 모두 통과/실패0/오류0/skip0, build 성공(7분21초)**. `DISCUSHION_VERIFY_SUPABASE=true`와 `DISCUSHION_VERIFY_PHOTO_STORAGE=true`를 함께 설정해 관리자 감사3개와 실제 Storage2개를 제외하지 않았다. 사진 JDBC17개에 신규 회귀2개를 포함한다. 시험용 Storage object는 테스트 종료 시 삭제·부재 확인했고 운영 JAR의 테스트 클래스0개·임시 DB 서버 역할 NOLOGIN/비밀번호 제거를 확인했다. 실제 Privy OTP/FE 흐름, 운영 발급 지연 상한 및 진행 중 업로드 종료 증명은 이번 성공에 포함되지 않는다. git diff --check 통과, 기존 문서 이름 유지, commit/push/PR은 아직 수행하지 않았다.
+
+### #13 합의된 서버 중계 구현 (2026-10-08)
+
+사용자가 팀 합의를 확인해 새 예약의 전송을 FE → Spring → Supabase로 변경했다. 기존 직접 전송 관련 기록은 과거 검증이다. 현재 계약은 API 정본 §13.9다. 새 PUT `/api/v1/photo-uploads/{fileId}/content`는 앱 API의 Privy Bearer·가입 완료·소유권을 검사하며 RAW bytes를 받고, DB 시간 기준2시간 안에 단 한 번 외부 쓰기를 시작한다. 새 adapter는 signed URL 발급을 거부하고 공급자 발급 여유 설정을 사용하지 않는다. HTTP 수신/검사30초·Storage 응답30초·동시2건으로 제한한다.
+
+`20261008071616_track_server_photo_uploads.sql`의5컬럼·제약·trigger를 **로컬 테스트 DB에만** 적용했다. 공유 Supabase의27테이블/180컬럼·기존 Migration은 유지하며 새 배포 코드 활성화 전에 통합된 Migration 적용과 최소 권한/RLS 검증이 필요하다. 운영 PHOTO_* 플래그와 .env의 활성화 상태는 변경하지 않는다.
+
+RUNNING은 외부 호출 전에 commit하고 성공 종료는 ACKNOWLEDGED로 저장한다. UNKNOWN 또는 종료 commit 유실은 영속 보존해 최종 삭제를 막는다. 미전송/정상 종료 파일은 삭제와 부재 확인 후 DELETED가 가능하며, 기존 직접 업로드 행은 DIRECT_UNCONFIRMED로 유지한다. 외부 쓰기 결과 불명확 파일을 시간 경과로 강제 종료하지 않는다.
+
+새 PhotoRelayJdbcIntegrationTests는 경합/취소·응답 유실·장애 추적을 격리 DB에서 검증한다. PhotoRelayLiveIntegrationTests는 실제 Supabase와 로컬 Spring/합성 인증·서버 LOGIN으로 정상 파일과10,000,000 bytes 파일을 검증한다. 기존 PhotoStorageLiveIntegrationTests는 직접 업로드의 재생성 위험을 검증하는 회귀 시험이다. 실제 Privy OTP/FE 화면·배포 연동과 구분한다. 최종 실행 결과는 아래 검증 기록을 따른다.
+
+Storage 성공 종료 판정은 [공식 Storage POST 구현](https://github.com/supabase/storage/blob/master/src/http/routes/object/createObject.ts)이 uploadFromRequest 완료 후 Key를 반환하는 흐름과 실제 서비스 응답을 대조했다. 2xx만으로 판정하지 않고 기대한 bucket/key가 일치하는 전체 응답을 확인한다. 이 근거는 실제 서비스 내부의 모든 장애/비동기 복구 경로가 유한 시간에 종료된다는 보장으로 확장하지 않는다.
+
+2026-10-08 16:48 KST 최종 검증: 기준 back/develop `04d60fa`와 현재 `back/feature/13-storage-verification`의 미커밋 서버 중계 구현으로 Java17 test/build를 새로 실행했다. **전체256개 통과·실패0·오류0·skip0·build 성공(7분6초)**. 관리자 원격 감사3개, 기존 직접 Storage 회귀2개, 새 서버 중계 실제 Storage2개와 JDBC 안전성9개를 포함한다. 새 실제 시험은 합성 인증·격리된 최소 권한 서버 LOGIN으로 Spring PUT→실제 Storage 쓰기/익명 공개 조회→complete→취소→최종 DELETED→늦은 PUT 거부를 확인했으며 정확히10,000,000 bytes PNG도 같은 흐름을 통과했다. JPG 내용 검사 등 기존 검증은 유지한다. 실제 Privy OTP·FE 화면·배포 환경의10MB 수용 시험을 대신하지 않는다.
+
+로컬 PostgreSQL 제약133개, 공개 역할 차단9개, 전체7 Migration의 적용/재실행 불변성, ERD27테이블/185컬럼 일치를 검증했다. 시험 Storage object 삭제·부재, 로컬 사진 회원/파일0개, 임시 서버 역할 NOLOGIN/비밀번호 제거, 운영 JAR의 테스트 fixture0개를 확인했다. 문서 상대 링크와 diff 공백 검사를 통과했다. 공유 Supabase에는 새 Migration을 적용하지 않았으며 PHOTO_* 활성화·FE 연결·GitHub 상대 승인·commit/push/PR은 별도다. 결과 불명확 전송과 기존 직접 전송 파일은 삭제 대기를 유지하고 시간 경과로 최종 삭제하지 않는다.

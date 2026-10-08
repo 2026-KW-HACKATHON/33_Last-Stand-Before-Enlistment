@@ -626,3 +626,43 @@ sequenceDiagram
 투표 종료 사진 수정 경합과 Storage 본문 대기 문제를 보완했다. 모든 DB 잠금 이후 첫 사진 변경 직전에 투표 종료를 재검사하고, Storage 본문 수신과 이미지 확인에 같은30초 제한시간을 적용한다. metadata/오류 응답64KiB, 실제 사진은 기존10,000,000 bytes 한도이며 초과/중단 시 취소·기술 실패 또는 기존 사진 크기 오류로 처리한다. 공개 API/DTO·Migration·FE 전송 계약 변경은 없다.
 
 PR #127을 포함한 back/develop d93cbf5를 반영한56b4cae의2026-10-08 04:10 KST 로컬 실제 DB/HTTP 재검증:133개 중130통과/원격3skip·실패0/오류0/build 성공. 상세는 Backend README의 PR #125 보완 기록을 따른다. 실제 Privy·Storage·FE 사용자 흐름 완료가 아니며 업로드 종료 안전성·최소 권한 서버 계정·실제 연결 후속과 사진 API/worker 비활성 조건을 유지한다. Draft와 BE1 최신 변경 재승인 상태는 실제 PR에서 확인한다.
+
+### #13 실제 연결 후속 검증 범위 (2026-10-08)
+
+PR #125는 병합된 기존 사진 구현이다. 후속 `PhotoStorageLiveIntegrationTests`는 지정 Supabase Storage의 실제 object를 기존 Spring 사진 API·JWT 검증·회원/사진 adapter와 연결해 시험한다. 회원·서명키·최소 권한 DB LOGIN은 localhost 격리 DB의 합성 fixture이며 실제 Privy OTP·공유 DB의 사용자 데이터·FE 브라우저 연결을 대신하지 않는다. 실제 Supabase 서버 계정은 TLS/사진 SELECT·INSERT·UPDATE·물리 DELETE 거부·RLS3개를 별도 읽기 전용으로 확인했다.
+
+FE 전달 계약은 기존 PUT/RAW·반환 headers·본인 fileId·완료 호출·202 삭제 대기를 유지한다. 삭제/정리 시 object를 지운 뒤에도 기존 유효 업로드 URL로 재생성될 수 있으므로, 정리 재시도와 `DELETE_PENDING`/`deletionCompleted=false`를 유지해야 한다. URL을 숨기거나 Storage DELETE가 성공했다고 최종 삭제로 표시하지 않는다. 테스트 시계로 24시간 경계를 확인하는 것은 실제 URL 만료/진행 중 전송 종료의 증거가 아니다.
+
+이번 검증은 운영 발급 상한·전송 종료 보장·사진 API/worker 활성화·실제 FE 사용자 흐름의 완료를 뜻하지 않는다. `PHOTO_*` 운영 플래그는 비활성으로 유지하며 #13의 남은 안전성 조건, #14~16 사진 연결, #30/#31 실제 Privy·FE 검증을 유지한다. 실행 결과와 재현 조건은 Backend README의 `#13 실제 Storage 검증 후속` 절에 기록한다.
+
+2026-10-08 15:00 KST 재검증: 기준 `3c4b6aa`와 미커밋 후속 테스트에서226개 중223통과/실패0/오류0/관리자 감사3skip·build 성공. 실제 Storage 시험2개는 Spring HTTP/인증/격리 서버 LOGIN과 연결해 업로드·공개 조회·완료·삭제·늦은 재업로드/재삭제·24시간 경계와 DELETE_PENDING 보존을 통과했다. 시험 object·로컬 사진 회원/파일을 정리했다. 관리자 감사3개는 최초 실행의 계정 불일치 실패로 별도 대기하며 실제 서버 계정의 읽기 전용 확인을 이3개 통과로 기록하지 않는다. FE 요청/응답 계약은 바뀌지 않았고 실제 Privy·FE 사용자 흐름 완료도 아니다.
+
+### #13 발급 응답 보완·감사 후속 상태 (2026-10-08)
+
+감사 변수 준비와 username 오입력 수정 후 15:52 KST 관리자 감사3개는 모두 실제 실행해 통과했다. 기존의 감사 대기 사유는 해소됐으며 원격 DB 권한이나 비밀번호를 변경한 것은 아니다. 이후 Feature 기준은 PR #162가 병합된 back/develop `04d60fa`이며 기존 미커밋 사진 검증 변경을 보존했다.
+
+사진 예약에서 관측한 업로드 권한 만료가 미리 기록한 상한보다 길거나 이미 만료된/잘못된 전송 응답이면 기존 PHOTO_STORAGE_UNAVAILABLE로 실패하고 URL을 전달하지 않는다. 실제 만료시각의 최대값은 보존하고 UPLOADING 예약을 즉시 DELETE_PENDING으로 전환한다. FE의 PUT/RAW·반환 headers·본인 fileId·완료 호출·202 삭제 대기 계약은 유지한다.
+
+이는 provider 발급 지연·시각 오차의 상한 또는 진행 중 전송 종료를 입증한 것이 아니다. 물리 삭제 후 재생성 가능성이 남는 현재 adapter는 DELETED로 전환하지 않으며 사진 API/worker 비활성 조건을 유지한다. #13의 두 안전성 완료 조건에는 공급자 보장 확인 또는 직접 업로드/삭제 계약 변경안에 대한 BE1·FE 공동 확인이 필요하다. 기존 계약을 임의 변경하거나 실제 연동 완료로 기록하지 않는다.
+
+2026-10-08 16:01 KST 최신 `04d60fa`와 미커밋 보완의 전체 test/build 결과는245개 모두 통과·실패0/오류0/skip0·build 성공이다. 실제 Storage2개와 관리자 감사3개도 모두 실행했다. 신규 사진 JDBC 회귀2개로 만료 상한 초과·만료된 응답의 즉시 삭제 예약을 확인했다. 시험 데이터 정리와 운영 JAR의 테스트 제외를 확인했으며 상세 재현 조건은 Backend README를 따른다. 이 결과는 #13 최종 삭제/발급 상한이나 실제 FE 연동의 완료를 의미하지 않는다.
+
+### #13 안전성 해결을 위한 전송 변경 제안 — 합의 대기 (2026-10-08)
+
+두 미완료 항목의 해결 요청으로 [API 계약 검토표 §17](../api/Discushion_API_CONTRACT_검토표_2026-10-07.md#17-13-삭제발급-안전성-해결을-위한-서버-중계-검토안-2026-10-08)에 검토안을 마련했다. 추천은 FE→Spring→Supabase 중계다. 새 예약에서 외부 signed upload URL을 없애고 공통 회원 인증·소유권·DB의 허용기한/취소 상태로 실제 전송을 통제한다. Storage 쓰기 시작/종료를 영속 기록하고, 새 쓰기 차단·모든 쓰기 종료·참조 없음·실제 삭제/부재를 모두 확인한 새 파일만 DELETED로 전환한다.
+
+FE에는 앱 origin의 RAW PUT endpoint 및 Bearer 사용 방식 변경이 필요하다. BE1에는 시도 추적 Schema/권한·잠금/종료/삭제 장벽 리뷰, BE2에는 실제 배포의10MB 수용·메모리/동시 전송 제약 확인이 필요하다. 신규 endpoint·2시간 허용기한·Schema는 제안이며 확정 API 정본이나 운영 구현으로 취급하지 않는다. 기존 직접 업로드 계약을 유지한 상태에서 코드/공유 DB/운영 플래그를 변경하지 않았다.
+
+중계만으로 결과 불명확한 외부 쓰기가 종료됐다고 판단하지 않는다. timeout/응답 유실/서버 장애는 추적을 보존하고 DELETE_PENDING을 유지하며, 기존 직접 업로드 파일도 새 방식의 안전한 파일로 임의 전환하지 않는다. 정상 종료가 확인된 새 전송에는 최종 삭제 경로를 제공할 수 있지만 모든 장애의 유한 시간 내 정리까지 보장하는 안은 아니다. 공동 계약 확인 후 구현·실제 Storage/배포 검증 및 #30/#31 FE 사용자 흐름을 진행한다.
+
+### #13 2026-10-08 합의 반영: 앱 서버로 사진 전송
+
+사용자가 서버 중계 검토안의 팀 합의를 확인했다. 새 사진에 대해서는 이 절과 API 정본 §13.9가 위 직접 Storage 전송 안내보다 우선한다. 예약의 upload.url은 앱 API 상대 경로 `/api/v1/photo-uploads/{fileId}/content`이며 신뢰한 앱 API base로 해석한다. PUT/RAW File·Blob에 현재 Privy Bearer를 앱 origin에만 추가하고 Content-Type은 반환 값을 사용한다. Storage에 Privy 토큰을 전달하지 않는다. 업로드 전송에 공통 앱 인증 계층을 사용할 수 있으며, Storage 별도 client/서명 URL 방식은 새 예약에 적용하지 않는다.
+
+DB 기준2시간 안에 전송을 시작하고 실제 크기를 예약 sizeBytes와 일치시킨다. 성공 PUT 후에도 기존 complete를 호출한다. 성공 PUT/응답 유실은 같은 key 자동 재전송 대신 상태 조회·complete로 확인한다. 503 결과 불명확은 삭제 대기로 보존할 수 있다. 삭제202를 최종 완료로 표시하지 않고 deletionCompleted를 확인한다. 기존10장·총10MB와 공개 열람·최초24시간 정책은 유지한다.
+
+새 Schema·구현·검증은 Feature 작업 중이며 공유 DB·배포·FE 실제 연결은 완료로 취급하지 않는다. 배포 환경의 10MB 수용·실제 Privy OTP·FE 사용자 흐름은 #30/#31에서 검증한다. GitHub 상대 승인도 사용자 합의와 별개로 받는다. 종료가 확인되지 않은 외부 전송과 기존 직접 업로드 행은 시간/lease 경과로 DELETED 처리하지 않는다.
+
+2026-10-08 16:48 KST 최종 검증: 기준 back/develop `04d60fa`와 현재 `back/feature/13-storage-verification`의 미커밋 서버 중계 구현으로 Java17 test/build를 새로 실행했다. **전체256개 통과·실패0·오류0·skip0·build 성공(7분6초)**. 관리자 원격 감사3개, 기존 직접 Storage 회귀2개, 새 서버 중계 실제 Storage2개와 JDBC 안전성9개를 포함한다. 새 실제 시험은 합성 인증·격리된 최소 권한 서버 LOGIN으로 Spring PUT→실제 Storage 쓰기/익명 공개 조회→complete→취소→최종 DELETED→늦은 PUT 거부를 확인했으며 정확히10,000,000 bytes PNG도 같은 흐름을 통과했다. JPG 내용 검사 등 기존 검증은 유지한다. 실제 Privy OTP·FE 화면·배포 환경의10MB 수용 시험을 대신하지 않는다.
+
+로컬 PostgreSQL 제약133개, 공개 역할 차단9개, 전체7 Migration의 적용/재실행 불변성, ERD27테이블/185컬럼 일치를 검증했다. 시험 Storage object 삭제·부재, 로컬 사진 회원/파일0개, 임시 서버 역할 NOLOGIN/비밀번호 제거, 운영 JAR의 테스트 fixture0개를 확인했다. 문서 상대 링크와 diff 공백 검사를 통과했다. 공유 Supabase에는 새 Migration을 적용하지 않았으며 PHOTO_* 활성화·FE 연결·GitHub 상대 승인·commit/push/PR은 별도다. 결과 불명확 전송과 기존 직접 전송 파일은 삭제 대기를 유지하고 시간 경과로 최종 삭제하지 않는다.
