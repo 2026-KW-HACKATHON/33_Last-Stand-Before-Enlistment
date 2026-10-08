@@ -13,6 +13,8 @@ import { createCommentMockService, type CommentMockMode } from "@/features/comme
 import { createEvaluationMockService, type EvaluationMockMode } from "@/features/comment/evaluation-mock";
 import { createReactionMockService, type ReactionMockMode } from "@/features/reaction/mock";
 import { ReactionControls } from "@/features/reaction/ReactionControls";
+import { createVoteMockService, type VoteMockMode } from "@/features/vote/mock";
+import { VotePanel } from "@/features/vote/VotePanel";
 
 const choices = ["agenda-photo", "agenda-anonymous", "activity", "activity-ended", "vote", "vote-ended"] as const;
 const choiceLabels: Record<(typeof choices)[number], string> = { "agenda-photo": "사진 있는 지역 안건", "agenda-anonymous": "익명 지역 안건", activity: "지역 활동 정보", "activity-ended": "종료된 활동", vote: "진행 중 투표", "vote-ended": "종료된 투표" };
@@ -20,6 +22,7 @@ const detailStateLabels = { success: "정상", restricted: "참여 제한", load
 const summaryModeLabels: Record<SummaryMockMode, string> = { success: "요약 성공", "provider-error": "제공자 오류", timeout: "시간 초과", quota: "요청 한도", "source-too-short": "짧은 원문" };
 const commentModeLabels: Record<CommentMockMode, string> = { success: "정상", empty: "댓글 없음", "load-error": "조회 오류", "create-error": "등록 실패", forbidden: "금칙어 오류" };
 const evaluationModeLabels: Record<EvaluationMockMode, string> = { success: "평가 정상", "load-error": "평가 조회 오류", "set-error": "평가 실패" };
+const voteModeLabels: Record<VoteMockMode, string> = { success: "투표 정상", "load-error": "조회 오류", "submit-error": "제출 실패 후 재시도", "unknown-result": "결과 불명 후 재조회", submitted: "기존 투표 있음" };
 
 /** Development-only FE2 fixture harness. It is not a product route or a real Bookmark Service. */
 export function PostPreview() {
@@ -33,12 +36,18 @@ export function PostPreview() {
   const [evaluationEnabled, setEvaluationEnabled] = useState(true);
   const [viewer, setViewer] = useState<"member" | "guest">("member");
   const [reactionMode, setReactionMode] = useState<ReactionMockMode>("success");
+  const [voteMode, setVoteMode] = useState<VoteMockMode>("success");
+  const [voteEnabled, setVoteEnabled] = useState(true);
   const post = postFixtures[selected];
-  const visiblePost = useMemo<PostDisplayModel>(() => viewer === "guest" ? { ...post, viewer: { ...post.viewer, mode: "guest" } } : post, [post, viewer]);
+  const visiblePost = useMemo<PostDisplayModel>(() => {
+    const withViewer = viewer === "guest" ? { ...post, viewer: { ...post.viewer, mode: "guest" as const } } : post;
+    return withViewer.type === "VOTE" ? { ...withViewer, capabilities: { ...withViewer.capabilities, canVote: viewer === "member" && voteEnabled } } : withViewer;
+  }, [post, viewer, voteEnabled]);
   const summaryService = useMemo(() => createSummaryMockService(summaryMode), [summaryMode]);
   const commentService = useMemo(() => createCommentMockService(commentMode), [commentMode]);
   const evaluationService = useMemo(() => createEvaluationMockService(evaluationMode), [evaluationMode]);
   const reactionService = useMemo(() => createReactionMockService(reactionMode), [reactionMode]);
+  const voteService = useMemo(() => createVoteMockService(voteMode), [voteMode]);
   const state = useMemo<PostDetailState>(() => {
     if (stateKind === "loading") return { kind: "loading" };
     if (stateKind === "error") return { kind: "error", message: "Mock 조회 오류입니다.", onRetry: () => setStateKind("success") };
@@ -55,6 +64,9 @@ export function PostPreview() {
   const reaction = (state.kind === "success" || state.kind === "restricted")
     ? <ReactionControls key={`${visiblePost.id}-${reactionMode}-${viewer}`} postId={visiblePost.id} service={reactionService} canReact={viewer === "member"} onInvalidate={(postId) => window.alert(`반응 합계 갱신 경계: ${postId}`)} />
     : undefined;
+  const vote = (state.kind === "success" || state.kind === "restricted") && visiblePost.type === "VOTE"
+    ? <VotePanel key={`${visiblePost.id}-${voteMode}-${viewer}-${voteEnabled}`} postId={visiblePost.id} status={visiblePost.vote.status} service={voteService} canVote={visiblePost.capabilities.canVote} viewerMode={viewer} onInvalidate={(postId) => window.alert(`투표 결과 갱신 경계: ${postId}`)} />
+    : undefined;
   return <div className="min-h-dvh bg-background p-4">
     <div className="mx-auto mb-4 max-w-mobile rounded-card border border-border bg-surface p-3">
       <p className="text-caption text-secondary">#53 게시물 상세 · #55 AI 요약 Preview</p>
@@ -65,8 +77,9 @@ export function PostPreview() {
       {visiblePost.type === "LOCAL_AGENDA" && <div className="mt-2 flex flex-wrap gap-2">{(["success", "provider-error", "timeout", "quota", "source-too-short"] as const).map((mode) => <Button key={mode} variant={summaryMode === mode ? "primary" : "secondary"} className="min-h-0 px-3 py-1 text-caption" onClick={() => setSummaryMode(mode)}>{summaryModeLabels[mode]}</Button>)}</div>}
       <div className="mt-2 flex flex-wrap items-center gap-2"><span className="text-caption text-secondary">댓글 Mock</span>{(["success", "empty", "load-error", "create-error", "forbidden"] as const).map((mode) => <Button key={mode} variant={commentMode === mode ? "primary" : "secondary"} className="min-h-0 px-3 py-1 text-caption" onClick={() => setCommentMode(mode)}>{commentModeLabels[mode]}</Button>)}<Button variant={commentEnabled ? "primary" : "secondary"} className="min-h-0 px-3 py-1 text-caption" onClick={() => setCommentEnabled((current) => !current)}>{commentEnabled ? "댓글 작성 허용" : "댓글 작성 제한"}</Button></div>
       <div className="mt-2 flex flex-wrap items-center gap-2"><span className="text-caption text-secondary">평가 Mock</span>{(["success", "load-error", "set-error"] as const).map((mode) => <Button key={mode} variant={evaluationMode === mode ? "primary" : "secondary"} className="min-h-0 px-3 py-1 text-caption" onClick={() => setEvaluationMode(mode)}>{evaluationModeLabels[mode]}</Button>)}<Button variant={evaluationEnabled ? "primary" : "secondary"} className="min-h-0 px-3 py-1 text-caption" onClick={() => setEvaluationEnabled((current) => !current)}>{evaluationEnabled ? "평가 허용" : "평가 제한"}</Button></div>
+      {visiblePost.type === "VOTE" && <div className="mt-2 flex flex-wrap items-center gap-2"><span className="text-caption text-secondary">투표 Mock</span>{(["success", "load-error", "submit-error", "unknown-result", "submitted"] as const).map((mode) => <Button key={mode} variant={voteMode === mode ? "primary" : "secondary"} className="min-h-0 px-3 py-1 text-caption" onClick={() => setVoteMode(mode)}>{voteModeLabels[mode]}</Button>)}<Button variant={voteEnabled ? "primary" : "secondary"} className="min-h-0 px-3 py-1 text-caption" onClick={() => setVoteEnabled((current) => !current)}>{voteEnabled ? "투표 허용" : "투표 제한"}</Button></div>}
       <div className="mt-3"><PostCard post={visiblePost} onOpen={() => setStateKind("success")} /></div>
     </div>
-    <PostDetailScreen state={state} slots={{ summary, reaction, comment }} bookmark={{ isBookmarked: bookmarked, feedback: bookmarked ? "북마크 상태는 FE1 Service가 연결되면 저장됩니다." : undefined, onToggle: () => setBookmarked((current) => !current) }} onReport={() => window.alert("신고 입력·제출은 #100에서 연결합니다.")} />
+    <PostDetailScreen state={state} slots={{ summary, reaction, comment, vote }} bookmark={{ isBookmarked: bookmarked, feedback: bookmarked ? "북마크 상태는 FE1 Service가 연결되면 저장됩니다." : undefined, onToggle: () => setBookmarked((current) => !current) }} onReport={() => window.alert("신고 입력·제출은 #100에서 연결합니다.")} />
   </div>;
 }
