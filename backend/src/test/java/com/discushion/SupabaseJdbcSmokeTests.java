@@ -1,6 +1,11 @@
 package com.discushion;
 
 import javax.sql.DataSource;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.security.MessageDigest;
+import java.util.HexFormat;
 
 import com.zaxxer.hikari.HikariDataSource;
 import org.junit.jupiter.api.Test;
@@ -60,17 +65,34 @@ class SupabaseJdbcSmokeTests {
                            'media_deleted_after_upload_authorization','post_photos_file_id_key')),
                        (select count(*) from pg_index i join pg_class c on c.oid=i.indexrelid
                          where c.relnamespace='discushion'::regnamespace and i.indisvalid and i.indisready
-                           and c.relname in ('ix_media_uploading_expiry','ix_media_delete_claim_expiry'))
+                           and c.relname in ('ix_media_uploading_expiry','ix_media_delete_claim_expiry')),
+                       (select name from supabase_migrations.schema_migrations where version='20261008014345'),
+                       (select md5(btrim(regexp_replace(regexp_replace(array_to_string(statements,chr(10)),
+                           '--[^\\r\\n]*','','g'),'\\s+',' ','g')))
+                         from supabase_migrations.schema_migrations where version='20261008014345'),
+                       (select count(*) from pg_policies where schemaname='discushion'
+                         and roles=array['discushion_server']::name[]),
+                       (select count(distinct tablename) from pg_policies where schemaname='discushion'
+                         and roles=array['discushion_server']::name[])
                      """)) {
             assertThat(result.next()).isTrue();
             assertThat(result.getInt(1)).isEqualTo(27);
             assertThat(result.getInt(2)).isEqualTo(180);
             assertThat(result.getInt(3)).isEqualTo(55);
             assertThat(result.getInt(4)).isEqualTo(27);
-            assertThat(result.getString(5)).isEqualTo("20261006182228,20261007011459,20261007021128,20261007023149,20261007104543");
+            // The remote apply recorded a different version for the reviewed #138 SQL.
+            // Preserve both applied histories and verify this explicit mapping by name AND content.
+            assertThat(result.getString(5)).isEqualTo("20261006182228,20261007011459,20261007021128,20261007023149,20261007104543,20261008014345");
             assertThat(result.getInt(6)).isEqualTo(4);
             assertThat(result.getInt(7)).isEqualTo(6);
             assertThat(result.getInt(8)).isEqualTo(2);
+            assertThat(result.getString(9)).isEqualTo("configure_server_runtime_permissions");
+            var permissionSql = Files.readString(Path.of("../supabase/migrations/20261007202633_configure_server_runtime_permissions.sql"), StandardCharsets.UTF_8);
+            var normalized = permissionSql.replaceAll("--[^\\r\\n]*", "").replaceAll("\\s+", " ").strip();
+            var expectedDigest = HexFormat.of().formatHex(MessageDigest.getInstance("MD5").digest(normalized.getBytes(StandardCharsets.UTF_8)));
+            assertThat(result.getString(10)).as("Remote #138 SQL must match the repository migration").isEqualTo(expectedDigest);
+            assertThat(result.getInt(11)).isEqualTo(27);
+            assertThat(result.getInt(12)).isEqualTo(12);
         }
     }
 
