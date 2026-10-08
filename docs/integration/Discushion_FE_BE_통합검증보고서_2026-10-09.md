@@ -262,3 +262,64 @@ Git 이력·파일·문서 보존은 성공했다. 실제 연결 가능/완료 �
 2. `git bundle verify <다운로드한 bundle 경로>`로 전제 commit을 확인한다.
 3. local integration/develop이 없는 경우 `git fetch <bundle 경로> integration/develop:integration/develop` 후 별도 worktree에 연결한다.
 4. 기존 local integration이 있으면 덮거나 force하지 말고 HEAD·이력 차이를 먼저 확인한다. 복구해도 원격 push 조건은 그대로 유지한다.
+
+## 2026-10-09 사용자 결정: 2인 실제 서비스 통합 실행 계획
+
+이 절은 이전 초기 병합 보고서와 별개인 최신 실행 계획이다. 사용자 요청으로 역할별 BE1/BE2·FE1/FE2 구분 대신 담당 A/B로 실제 통합 작업을 나눈다. 코드 병합·API 단독 검증·Mock·실제 FE 연결을 구분하며 미정 제품 정책이나 계약을 이 계획으로 임의 확정하지 않는다. 같은 주제의 이전 담당/통합 Git 절차에는 이 사용자 지시를 우선한다. 실제 GitHub assignee는 계정을 확인한 뒤 지정한다.
+
+### 현재 기준과 남은 환경 조건
+
+- front/develop: 108cb477322eaffdfb42c520a93a5e53794031ce.
+- back/develop: 4ac960d40af7e53c0755ab909be53716b9c85ad1, #8 복원 PR #199 병합.
+- integration/develop: 16eb99f, 최신 FE 코드와 #8 포함 BE 코드 반영. 백엔드/프론트 코드 tree를 각각 develop과 대조했다.
+- 실제 프론트 adapter·OTP·프로젝트 화면/배포 origin/CORS 연결은 완료되지 않았다.
+- 예정 FE origin https://galds.shop은 실제 DNS/HTTPS/배포 확인이 필요하다. API 후보 https://discushion-api.onrender.com/api/v1은 기존 실행 기록의 주소이며 현재 배포/접근성은 #30에서 재확인한다.
+- 준비 중인 CORS/환경변수 코드4파일은 미커밋으로 보존한다. 이번 계획 commit/push에는 포함하지 않으며 환경 설정·배포 완료로 표시하지 않는다.
+
+### 하나의 시간선과 두 사람의 실행 범위
+
+| 단계 | Issue | 담당 | 범위와 착수/완료 조건 |
+| --- | --- | --- | --- |
+| 2 환경 연결 | [#30](https://github.com/2026-KW-HACKATHON/33_Last-Stand-Before-Enlistment/issues/30) | A | 실제 FE/API 주소·CORS·Privy 허용 origin·배포 SHA·TLS·DB 권한/통합 Migration 확인. B에게 실제 API Client/Bearer 공급 규약 전달 |
+| 3 인증·가입 | [#168](https://github.com/2026-KW-HACKATHON/33_Last-Stand-Before-Enlistment/issues/168) | A | Privy OTP→#8 세 가입 상태→#7 최초 가입→회원/session·가입 프로필/지역. #30의 실제 연결 환경 준비 후 검증 |
+| 3 복귀 | [#171](https://github.com/2026-KW-HACKATHON/33_Last-Stand-Before-Enlistment/issues/171) | A, 공유 상세 소비는 B 협력 | 안전한 returnTo·공유 컨텍스트·취소/오류·삭제 원본·행동 자동 실행 없음. B 공유 adapter 준비 후 교차 검증 |
+| 4 콘텐츠 연결 | [#200](https://github.com/2026-KW-HACKATHON/33_Last-Stand-Before-Enlistment/issues/200) | B | 홈/게시판/지도·생성/상세/수정/삭제·사진·댓글/반응/평가/투표·공유·AI 실제 adapter. 계약이 준비된 기능부터 병렬 개발 가능 |
+| 4 자격·참여 | [#169](https://github.com/2026-KW-HACKATHON/33_Last-Stand-Before-Enlistment/issues/169) | B | 완료 지역/타지역/미완료·회원/게스트 실제 권한 연결 |
+| 4 북마크 | [#170](https://github.com/2026-KW-HACKATHON/33_Last-Stand-Before-Enlistment/issues/170) | B | 상세 저장·해제·목록 재조회·실패 rollback·삭제 비노출 |
+| 4 기관 업무 | [#172](https://github.com/2026-KW-HACKATHON/33_Last-Stand-Before-Enlistment/issues/172) | B | 유효/만료 기관·담당 지역·채택/취소·공개 관계 연결 |
+| 4 프로필·개인 | [#173](https://github.com/2026-KW-HACKATHON/33_Last-Stand-Before-Enlistment/issues/173) | B | 본인 프로필 조회/PATCH(사진 제외)·작성/참여/투표/북마크 기록. #5 활동 횟수 구현은 건너뜀 유지 |
+| 5 시연 데이터 | [#75](https://github.com/2026-KW-HACKATHON/33_Last-Stand-Before-Enlistment/issues/75) | A, 콘텐츠는 B | 준비 설계는 병렬 가능. 실제 Privy 회원/확정 Schema 준비 후 완료 지역·유효/만료 기관·소유권/게스트 사례 구성 |
+| 6 전체 인수 | [#31](https://github.com/2026-KW-HACKATHON/33_Last-Stand-Before-Enlistment/issues/31) · [#68](https://github.com/2026-KW-HACKATHON/33_Last-Stand-Before-Enlistment/issues/68) | A+B 공동 | 같은 최종 integration/배포 SHA로 프로젝트 FE→HTTP→DB 저장/재조회·권한·오류 여정 검증. Mock/관리자/API 단독 시험과 구분 |
+| 7 공개 | [#201](https://github.com/2026-KW-HACKATHON/33_Last-Stand-Before-Enlistment/issues/201) | A 실행, B 기능/결과 확인 | 전체 인수 통과 코드의 main PR·필수 CI/리뷰·실제 배포·배포 후 사용자 흐름·rollback 기록 |
+
+```mermaid
+flowchart TD
+    S[최신 코드 integration 반영 완료] --> A[#30 A: 주소·CORS·Privy·서버 환경]
+    S --> B[#200 + #169·170·172·173 B: 계약 기반 adapter 개발]
+    A --> L[#168 A: OTP·회원 상태·가입·중앙 주입]
+    L --> D[#75 A: 시연 계정·지역·기관 데이터]
+    L --> W[B: 실서버·권한 검증]
+    B --> W
+    D --> W
+    L --> R[#171 A: returnTo·공유 복귀]
+    W --> R
+    W --> Q[#31 + #68 A/B: 실제 전체 인수]
+    R --> Q
+    Q --> P[#201 A 실행·B 확인: main PR·최종 배포]
+```
+
+### 충돌을 줄이는 파일 경계
+
+- A: frontend/src/app/layout.tsx·providers.tsx, frontend/src/lib/api 공통 Client/prepareRequest, features/auth·signup·session, 가입 입력/지역 편집과 profile/editors의 인터페이스, 환경변수·CORS·Render/Vercel/Privy 설정·DB rollout/seed 실행.
+- B: 인증/가입을 제외한 기능별 실제 Service/decoder/변환·해당 UI, profile의 조회/PATCH adapter, 콘텐츠·사진·참여·자격·개인·기관/공유·탐색·AI와 필요한 backend 기능 수정.
+- B는 service 생성 함수·타입·주입 prop을 A에게 전달하고 A만 root/provider에 등록한다. profile Service의 공통 계약은 A의 가입 소비와 대조한 뒤 고정하며 같은 파일을 두 사람이 동시에 수정하지 않는다.
+- 토큰 검증/저장·공통 API client를 기능별로 중복 구현하지 않는다. B의 추가 DB/권한 변경안은 A가 rollout/실서버 검증을 조율한다. 적용된 Migration은 수정하지 않는다.
+- 등록되지 않은 지역/geometry·미구현 API·프로필 사진/활동 집계를 임의로 만들어 성공 상태로 표시하지 않는다. 제품 범위 충돌/미정 계약은 해당 접점에서 확인하고 다른 확정 작업은 진행한다.
+
+### 검증 후 직접 push하는 규칙
+
+사용자가 이번 2인 통합 작업은 PR 대신 검증 후 바로 push하도록 지시했다. 직접 push 대상은 integration/develop이다. main/front/develop/back/develop 직접 push·force/reset/rebase로 공유 이력 덮어쓰기는 하지 않는다. 최종 main 통합은 #201의 PR 절차와 main 필수 조건을 따른다.
+
+각자는 별도 작업 공간/Feature 브랜치에서 작은 단위로 구현한다. 공유 전 최신 origin/integration/develop을 fetch→merge하고 최종 diff/의도하지 않은 파일·미커밋 보존·관련 test/lint/typecheck/build·실제 API/브라우저 결과를 확인한 뒤 integration/develop으로 fast-forward 가능한 결과를 push한다. 상대가 먼저 push해 원격이 전진하면 다시 merge·영향 검증한 뒤 push한다. Git push 성공이나 한 사람의 Mock 통과를 실제 FE/배포 완료로 기록하지 않는다.
+
+이번 계획 변경은 GitHub 이슈10개 갱신·#200/#201 생성 및 이 문서 갱신만 포함한다. 실제 assignee 변경·이슈 종료·환경 저장·DB 적용·배포·main 병합은 수행하지 않는다.
