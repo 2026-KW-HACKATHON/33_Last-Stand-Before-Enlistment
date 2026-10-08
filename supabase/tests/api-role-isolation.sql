@@ -26,6 +26,7 @@ create role service_role nologin bypassrls;
 \ir ../migrations/20261008100000_allow_vote_selection_writes.sql
 \ir ../migrations/20261008104330_bookmarks_server_runtime_permissions.sql
 \ir ../migrations/20261008113000_allow_officer_agenda_reads.sql
+\ir ../migrations/20261008120014_allow_institution_agenda_adoption_writes.sql
 \ir ../migrations/20261008130000_allow_post_creation.sql
 \ir ../migrations/20261008144530_allow_activity_detail_reads.sql
 \ir ../migrations/20261008135612_allow_summary_storage.sql
@@ -151,7 +152,9 @@ begin
     raise exception 'Missing or unexpected bookmarks server RLS policies';
   end if;
   if not has_table_privilege('discushion_server','discushion.institution_agenda_adoptions','SELECT')
-    or has_table_privilege('discushion_server','discushion.institution_agenda_adoptions','INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER')
+    or not has_table_privilege('discushion_server','discushion.institution_agenda_adoptions','INSERT')
+    or not has_table_privilege('discushion_server','discushion.institution_agenda_adoptions','UPDATE')
+    or has_table_privilege('discushion_server','discushion.institution_agenda_adoptions','DELETE,TRUNCATE,REFERENCES,TRIGGER')
     or has_table_privilege('anon','discushion.institution_agenda_adoptions','SELECT,INSERT,UPDATE,DELETE')
     or has_table_privilege('authenticated','discushion.institution_agenda_adoptions','SELECT,INSERT,UPDATE,DELETE')
     or has_table_privilege('service_role','discushion.institution_agenda_adoptions','SELECT,INSERT,UPDATE,DELETE') then
@@ -161,6 +164,16 @@ begin
       and tablename='institution_agenda_adoptions' and policyname='server_select'
       and roles=array['discushion_server']::name[] and cmd='SELECT' and qual='true') then
     raise exception 'Missing institution_agenda_adoptions server SELECT policy';
+  end if;
+  if not exists(select 1 from pg_policies where schemaname='discushion'
+      and tablename='institution_agenda_adoptions' and policyname='server_insert'
+      and roles=array['discushion_server']::name[] and cmd='INSERT' and with_check='true')
+    or not exists(select 1 from pg_policies where schemaname='discushion'
+      and tablename='institution_agenda_adoptions' and policyname='server_update'
+      and roles=array['discushion_server']::name[] and cmd='UPDATE' and qual='true' and with_check='true')
+    or exists(select 1 from pg_policies where schemaname='discushion'
+      and tablename='institution_agenda_adoptions' and roles=array['discushion_server']::name[] and cmd='DELETE') then
+    raise exception 'Missing or unexpected institution_agenda_adoptions write policies';
   end if;
 end $server_checks$;
 do $summary_privileges$
@@ -172,5 +185,5 @@ begin
     raise exception 'Unexpected AI summary runtime privileges';
   end if;
 end $summary_privileges$;
-select 'PASS: 3 API role names x schema/table/sequence denial = 9 checks' as result;
+select 'PASS: API role isolation; adoption writes are limited to the Spring runtime role' as result;
 rollback;
