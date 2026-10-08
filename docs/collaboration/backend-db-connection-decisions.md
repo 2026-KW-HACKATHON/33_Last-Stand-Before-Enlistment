@@ -272,3 +272,29 @@ Storage object0개·초기 최종 DELETED 검증 이력2행을 확인했다. 회
 기준 back/develop `7e0d73f`의 활동 상세 권한은 SELECT/INSERT이며 UPDATE는 누락돼 있다. CLI로 생성한 `20261008150737_allow_activity_post_updates.sql`은 activity_post_details UPDATE·discushion_server 전용 server_update 정책(using/with check true)만 추가한다. 다른 테이블·시퀀스·DDL·활동 물리 삭제·공개 역할 권한은 확대하지 않는다. 사용자·작성자·변경 지역·활동 상태/URL은 Spring이 쓰기 시점에 검사한다. 기존 적용 Migration은 변경하지 않는다.
 
 #14 생성의 PostContextReader Bean을 공통 조회원으로 유지하고 #16의 중복 Bean 등록을 제거했다. 수정/삭제는 회원→posts→polls→북마크/사진 순으로 같은 transaction에서 처리하며 PATCH 응답은 #15 실제 상세 adapter를 통해 구성한다. DB 저장/상세 조회 실패는 수정·북마크·사진 상태/삭제 예약까지 rollback한다. 삭제 성공은 비노출 및 예약의 commit이며 실제 Storage 삭제 완료가 아니다. 공유 DB의 #14/#15 및 이번 권한 적용·배포는 지정 담당자 조율 후 수행하며 실제 연동 완료와 로컬 검증을 구분한다.
+
+## #30 통합 서버 권한 실제 rollout (2026-10-09)
+
+사용자 요청으로 Primary의 `pmhmgqpyvrbbseqelpze` 개발 DB에 기준 `back/develop 06a7b4f`의 미적용 권한 Migration11개를 적용했다. 기존7개 이력과 적용 파일명은 변경하지 않았다. 이번 변경은 권한/RLS 추가이며 테이블·컬럼·기존 회원/자격/사진 이력을 수정하지 않는다.
+
+| 정본 로컬 버전 | 원격 적용 버전 | Migration |
+| --- | --- | --- |
+| 20261008070000 | 20261008163156 | allow_comment_reads_and_creation |
+| 20261008080000 | 20261008163204 | allow_reaction_reads_and_transitions |
+| 20261008090000 | 20261008163213 | allow_comment_evaluation_transitions |
+| 20261008100000 | 20261008163224 | allow_vote_selection_writes |
+| 20261008104330 | 20261008163247 | bookmarks_server_runtime_permissions |
+| 20261008113000 | 20261008163255 | allow_officer_agenda_reads |
+| 20261008120014 | 20261008163300 | allow_institution_agenda_adoption_writes |
+| 20261008130000 | 20261008163306 | allow_post_creation |
+| 20261008135612 | 20261008163319 | allow_summary_storage |
+| 20261008144530 | 20261008163327 | allow_activity_detail_reads |
+| 20261008150737 | 20261008163331 | allow_activity_post_updates |
+
+원격 이력18개·서버 RLS55개/21테이블을 확인했다. 기존 private Schema와 RLS27테이블·185컬럼·FK55는 유지한다. `SupabaseJdbcSmokeTests`는 원격 버전 대응, 이번 권한/사진 SQL의 고유 이름·정규화 내용, 기존 Schema/제약과 공개 역할 차단을 확인하도록 갱신한다. 초기5개 이력은 파싱된 문장에 종결 세미콜론을 제외한 형식으로 기록돼 이번 권한 SQL의 원문 해시 비교와 구분한다.
+
+실제 `discushion_server` 로그인·공식 CA/verify-full·TLS1.3 연결에서27테이블×4작업=108개의 0행 SELECT/INSERT/UPDATE/DELETE 허용·거부가 카탈로그와 일치했다. DDL CREATE SCHEMA·TRUNCATE·SET ROLE postgres는 거부됐다. 모든 SQL은 ROLLBACK했고 기존 행을 변경하지 않았다. 이는 권한 진입 검사이며 실제 값 저장·사용자 제품 권한·경합 전체 검증을 대신하지 않는다. pooler 이후 DB 세션의 pg_stat_ssl 값은 클라이언트→pooler TLS 여부와 구분하며 클라이언트 `\conninfo`로 TLS1.3을 확인했다.
+
+Supabase security/performance advisor WARN/ERROR0. RLS 정책 없는 미사용/제외 테이블6개, 미인덱스FK2개와 미사용 인덱스의 INFO 권고는 보존하고 이번 rollout 범위에서 임의 변경하지 않았다. [RLS INFO 안내](https://supabase.com/docs/guides/database/database-linter?lint=0008_rls_enabled_no_policy), [FK INFO 안내](https://supabase.com/docs/guides/database/database-linter?lint=0001_unindexed_foreign_keys).
+
+적용 전 실제 관리자 감사3개/build는 통과했다. 적용 후 감사 결과와 전체 검증은 Backend README의 최신 #30 기록을 따른다. 후속 기능 Migration이 추가되면 별도 적용·검증하며 이 기록만으로 #30/#31과 실제 FE 연결을 완료로 표시하지 않는다.

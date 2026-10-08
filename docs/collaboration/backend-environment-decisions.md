@@ -204,3 +204,34 @@ Privy 앱은 아직 준비되지 않았다는 사용자 답변에 따라 실제 
 22:06:30 KST에 마지막 API 요청21:51:30 이후15분의 실제 자연 휴면·graceful shutdown/DB pool 종료를 로그에서 확인했다. 수동 재시작/배포로 대체하지 않았다. 휴면 중에 승인된 별도 만료 예약1행(ID3)을 생성하고 UPLOADING·delete_requested_at NULL·정리 시도0회가 유지됨을 확인했다. HTTPS Health 요청으로 깨운 뒤76.29초에 UP 응답을 받았으며 새 인스턴스 x7wht가22:10:44에 시작됐다. worker는22:10:56에 후보1개를 처리하고 해당 예약을 DELETED·시도1회·오류 없음으로 전환했다.
 
 최종 검증 이력은 DELETED3행이며 Storage object0개다. 이 결과로 실제 휴면 후 정리 재개 대기는 해소됐다. 무료 플랜은 휴면 동안 정리가 지연되므로24시간은 정리 대상의 기준이며 정확한 시각의 실행 보장은 아니다([공식 무료 서비스 안내](https://render.com/docs/free#spinning-down-on-idle)). 프로젝트 FE origin/CORS·실제 SDK/adapter/화면 연결과 게시물 사진 연결은 해당 후속 #14/#30/#31에서 검증하며 #13/#30을 임의로 닫지 않는다.
+
+## #30 최신 통합 코드 Render 배포 (2026-10-09)
+
+사용자 요청으로 `back/develop 06a7b4fc9e030d52c07e1335334de563a389010a`를 Render `discushion-api`에 수동 지정 배포했다. [배포 기록](https://dashboard.render.com/web/srv-db3mtql9fdbs73efdhng/deploys/dep-db3sdo2d0e5s73bcnuh0)은01:37:52 KST 시작,01:40:14 KST Live를 확인했다. Docker/JAR build와 Java17·Spring Boot4.0.8·포트10000 시작, 서버 DB pool 시작과 사진 정리 worker 후보0건을 확인했다. Free 플랜·기존 사진 플래그·CA/TLS·Privy 설정을 유지하고 자동 배포나 Vercel FE 설정을 변경하지 않았다.
+
+실제 HTTPS `/health`200/UP와 지역 조회200/월계1동 ID1을 확인했다. 프로젝트 밖 임시 Privy SDK 검증 화면의 실제 회원 세션으로 본인 프로필200·메인200·지도200, 존재하지 않는 게시물의 요약404를 확인했다. 비인증 메인/지도/요약은401이다. 합성 안건1건을 별도 개발 검증용으로 준비해 메인·지도·원문 fallback을 확인하며, 기존 회원/지역/기관 자격을 부여하거나 수정하지 않았다. 실제 FE 프로젝트의 adapter/화면 연결을 완료로 표시하지 않는다.
+
+초기 배포에서는 Gemini 서버 설정이 미완료였으며 사용자 확인 전에는 로컬 키를 전송하지 않았다. 이후 사용자 승인과 실제 서버 검증은 아래 최신 기록을 따른다. `AI_SUMMARIES_ENABLED` 기본 false 상태에서 실제 요약 API200/FAILED/fallbackToSource=true를 확인했다. 실제 공급자 검사에서 충분한 원문과 짧은 원문 요청 모두15초 제한 내 응답을 받지 못해 FAILED가 발생했으며 요약 성공으로 표시하지 않는다. 모델이나 재시도 정책·제한시간을 임의 변경하지 않았다. 키 저장 확인 후 지정 모델/플래그를 적용하고 Render에서 실제 생성·캐시/짧은 원문/실패 fallback을 재검증한다.
+
+공유 DB 권한11개 적용과 서버 로그인 검증은 [DB 연결 결정 기록](backend-db-connection-decisions.md)의 최신 #30 절을 따른다. 이번 배포 이후 추가 코드가 통합되면 대상 SHA와 CI/DB 영향을 다시 확인한다. #30/#31·실제 FE 연결은 계속 열려 있는 후속이다.
+### 검증 데이터 정리와 #27 추가 반영
+
+검증용 합성 안건ID1은 제목/작성자/상태를 제한한 UPDATE로만 DELETED로 전환해 이력을 보존했다. 이후 실제 회원 API로 메인/지도200·비노출, 해당 요약404를 확인했다. 공유 DB 최종 회원1/지역1·공개게시물0/검증DELETED1·AI저장0·기존사진이력3·Storage파일0이다.
+
+작업 도중 기준 develop이#27 포함eb9a7d4로 갱신돼 별도 기존worktree에서 관련28개/skip0·build와원격CI를 확인했다. 같은 SHA를01:57:32 KST에 지정 수동 배포했다. [추가 배포](https://dashboard.render.com/web/srv-db3mtql9fdbs73efdhng/deploys/dep-db3smv6i0phs73be3bsg)의 최종Live/API 확인은 아래 최신 기록을 따른다. 초기 Gemini 확인 대기는 아래 승인/설정 기록으로 대체하며 실제 공급자 성공 여부는 별도로 기록한다.
+### Gemini 키 저장 승인과 설정 적용
+
+사용자가 backend/.env의 GEMINI_API_KEY를 Render discushion-api 비밀 환경변수에 저장하도록 명시 승인했다. 비밀 값은 로그/Git/문서/FE에 노출하지 않고 저장했으며 AI_SUMMARIES_ENABLED=true를 함께 등록했다. Save only 후02:10 KST 재시작만으로는 새 변수가 적용되지 않아 요약FAILED·DB저장0을 확인했다. 원격 최신 SHA가eb9a7d4로 동일함을 확인한 뒤02:13:22 KST 같은 버전의 배포를 시작했다(소스 확인 로그02:13:27). [AI 설정 배포](https://dashboard.render.com/web/srv-db3mtql9fdbs73efdhng/deploys/dep-db3such42hec73eus8lg)의 최종 결과는 아래에 기록한다. 모델/15초 제한/재시도 정책은 변경하지 않았다.
+
+### #30 최종 서버·Gemini 실제 확인 (2026-10-09)
+
+- 최신 코드 eb9a7d4 배포 dep-db3smv6i0phs73be3bsg는01:59:58 KST Live. Gemini 비밀 변수 승인 후 같은 코드의 설정 포함 배포 dep-db3such42hec73eus8lg는02:13:22 시작,02:14:53 Live. Docker build·Java17/Spring4.0.8·DB pool·사진 worker 정상. Free/AutoDeploy Off/기존 CA·DB·Privy·사진 설정을 유지한다.
+- 재배포 후 실제 HTTPS health200/UP. 실제 Privy SDK 회원 세션에서 메인/지도200, 개인 기록3개(`/users/me/posts`, `/participations`, `/votes`)200·배열 반환을 확인했다. 임시 검증 화면이며 프로젝트 FE 연결 완료가 아니다.
+- 실제 Gemini 충분한 원문: 합성 안건ID3 최초/재조회 HTTP200·SUCCEEDED·fallback=false·동일 결과. DB revision1·3문장 요약·generated_at을 확인했으며 requested_at부터generated_at까지10.53초다. 단순 공급자 진단도HTTP200, 같은 구조 진단은11.41초/STOP/3문장이었다. 키/모델 유효성을 확인했지만 모든 호출 성공 보장은 아니다.
+- 실제 서버 ID2의 충분한 원문과 ID4의 짧은 원문은200·FAILED·fallback=true이며 동일 revision 재조회 결과가 같고 DB FAILED/summary NULL을 확인했다. 첫 실패 캐시를 지우거나 동일 원문 버전을 자동 재시도하지 않았다. 짧은 원문의 SOURCE_TOO_SHORT 실제 확인은 미완료다. 로컬 실제 공급자 검사15초 timeout 실패 이력도 보존하며, 서버 FAILED의 공급자 상세 원인은 API가 숨기므로 단정하지 않는다. 모델/15초 제한/재시도 정책을 임의 변경하지 않았다.
+- 합성 게시물ID1~4는 제목/작성자/상태를 제한해 소프트 삭제했으며 검증 이력을 보존했다. 성공 요약1/실패2의 저장 이력도 보존하고 기존 회원1·지역1·사진DELETED3·Storage0을 유지한다. 실제 게시물 작성/삭제 API 검증이나 사용자 자격 부여로 기록하지 않는다.
+- 관련 검사28개·build 성공, actual 관리자 감사3/Storage2 포함skip0. 이 결과가 전체 테스트 재통과나 실패했던 실제 Gemini 검사2개의 통과를 뜻하지 않는다.
+
+이번 요청의 DB rollout·최신 배포·Gemini 구성 및 정상 생성/캐시·실패fallback 확인을 수행했다. 짧은 원문 정상 상태, FE origin/CORS·실제 adapter/화면·사용자 흐름, 시연 자격/권한·전체 인수는 #20/#30/#31의 잔여 조건이다. commit/push/PR과 이슈 종료는 수행하지 않았다.
+
+최종 정리 후 실제 회원 조회에서 메인/지도200, 합성 게시물ID1~4의 요약 모두404, 개인 기록3개200을 재확인했다.

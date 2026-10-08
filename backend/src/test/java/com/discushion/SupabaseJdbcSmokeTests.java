@@ -100,7 +100,7 @@ class SupabaseJdbcSmokeTests {
             assertThat(result.getInt(4)).isEqualTo(27);
             // The remote apply recorded a different version for the reviewed #138 SQL.
             // Preserve both applied histories and verify this explicit mapping by name AND content.
-            assertThat(result.getString(5)).isEqualTo("20261006182228,20261007011459,20261007021128,20261007023149,20261007104543,20261008014345,20261008111216");
+            assertThat(result.getString(5)).isEqualTo("20261006182228,20261007011459,20261007021128,20261007023149,20261007104543,20261008014345,20261008111216,20261008163156,20261008163204,20261008163213,20261008163224,20261008163247,20261008163255,20261008163300,20261008163306,20261008163319,20261008163327,20261008163331");
             assertThat(result.getInt(6)).isEqualTo(4);
             assertThat(result.getInt(7)).isEqualTo(6);
             assertThat(result.getInt(8)).isEqualTo(2);
@@ -109,8 +109,8 @@ class SupabaseJdbcSmokeTests {
             var normalized = permissionSql.replaceAll("--[^\\r\\n]*", "").replaceAll("\\s+", " ").strip();
             var expectedDigest = HexFormat.of().formatHex(MessageDigest.getInstance("MD5").digest(normalized.getBytes(StandardCharsets.UTF_8)));
             assertThat(result.getString(10)).as("Remote #138 SQL must match the repository migration").isEqualTo(expectedDigest);
-            assertThat(result.getInt(11)).isEqualTo(27);
-            assertThat(result.getInt(12)).isEqualTo(12);
+            assertThat(result.getInt(11)).isEqualTo(55);
+            assertThat(result.getInt(12)).isEqualTo(21);
             // Supabase apply_migration generated this version; preserve the local applied file name.
             assertThat(result.getString(13)).isEqualTo("track_server_photo_uploads");
             var relaySql = Files.readString(Path.of("../supabase/migrations/20261008071616_track_server_photo_uploads.sql"), StandardCharsets.UTF_8);
@@ -121,6 +121,30 @@ class SupabaseJdbcSmokeTests {
             assertThat(result.getInt(16)).isEqualTo(4);
             assertThat(result.getInt(17)).isEqualTo(1);
             assertThat(result.getBoolean(18)).as("Relay guard must retain invoker security and least privilege").isTrue();
+        }
+        // MCP records application time as the remote version. Compare the permission
+        // rollout by unique name and SQL. Earlier schema history stores parsed
+        // statements without terminators and remains covered by the schema assertions.
+        try (var connection = connect(); var statement = connection.prepareStatement("""
+                select md5(btrim(regexp_replace(regexp_replace(array_to_string(statements,chr(10)),
+                    '--[^\\r\\n]*','','g'),'\\s+',' ','g')))
+                from supabase_migrations.schema_migrations where name=?
+                """); var files = Files.list(Path.of("../supabase/migrations"))) {
+            for (var file : files.filter(path -> path.toString().endsWith(".sql")
+                    && path.getFileName().toString().compareTo("20261008070000") >= 0).toList()) {
+                var filename = file.getFileName().toString();
+                var name = filename.substring(15, filename.length() - 4);
+                var normalized = Files.readString(file, StandardCharsets.UTF_8)
+                        .replaceAll("--[^\\r\\n]*", "").replaceAll("\\s+", " ").strip();
+                var digest = HexFormat.of().formatHex(MessageDigest.getInstance("MD5")
+                        .digest(normalized.getBytes(StandardCharsets.UTF_8)));
+                statement.setString(1, name);
+                try (var row = statement.executeQuery()) {
+                    assertThat(row.next()).as("Applied migration %s", name).isTrue();
+                    assertThat(row.getString(1)).as("Canonical SQL for %s", name).isEqualTo(digest);
+                    assertThat(row.next()).as("Unique applied migration %s", name).isFalse();
+                }
+            }
         }
     }
 

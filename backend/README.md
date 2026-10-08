@@ -355,3 +355,34 @@ GET `/api/v1/users/me/posts`, `/participations`, `/votes`는 검증된 Privy sub
 최신 back/develop85cb888(#18·#19 및 BE1 #14~#16)을 반영한3cc1829에서 지도·서버 권한·실제 감사3/Storage4 관련24개 통과·실패0·오류0·skip0·build 성공(01:02 KST, 1분48초). Schema133/공개 역할 차단9 통과. 앞선 요약/게시물71개 및 메인/요약42개(실제 Gemini2개 포함)와 구분한다. 최종 code/API/DB/권한 검토에서 frontend 변경0·secret 유출0·차단 지적 없음. 실제 공유 DB 적용·Render 키/활성화·프로젝트 FE/공유 사용자 흐름은 #30/#31에 유지한다.
 
 #29 추가 병합 후 최종 재검증: 최신86cc67a를 반영한 ab511fc에서 요약·기관 채택·서버 권한·실제 감사3/Storage4/Gemini2 관련45개 통과·실패0·오류0·skip0, build 성공(01:09 KST, 2분3초). 기존 기관 채택 권한52개와 AI 요약3개를 모두 보존해55개 정책으로 검증했다. Schema133/공개 역할 차단9 통과. 공유 DB에 적용한 결과가 아닌 격리 DB 검증이며 배포/FE 잔여 조건은 유지한다.
+
+## #30 실제 DB rollout·Render 최신 배포 검증 (2026-10-09)
+
+기준 `back/develop 06a7b4f`, 작업 브랜치 `back/feature/30-runtime-rollout`. 코드/API/FE 구현과 적용된 Migration 파일은 변경하지 않고, 실제 공유 DB 적용 이후 관리자 감사의 이력/RLS 기대값과 권한 SQL 내용 비교를 갱신했다. 문서는 기존 이름/경로를 유지한다.
+
+- Primary 개발 DB: 미적용 권한 Migration11개를 정본 SQL 그대로 적용. 이력18개·27테이블/185컬럼/FK55·서버 RLS55개/21테이블. 원격 적용 시각 버전과 정본 이름/SQL 대응은 DB 연결 결정 기록을 따른다.
+- 실제 제한된 서버 계정: verify-full/공식CA·TLS1.3,27테이블×4작업의0행 허용/거부108개 통과. DDL/TRUNCATE/관리자 역할 상승 거부, 전부ROLLBACK. 실제 행 저장·제품 권한 경합 전체를 대신하는 검사는 아니다.
+- Render 배포 `dep-db3sdo2d0e5s73bcnuh0`:01:37:52 KST 시작,01:40:14 Live, 대상06a7b4f. Docker/JAR build·Spring 시작·DB pool·사진 worker 확인. Free/AutoDeploy Off 유지. Vercel FE 변경0.
+- 직접 API: Health200/UP, 지역200. 실제 Privy 회원으로 프로필/메인/지도200, 합성 안건의 메인/지도 노출 확인. 비로그인401, regionId0/중복 지도ID400, 없는 게시물 요약404. AI 비활성 상태의 합성 안건 요약200/FAILED·원문fallback=true 확인.
+- 합성 안건1건은 별도 검증용이며 기존 회원·지역·기관 자격을 변경하지 않았다. 검증 후 소프트 삭제하고 이력을 보존한다. 사진 파일/기존DELETED3행을 변경하지 않았다.
+- 적용 전 실제 관리자 감사3개/build: 성공. 최초 전체416개/실패2/오류0/skip0: 이력 비교의 초기 Schema 문장 종결자 차이1개와 실제Gemini 호출1개 실패. 이 실패 이력을 보존한다.
+- 초기 Schema 카탈로그 검증을 유지하고 이번 권한/사진 SQL만 원문내용 비교하도록 수정했다. 재실행에서 감사3개는 통과했고 실제Gemini2개는15초 호출 제한 내 응답을 받지 못해FAILED였다. 모델/시간 제한/자동 재시도를 변경하거나 성공으로 기록하지 않았다.
+- 최종 관련검사19개/실패0/오류0/skip0·build 성공: 실제 Supabase 감사3개, 실제 Storage2개, 격리 DB 서버 권한8개, Gemini 공급자 정상/실패/시간초과 처리6개. `gradlew.bat --no-daemon test --tests com.discushion.SupabaseJdbcSmokeTests --tests com.discushion.photos.PhotoStorageLiveIntegrationTests --tests com.discushion.signup.ServerRuntimePermissionsIntegrationTests --tests com.discushion.summary.GeminiSummaryGeneratorTests build --rerun-tasks --max-workers=2 --offline --console=plain`,01:50:06 KST 종료。 격리 Schema133개·공개 역할 차단9개도 통과. 최종 전체416개를 다시 실행한 결과로 표시하지 않는다.
+- 초기 배포 시점에는 Gemini Render 키 저장 확인이 대기였고 AI 기본false를 유지했다. 이후 사용자가 키 저장을 승인해 GEMINI_API_KEY·AI_SUMMARIES_ENABLED=true를 등록했다. 실제 요약 생성/캐시·짧은 원문과 프로젝트FE 연결 결과는 최신 환경 기록을 따른다. 실제 외부 모델 검사의 공급자 응답 실패는 별도 연동 대기로 기록한다.
+
+상세 환경/DB 이력은 기존 collaboration의 backend-environment-decisions.md와 backend-db-connection-decisions.md 최신 절을 따른다. 이번 요청에서 commit/push/PR은 수행하지 않았으며 #30/#31을 닫지 않는다.
+### #27 최신 통합 기준 추가 검증
+
+작업 도중 `back/develop`이 `eb9a7d4a734a744731d7bb85564b32f3c8f3b39c`(#27 개인 기록)로 갱신됐다. 기존 깨끗한 issue20-summary worktree를 `back/feature/30-rollout-latest-validation`으로 재사용하고, 이번 관리자 감사 보완만 복사해 검증했다. 이 복사는 배포 소스 변경이 아니며 실제 배포의 코드 SHA는eb9a7d4다.
+
+최신 기준 관련28개(개인query4·HTTP11·서버권한8·실제감사3·Storage2) 통과/실패0/오류0/skip0와build를01:56:03 KST 확인했다. #27 원격 Backend tests and build도success다. 새 Migration/권한 추가는 없으며 기존55정책·18이력을 사용한다. 전체/실제Gemini 재통과 결과를 뜻하지 않는다. 배포/실제 API 결과는 환경 결정 기록의 최신 절을 따른다.
+#30 최종: Gemini 키 저장 승인 후 AI_SUMMARIES_ENABLED=true 적용·동일eb9a7d4 재배포가02:14:53 KST Live다. 실제3문장 생성/SUCCEEDED·DB저장·재조회 동일, 실패fallback/FAILED 저장·캐시를 확인했다. 짧은 원문SOURCE_TOO_SHORT 실제 확인은 아직 미완료다. 최신 health/메인/지도/개인 기록3개200. 합성 게시물 4건은 소프트 삭제하고 요약 이력을 보존했다. 상세는 환경 결정 기록의 최신 절을 따른다. FE 연동·전체 인수는 미완료이며 commit/push/PR은 수행하지 않았다.
+### #17 통합 게시판 목록 (2026-10-09)
+
+최신 `origin/back/develop eb9a7d4`(#27 병합)에서 `back/feature/17-list`를 시작했다. `GET /api/v1/posts`는 가입 완료 회원만 접근하며 프로필 기본 지역/명시한 임시 지역·유형·주제 필터, 최신 작성시각/postId 내림차순, 기본20/최대100 cursor 페이지를 사용한다. 필터·본인·실제 지역에 cursor를 귀속시키고 기본 지역이 바뀌면 이전 cursor를 거부한다. 자유 검색·인기도 정렬·상태 필터는 추가하지 않는다. 계약은 기존 API §5.3/검토표 D10에 기록했다.
+
+기존 #27의 실제 batch PostSummaryReader/ParticipationSnapshotReader·원본 조회와 카드 조합기를 package 내부에서 재사용한다. #27 응답/동작은 보존하며 새 DTO·port·Migration·권한 확대는 없다. 같은 REPEATABLE READ/read-only transaction에서 공개 게시물·사진·작성자 공개명/현재 기관 배지·반응/댓글·투표를 조합한다. 신규 게시/수정/삭제/참여 변경은 복제 없이 반영하고 사진 없는 카드는 thumbnailUrl=null, 유효 LINKED 사진은 첨부 순서의 첫 공개 URL만 제공한다. 목록에 내부 fileId/이메일은 반환하지 않는다.
+
+신규11개(입력2·실제 HTTP/JDBC9)와 #27 회귀15개·서버 권한8개, 총 **34개 모두 통과·실패/오류/skip0·build 성공(1분22초)**. 기본 지역/임시 지역 비저장·세 유형/주제·페이지·cursor 격리/기본 지역 변경·생성/수정/삭제/반응 재조회·사진 없음/공개 URL·게스트/미가입/미완료 거부·읽기 중 삭제 snapshot·안전한500을 실제 서버 역할로 확인했다. 첫 사진 fixture의 컬럼명과 LINKED 연결시각 누락은 시험 데이터만 보완했으며 운영 제약은 변경하지 않았다. Schema133/공개 역할 차단9/ERD27테이블185컬럼/FK55 통과, 정책55개·합성 회원/지역0·NOLOGIN/password null 및 로컬 DB 정상 종료 확인.
+
+최신 FE ad0700c의 post display model과 대조했다. 기존 #15/#27처럼 숫자 ID·활동/투표 상태·기관 배지 및 권한의 표시 변환은 FE adapter에서 확인한다. API 원본을 사용하고 사진 없는 영역은 생략하며 기본 이미지/다른 콘텐츠 fallback을 만들지 않는다. 실제 FE 필터/스크롤 복귀, 공유 DB 기존 권한 rollout·실제 서버 역할/Privy 흐름·배포는 #30/#31에서 해소한다. 이번 localhost 시험은 원격 Supabase/Storage/Gemini를 실행한 결과가 아니다. PR의 최종 diff·필수 CI·최신 base·미해결 대화·충돌 조건을 확인한 뒤 사용자 요청대로 병합한다.
