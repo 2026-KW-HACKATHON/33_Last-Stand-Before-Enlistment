@@ -652,7 +652,9 @@ GET /api/v1/posts?regionId=15&type=LOCAL_AGENDA&topic=TRANSPORTATION&cursor=...&
 GET /api/v1/posts/{postId}
 ```
 
-목록은 회원 전용이며 지역 → 유형 → 주제 조건을 적용하고 목록 응답은 PostCard 배열이다. 전체 유형/주제는 query 생략. regionId 미지정 기본은 프로필 활동 지역 **[설계 제안]**. q 자유 게시물 검색은 MVP 계약에 포함하지 않는다. 상세는 회원 또는 유효 공유 게스트에게만 공개한다.
+목록은 가입 완료 회원 전용이며 지역 → 유형 → 주제 조건을 적용하고 목록 응답은 PostCard 배열이다. 전체 유형/주제는 query 생략. #17 구현 기준은 regionId 미지정 시 최신 프로필 기본 활동 지역, createdAt 내림차순·동률 큰 게시물 ID 순, size 기본20/최대100의 cursor 페이지다. 명시한 regionId는 임시 탐색이며 기본 활동 지역을 수정하지 않는다. cursor는 본인·현재 지역·유형·주제에 귀속되므로 필터/기본 지역 변경 후 첫 페이지부터 다시 조회한다. 응답은200 `{data:[],meta:{nextCursor:null,hasNext:false}}`, 없는 지역은404 REGION_NOT_FOUND, 미지원/중복/빈 query·잘못된 ID/Enum/size/cursor는400 VALIDATION_ERROR다. q 자유 검색·userId·상태·정렬 query는 이번 MVP API에 포함하지 않는다. 미로그인/공유 게스트는401, 미가입/가입 미완료는 기존403 USER_REGISTRATION_REQUIRED다. 상세는 회원 또는 유효 공유 게스트에게만 공개한다.
+
+카드는 #27과 같은 실제 batch PostSummaryReader/ParticipationSnapshotReader 및 원본 데이터에서 조합하며 목록 선택의 id로 상세에 연결한다. 작성자 공개명·현재 유효 기관 배지·반응/댓글 집계·활동 상태·투표 현재 선택/집계/종료시각과 canEdit/canDelete를 반환한다. 사진이 있으면 첨부 순서의 첫 유효 LINKED 파일 공개 URL, 없으면 thumbnailUrl=null이며 대체 이미지는 만들지 않는다. 내부 fileId·이메일·기관 담당자 개인정보는 목록에 포함하지 않는다. 신규 게시·수정·삭제·참여 변경을 복제 카드 없이 재조회하며 읽기 snapshot을 사용한다. 실제 FE 카드 변환·필터 복귀·사진 없는 이미지 영역 생략 및 서버 권한 rollout/연결은 #30/#31에서 확인한다.
 
 상세 응답은 2026-10-08 #15 사용자 채택 계약을 따른다(기관 채택은 지역 안건에서만 표시). `GET /api/v1/posts/{postId}`는 가입 완료 회원 또는 해당 게시물의 유효 공유 게스트에게 200 `data`로 아래 정보를 반환한다. 다른 query 필드는 받지 않으며 양의 안전 정수 postId를 사용한다.
 
