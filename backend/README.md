@@ -258,6 +258,13 @@ Storage object0개·초기 최종 DELETED 검증 이력2행·시연 회원1명·
 
 종료 후 로컬 시험 회원/사진0개·임시 서버 역할 NOLOGIN/password null·운영 JAR의 테스트 클래스/fixture0개를 확인하고 시험 DB를 정상 종료했다. 기존6파일만 PR에 포함하고 frontend·제품 코드·적용된 Migration 파일은 변경하지 않는다. 실제 프로젝트 FE 및 게시물 사진 연결이 남아 있으므로 PR은 #13/#30을 참조하며 이슈를 자동 종료하지 않는다. 병합 후에도 Render 자동 배포는 꺼져 있고 현재 Live `4fffb1e`와 개발 브랜치 최신 코드를 구분한다.
 
+### #18 지역 메인 구현·검증 (2026-10-08)
+
+back/feature/18-home, 기준 a9ad5c9에서 사용자 확정 최신 공개6개/진행 투표3개 계약을 구현했다. 최신 프로필 기본 지역과 임시 지역을 구분하고 회원 상태·지역·공개 원본·활동 상태·사진 첫 참조·반응·댓글/답글·투표 옵션/득표를 읽기 snapshot으로 조회한다. 입력 오류/401/403/404와 Controller200·no-store를 검증했다. 새 Migration은 activity_post_details 서버 SELECT/RLS만 추가하며 공유 DB에는 미적용이다.
+
+전체336개를 새로 실행해 권한 기대값1곳이 실패했다(335개 통과). activity SELECT 허용표를 보완한 후 home·서버 최소 권한·실제 Supabase 감사3개·Storage4개를 다시 실행해24개 통과/실패0/오류0/skip0·build 성공(23:32 KST)을 확인했다. 이후 검사 범위를 전체336개 재통과로 표시하지 않는다. Schema 제약133개와 공개 API 역할 차단9개도 통과했다. 현재 원격 back/develop d1f8bcf의 #14 생성 구현은 작업 도중 병합됐으며 commit/PR 전 최신 base를 반영해 권한 기대값/CI를 재확인해야 한다. 실제 프로젝트 FE·게시물 생성부터 탐색까지의 사용자 흐름 및 배포는 #30/#31 대기다. commit/push/PR/병합은 수행하지 않았다.
+메인 추가 사진 회귀: 실제 로컬 서버 LOGIN에서 사진2개를 생성 ID와 다른 첨부 순서로 연결해 첫 사진·공개 URL의 공백 인코딩을 확인했다. home 전체 관련10개 재실행·실패0/오류0/skip0·build 성공(1분28초). 이 추가 검증은 앞선 원격 감사/Storage24개와 구분한다. 새 사진/참조 fixture는 정리했다.
+
 ### #20 원문 버전별 AI 요약 구현·검증 (2026-10-08)
 
 back/feature/20-summary, 기준 a9ad5c9. 사용자 채택 최초 요청 생성·원문 revision별 DB 저장/재사용·수정 후 새 버전 생성·실패 자동 재시도 없음·정보 부족 SOURCE_TOO_SHORT를 구현했다. 회원 또는 검증된 공유 범위·공개 LOCAL_AGENDA를 생성 전/저장·응답 전에 재검사하며 DB 잠금을 외부 호출 중 유지하지 않는다. PENDING/요청시각/revision 조건으로 중복/늦은 결과를 차단하고 expired PENDING은 FAILED로 처리한다. 키 미설정/비활성은 영구 캐시 실패를 남기지 않는 원문 fallback이다. 서버 S/I/U·RLS Migration만 새로 추가했으며 공유 DB에는 미적용이다.
@@ -284,6 +291,11 @@ FE 기준 `origin/front/develop ad0700c`의 post model/service와 대조했다. 
 
 공유 Supabase의 신규 권한 Migration 적용·배포 및 프로젝트 FE 실제 연결은 #30/#31에서 해소한다. 원격/Storage7개 선택형 검사는 이번 localhost 시험에서 opt-in을 끄고 실행하지 않았으며 통과로 표시하지 않는다. #16의 실제 수정/삭제 API 재연결·권한/rollback 검증은 해당 Issue에서 진행한다. 구현과 로컬 검증은 commit/push/PR·병합 또는 공유 DB 적용을 뜻하지 않는다.
 
+2026-10-09 최신 기준 반영: #14·#15의 통합 원본과 활동 SELECT 권한을 재사용한다. 아직 적용하지 않은 #18 중복 활동 SELECT Migration은 제외하고, #15 Migration은 보존했다. 게시물 생성 INSERT 권한과 SELECT-only 탐색 권한을 구분해 시험 기대값을 통합했다. 공유 DB 적용·배포·실제 FE 연결은 #30/#31에 남긴다.
+
+### #18 PR 전 최신 기준 검증 (2026-10-09)
+최신 back/develop 7e0d73f(#14·#15) 반영 코드83a4d51에서 전체362개 통과·실패0·오류0·skip0, build 성공(00:28 KST, 9분19초). 실제 Supabase 감사3개·Storage4개 포함. Schema 제약133개·공개 역할 차단9개 통과. 기존 #15 활동 SELECT Migration을 재사용하며 미적용 중복 #18 Migration은 제외했다. frontend 변경0·secret 유출0. 실제 공유 DB 권한 rollout·Render 배포·프로젝트 FE 연동은 #30/#31에 남아 있으므로 이 구현 PR으로 #18을 자동 종료하지 않는다.
+
 ### #16 실제 상세 연결·게시물 수정/삭제 검증 (2026-10-09)
 
 기존 Draft PR #186의 Feature에 최신 back/develop `7e0d73f`(#14/#15)를 병합했다. 계약 검토표 충돌은 #14 입력 결정과 #16 삭제/보존 결정을 모두 보존해 해결했다. 공통 PostContextReader는 #14 실제 Bean을 유지하고 #16의 중복 등록을 제거했다. PATCH가 #15 실제 상세를 같은 쓰기 transaction에서 반환하도록 연결했으며 DELETE는 기존 북마크·사진 adapter와 연결한다.
@@ -295,6 +307,8 @@ FE 기준 `origin/front/develop ad0700c`의 post model/service와 대조했다. 
 최종 관련11개(HTTP8/서비스3) 재실행도 실패/오류/skip0·build 성공이다. 삭제 후 유효 공유 링크·댓글·반응·북마크·투표 API 차단 및 삭제 투표 내부 summary의 display 비노출을 포함했다. 최종 Schema133개·공개 역할 격리9개와 활동 UPDATE/RLS·ERD27테이블/185컬럼/FK55 검사를 통과했다. 합성 회원/지역0개·서버 역할 NOLOGIN·정책50개·실패 주입 함수0개·운영 JAR 테스트 클래스0개를 확인하고 localhost 시험 DB를 정상 종료했다.
 
 실제 공유 Supabase의 #14/#15/#16 권한 적용·배포·프로젝트 FE/Privy 사용자 흐름은 #30/#31에서 해소한다. #29 코드는 별도 작업 공간에 보존하며 이번 PR에 포함하지 않는다. 최종 PR의 공통 API/DB/삭제/보존 영향은 필수 승인0명 규칙으로 작성자·Codex가 재검토하며 실제 연동과 로컬 시험을 구분한다.
+
+#16 추가 병합 후 재검증: 최신72969f0을 반영한 db28278에서 메인·게시물 생성/상세/수정삭제·서버 권한·실제 감사3/Storage4 관련64개 통과·실패0·오류0·skip0, build 성공(00:43 KST, 4분). Schema133/역할 차단9 통과. 활동 UPDATE는 #16에 필요한 권한이며 메인의 금지 시험은 물리 DELETE 거부로 조정했다. 앞선 전체362개와 이 후속64개를 구분한다.
 
 ### #20 최신 게시물 기준 검증 (2026-10-09)
 #16 포함 기준72969f0을 반영한74a2bcb에서 summary·게시물·서버 권한·실제 감사3/Storage4/Gemini2 관련71개 통과·실패0·오류0·skip0·build 성공(00:49 KST, 4분24초). Schema133/공개 역할 차단9 통과. 이전 전체345개와 이 후속 검증을 구분한다. 합성 안건 정상3문장·정보 부족 처리의 실제 Gemini 호출 성공. 공유 DB summary 권한 적용·Render 비밀 설정/활성화·프로젝트 FE 연동은 대기다.

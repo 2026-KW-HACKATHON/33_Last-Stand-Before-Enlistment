@@ -1087,6 +1087,10 @@ EvaluationService.list는 기존 댓글 GET의 부모/replies에 있는 본인 �
 
 변경은 Feature 작업 트리에 보존한다. 이번 #24 commit/push/PR·병합은 아직 수행하지 않았다. 실제 BE2 source/공통 참여 기록·권한 rollout·FE/Privy·#5 활동은 후속으로 유지하며 #24 전체 완료로 표시하지 않는다. 이후 요청 시 API/권한 Migration 영향에 대한 최신 BE2 승인·필수 CI·최신 base·충돌/미해결 리뷰 없음 조건으로 PR 통합을 진행한다.
 
+## #18 메인 계약 확정 (2026-10-08)
+
+사용자가 공개 게시물 최신6개·진행 중 투표 최신3개, created_at/id 내림차순, 전체 공개 원본 boardCounts를 채택했다. API 정본 §5.1을 따른다. 최신 프로필 기본 지역과 임시 지역을 구분하며 회원 상태·지역 유효성은 요청 시 재검사한다. 공유 원본 읽기·투표 batch 집계만 수행하고 별도 추천/인기도/카운터를 추가하지 않는다. activity_post_details의 서버 SELECT/RLS만 새 Migration으로 준비한다. 로컬 Migration 검증과 공유 DB 적용·FE 실제 확인은 별도다. #14~#17 사용자 이관은 BE1이며 게시물 쓰기를 이 PR 범위에 포함하지 않는다.
+
 ## #20 요약 계약 확정 (2026-10-08)
 
 사용자가 최초 요청 생성·원문 revision별 DB 재사용·수정 후 새 revision 생성·실패 자동 재시도 없음·정보 부족 SOURCE_TOO_SHORT를 채택했다. API 정본 §5.6을 따른다. 네트워크 밖의 transaction에서 원문/권한 재검사, PENDING/revision/requested_at 저장 조건으로 중복/늦은 결과를 차단한다. ai_agenda_summaries 서버 S/I/U와 RLS만 새 Migration으로 준비하며 DELETE·공개 역할 권한은 추가하지 않는다. 공식 모델/REST/구조화 출력 문서는 https://ai.google.dev/gemini-api/docs/models/gemini-3.5-flash-lite 와 https://ai.google.dev/api/generate-content 를 확인했다. 실제 키/provider 및 공유 원본 adapter·FE 연동은 별도 확인한다.
