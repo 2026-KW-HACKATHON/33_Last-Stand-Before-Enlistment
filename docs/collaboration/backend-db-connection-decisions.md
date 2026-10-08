@@ -175,3 +175,54 @@ S/I/U/D는 SELECT/INSERT/UPDATE/DELETE다. `—`는 부여하지 않음을 뜻�
 - SupabaseJdbcSmokeTests를180컬럼/정확한5개 이력 및 사진4컬럼·6제약·2인덱스 검사로 갱신했다. 2026-10-08 01:16 KST Java17 전체 test/build69통과/실패0/오류0/skip0. 원격3개는 실제 TLS/최신 Schema/공개 역할 차단의 SELECT-only 검사, 쓰기·경합 시험은localhost에만 수행. 상세는 API 계약 검토표 §14.5를 따른다.
 
 사진 Schema의 원격 미적용은 해소됐으며 #13/#30의 실제 Storage 전송·공개·삭제/재시도·lease 경합·늦은 재생성 방어, 실제 서버 계정/FE 연결은 남아 있다. 기존 Migration 파일을 다시 편집하지 않는다. 이번 문서/검증 변경은 미커밋이며 원격 Git push·PR/병합·배포는 수행하지 않았다.
+
+## #30 서버 실행 계정 1차 설정안 — BE1 승인·원격 적용 대기 (2026-10-08)
+
+최신 기준 `c7aee0b`에는 #4/#6/#7/#9/#13 기반이 통합됐다. 사용자가 서버 계정 설정안·로컬 검증·PR 준비를 요청했다. 앞 절의 전체 MVP 권한표는 기능별 검토안으로 유지하고, 이번에는 **현재 구현이 사용하는 11개 테이블만** 다음 권한으로 준비한다. 이 절은 원격 계정 생성/GRANT 또는 공동 승인 완료 기록이 아니다.
+
+| 테이블 | 이번 S/I/U/D | 사용 근거 |
+| --- | --- | --- |
+| regions | S | #9 지역 조회·#7 가입 지역 존재 확인 |
+| neighbor_verified_regions, institution_credentials | S | #4 현재 회원의 저장된 자격 조회. #75 자격 seed는 별도 관리자 작업 |
+| users, profiles, user_agreements | S/I/U | #4 회원 잠금, #7 최초 가입·동의·프로필의 원자 저장/재요청 |
+| profile_attributes | S/I/D | #7 본인 속성 관계 교체. U는 필요 없음 |
+| media_files | S/I/U | #13 예약·업로드 완료·연결 상태·삭제 예약/claim/재시도. 파일 행 물리 삭제 금지 |
+| posts, polls | S/U | #13 연결 시 SELECT FOR UPDATE에 PostgreSQL UPDATE 권한 필요. 게시물/투표 생성 I는 #14 구현 검토 때 추가 |
+| post_photos | S/I/U/D | #13 파일 연결·순서 변경·참조 제거 |
+
+나머지 16개 테이블과 모든 시퀀스에는 권한을 추가하지 않는다. legacy OTP/신청/증빙, 기관·지역 원본 쓰기, 활동/참여/북마크/AI 쓰기 및 미래 테이블의 자동 권한은 제외한다. GENERATED ALWAYS AS IDENTITY 기본값 INSERT/RETURNING은 시퀀스 직접 사용 권한 없이 시험하며 nextval/setval은 거부한다. posts/polls의 U는 테이블 권한이므로 SQL상 임의 UPDATE도 가능하다. 실제 변경의 소유권·상태·필드 제한은 Spring에서 검사하며 이번 설정을 사용자별 격리로 해석하지 않는다.
+
+### 역할과 RLS
+
+- CLI가 생성한 `20261007202633_configure_server_runtime_permissions.sql`을 추가했다. 기존 5개 Migration은 보존한다. 테이블/컬럼/제약/제품 API는 변경하지 않는다.
+- `discushion_server`를 **NOLOGIN, 비밀번호 없음**으로 준비한다. NOSUPERUSER/NOCREATEDB/NOCREATEROLE/NOINHERIT/NOREPLICATION/NOBYPASSRLS이며 다른 역할 membership·객체 소유·유효 Schema CREATE 권한이 있으면 Migration을 중단한다. 기존 역할/정책이 예상과 다르면 임의 덮어쓰지 않는다.
+- Schema USAGE와 위 표의 작업별 권한, 역할을 명시한 26개 RLS 정책만 추가한다. SELECT/DELETE는 USING, INSERT는 WITH CHECK, UPDATE는 둘 다 사용한다. 기존 27개 테이블 RLS와 PUBLIC/anon/authenticated/service_role 차단을 유지한다. 공개 역할/ALL 작업 정책·default privilege·시퀀스 일괄 권한은 만들지 않는다.
+- SQL은 Schema-qualified, 역할 search_path는 pg_catalog다. 서버용 RLS는 위 작업 범위에서 모든 행을 허용하며 회원·지역·기관·게시물 소유권 판정은 기존 Spring 코드 책임이다.
+- 로컬 테스트만 생성한 임의 비밀번호로 LOGIN을 잠시 활성화하고 실제 연결한다. 끝나면 NOLOGIN/PASSWORD NULL로 복구한다. 실제 Supabase LOGIN·최소 권한 시험과 구분한다.
+
+### 승인·병합 후 실제 적용 순서
+
+1. 이번 권한표/Migration/시험 결과를 BE1이 검토하고 PR 최신 변경에 승인한다. #30 전체 완료나 #13 완료로 닫지 않는다.
+2. BE2가 최신 통합 Migration과 대상 프로젝트를 확인하고 dry-run 후 공용 개발 DB에 적용한다. 현재 설정안 준비 과정에서는 원격 DDL/GRANT/비밀번호 변경을 실행하지 않는다.
+3. 관리자 연결에서 `psql`의 `\password discushion_server`로 서버 전용 비밀번호를 설정한다. 비밀번호를 채팅·PR·SQL 파일·명령 인수에 넣지 않는다. 이어 `ALTER ROLE discushion_server LOGIN;`으로 활성화한다. Migration/seed 관리자와 서버 계정을 분리한다.
+4. 공유 pooler 사용자명은 `discushion_server.<project-ref>`로 설정하고 기존 JDBC URL의 verify-full/공식 CA/prepareThreshold=0·연결/읽기 timeout을 유지한다. 비밀번호는 로컬 `.env`/배포 secret의 DB_PASSWORD 필드로 전달한다. 실제 인증·TLS·Spring 연결을 확인한 뒤 개발 서버 실행에 사용한다.
+5. 기존 원격 smoke 3개는 관리자 SELECT-only **카탈로그 감사**다. 서버에 Migration 이력/legacy 접근을 추가하지 않고 테스트 전용 DB_AUDIT_USERNAME/DB_AUDIT_PASSWORD로 감사 연결을 분리할 수 있다. 이 변수는 테스트에서만 소비하며 실제 런타임 DataSource는 DB_USERNAME/DB_PASSWORD를 사용한다. 권한 Migration이 실제 적용되면 감사 검사의 원격 이력 기대값도 통합된 기준으로 갱신한다.
+6. 실제 서버 계정의 허용/거부 시험, 공개 역할 차단·Spring 권한 거부를 기록한다. 원격 쓰기는 지정된 시험 데이터·환경 범위를 먼저 정하고, 로컬 결과를 실제 Supabase 검증으로 대체하지 않는다. 실패하면 서버를 활성화/기능 완료로 표시하지 않는다.
+
+공식 근거: [Postgres 역할](https://supabase.com/docs/guides/database/postgres/roles), [custom LOGIN 역할의 연결 지원](https://supabase.com/docs/guides/troubleshooting/fatal-password-authentication-failed). pooler의 custom role 인증은 지원되지만 이번 PR에서 실제 로그인·비밀번호 구성/FE 연결·Storage 삭제 완료까지 확인한 것은 아니다.
+
+### 설정안 검증 기록 (2026-10-08 05:44 KST)
+
+- 기준 c7aee0b: Java17 전체 test/build 163개 통과/실패0/skip0. 최초 Windows native PostgreSQL 연결 정지는 이번에 시작한 로컬 DB 재시작 후 연결 timeout을 명시해 재실행했고 해소됐다. 실패 실행을 통과로 사용하지 않았다.
+- 새 권한 Migration은 localhost에만 적용했다. 별도 빈 `discushion_runtime30_test`에서 CLI2.120.0으로 기존5개+새1개를 처음부터 적용, 이력6개/정책26개를 확인했다. CLI 재실행 applied=[]이며 로컬 기존5개 설치 DB의 이력 부재를 가짜 기록으로 보정하지 않았다. 원격 적용/이력 변경은 없다.
+- Schema SQL 128개, 공개 역할 모의 차단9개, 기존 ERD 카탈로그 27테이블/180컬럼/FK 대조 통과. 공개 역할 모의 시험은 전용 localhost DB에서 전부 ROLLBACK했다.
+- 전체 Java17 `test build --rerun-tasks` 171개/실패0/오류0/skip0, build 성공. 기존 Supabase SELECT-only 3개 포함이다. 테스트 자격·provider는 합성값이며 실제 Privy/Storage/FE 연결로 표시하지 않는다.
+- 마지막 테스트 정리/권한 위임 검증을 보완한 뒤 최종 소스의 서버 LOGIN 회귀8개 + Supabase 감사3개, 총11개/실패0/skip0과 build를 다시 실행했다. 런타임 DB_USERNAME/DB_PASSWORD에는 실제로 사용할 수 없는 시험 값을 넣고 DB_AUDIT_*로만 실제 관리자 감사를 연결해 설정 분리를 확인했다. 실제 `.env` 비밀값/서버 실행 설정은 변경하지 않았다.
+- 원격 SELECT-only 사전 확인: 서버 역할 아직 없음, PUBLIC의 두 Schema CREATE 권한 없음, 기존 RLS27개/이력5개 유지. LOGIN·GRANT·원격 쓰기 시험·FE 연동 및 BE1 승인은 남아 있다. PR은 상대 리뷰 필요이며 #30 전체를 종료하지 않는다.
+
+### 최신 develop 반영과 가입 경합 재검증 (2026-10-08 06:35 KST)
+
+- PR #140이 병합된 `back/develop`의 `a0db95a`를 #30 Feature에 충돌 없이 병합했다. 로그인 구현은 제거된 상태이며 #7 동일 Privy subject 동시 가입의 이메일 UNIQUE 충돌 복구와 회귀 테스트는 보존됐다. #30에서 가입 코드를 별도로 수정하지 않았다.
+- 반영 커밋 `3517368`에서 Java17 전체 `test build --rerun-tasks`를 실행했다. 172개 통과/실패0/오류0/skip0, build 성공이다. 가입 JDBC13개(동시 가입 포함), 서버 LOGIN/권한8개, 실제 Supabase SELECT-only 감사3개를 모두 실행했다.
+- PR #138 최초 브랜치 CI에서 발견한 가입 경합 오류에 대한 추가 수정 요청은 해소됐다. 최초 실패 이력은 보존하며 최신 push 이후 새 CI 결과는 PR에 기록한다. #7의 기존 승인과 별도로 재승인을 요구하지 않는다.
+- 남은 상대 리뷰는 PR #138의 DB 권한표·26개 RLS 정책·Migration 및 감사 연결 분리 변경에 대한 BE1의 최신 변경 승인이다. 승인·병합 후 실제 Supabase 적용/LOGIN·비밀번호 설정·런타임 계정 교체·권한 허용/거부 검증 순서는 유지한다. 이번 재검증은 원격 권한 적용이나 실제 서버 계정/FE 연동 완료가 아니다.

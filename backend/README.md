@@ -173,3 +173,11 @@ SupabasePhotoStorage는 헤더부터 응답 본문 전체에30초 deadline을 �
 최신 back/develop d93cbf5(PR #127)를 충돌 없이 반영한56b4cae에서 Java17 `gradlew.bat --no-daemon test build --rerun-tasks --console=plain`을 실제 localhost PostgreSQL로 새로 실행했다. **133개 중130통과/실패0/오류0/원격Supabase3skip, build 성공**. 사진33개 모두 통과: 기존25개에 종료 잠금1개·실제 HTTP5개·검사 deadline2개 추가. 기본30초 그대로인 중단 본문·오류/metadata 중단·크기 초과·정상 PNG·검사 취소/close를 확인했다. 최초 시험의 데이터 정리/Mockito 설정 오류2건은 수정·재검증했고 잔여 데이터도 정리했다. 시험 사진 회원 잔여0개·운영 JAR 테스트 지원 클래스0개·diff 공백 오류0·이번에 시작한 DB 정상 종료.
 
 실제 원격 Storage/Privy/FE 전체 연결을 이번 시험으로 완료 처리하지 않는다. 업로드 종료 증거·최소 권한 서버 계정·실제 연결 후속과 PHOTO_* 비활성/Draft/#13 미완료 조건은 유지한다. 수정된 최종 PR은 BE1 재리뷰·승인 대상이며 작성자 검증을 BE1 승인으로 사용하지 않는다. CI와 실제 승인 상태는 PR에서 확인한다.
+
+## #30 서버 DB 실행 계정 준비 (2026-10-08)
+
+`discushion_server` NOLOGIN 역할과 현재 가입·권한·지역·사진 코드용 11개 테이블/26개 RLS 정책을 후속 Migration으로 준비했다. 비밀번호는 Migration에 없고 실제 LOGIN은 BE1 승인·병합/공용 DB 적용 후 별도로 설정한다. 현재 `.env`와 원격 계정을 변경하지 않았으며 #30 전체 완료는 아니다. 권한표·승인 후 적용/교체 순서는 [DB 연결 결정 기록](../docs/collaboration/backend-db-connection-decisions.md)의 마지막 절을 따른다.
+
+`ServerRuntimePermissionsIntegrationTests`는 격리 localhost DB에서만 실제 비밀번호 LOGIN, 전체 27개 테이블 작업 권한, 최초 가입/재요청, 사진 예약/연결/참조 제거, DDL/TRUNCATE/불필요한 물리 삭제/legacy·자격 쓰기/권한 상승 거부를 시험한다. provider는 테스트용 대체 구현이며 실제 Privy/Storage/FE 연결 시험이 아니다. 테스트 끝에 LOGIN/비밀번호를 제거한다. CI는 새 Migration을 포함한 격리 DB를 준비하고 이 시험을 실행하며 원격 secret은 사용하지 않는다.
+
+기존 Supabase 원격 smoke 3개는 SELECT-only 관리자 감사다. 실제 런타임을 서버 계정으로 교체한 뒤에도 감사 테스트에는 로컬 secret의 `DB_AUDIT_USERNAME`/`DB_AUDIT_PASSWORD`를 사용할 수 있다. 이 변수는 테스트 전용이며 서버 권한을 넓히기 위한 용도가 아니다. 미설정 시 기존 DB_USERNAME/DB_PASSWORD를 사용하고, 기존 관리자 계정 기대값은 유지한다. 실제 원격 권한 Migration 적용 전후의 카탈로그/이력 차이를 확인하고 기대값을 갱신한다.

@@ -13,7 +13,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /** Explicit opt-in, SELECT-only verification of the designated development project. */
 @EnabledIfEnvironmentVariable(named = "DISCUSHION_VERIFY_SUPABASE", matches = "true")
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.NONE)
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.NONE, properties = {
+        "spring.datasource.username=${DB_AUDIT_USERNAME:${DB_USERNAME}}",
+        "spring.datasource.password=${DB_AUDIT_PASSWORD:${DB_PASSWORD}}"
+})
 @ActiveProfiles("supabase")
 class SupabaseJdbcSmokeTests {
     @Autowired
