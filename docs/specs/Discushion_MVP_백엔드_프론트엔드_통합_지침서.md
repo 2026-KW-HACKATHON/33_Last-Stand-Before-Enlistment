@@ -693,6 +693,12 @@ FE와 BE는 같은 Privy 앱을 사용한다. FE에는 공개 App ID만 전달�
 
 사용자 채택: GET /api/v1/home?regionId=<지역 ID>, 가입 완료 회원 전용. 미지정은 최신 프로필 기본 활동 지역, 지정은 임시 탐색이며 프로필 저장값을 바꾸지 않는다. data.region/posts/openVotes/boardCounts를 사용하고 게시물 최신6개·진행 중 투표 최신3개를 created_at DESC, id DESC로 표시한다. boardCounts는 전체 공개 원본 건수다. 원본 ID로 기존 상세에 이동하며 새 추천 API를 요구하지 않는다. 빈 배열이어도 기존 섹션/CTA를 유지한다. 잘못된 query400, 없는 지역404, 게스트401, 미가입/미완료403을 기존 오류 처리에 연결한다. 이 기록은 사용자 확정이며 실제 FE adapter·화면 연결은 #30/#31에 남긴다.
 
+### #19 지도 소비 계약 확정 (2026-10-08)
+
+GET /api/v1/map/dongs?regionIds=15,18&centerRegionId=15를 사용한다. FE가 실제 경계 데이터의 지역과 서버 카탈로그 ID를 연결한 뒤 현재 viewport ID 목록을 중복 없이 전달한다. centerRegionId 생략은 최신 프로필 기본 지역, 임시 선택은 프로필에 저장하지 않는다. dongs는 요청 순서로 유지하며 representativePost=null을 후보 없음으로 표시한다. 대표는 공개 안건/투표만 반응 합계·작성시각·ID 순서다. 경계·좌표·SDK는 응답에 가짜 값으로 추가하지 않는다. 지도 geometry와 API adapter/말풍선·반응 재조회 실제 연동은 #30/#31 대기이며 backend 조회만으로 지도 완료로 표시하지 않는다.
+
+2026-10-08 확인: origin/front/develop ad0700c의 frontend/src/features/map/service.ts/model.ts는 FE 표시 계약이며 실제 HTTP adapter가 없다. viewport는 centerRegionId/zoom만 갖고 regionIds 수집이 없다. 서버 숫자 ID의 FE 문자열 변환, 실제 geometry의 ID 매핑, 대표 최소 DTO의 말풍선 표시 모델 연결을 FE 후속으로 남긴다. 해당 브랜치를 수정하지 않았다.
+
 ### #20 AI 요약 소비 계약 확정 (2026-10-08)
 
 GET /api/v1/posts/{postId}/summary는 최초 요청 때 생성하고 원문 버전별 결과를 재사용한다. 생성 중 다른 요청은 PENDING과 원문을 받는다. 성공은 3문장 한 문단·출처·원문 링크, 실패/정보 부족은 FAILED/SOURCE_TOO_SHORT 및 fallbackToSource=true다. source를 항상 표시하며 게스트의 원문 이동은 같은 X-Post-Share-Token을 유지한다. 글 수정 후 새 버전만 생성하고 실패한 같은 버전을 FE polling으로 자동 재시도시키지 않는다. 삭제/비공개404·다른 유형422·잘못된 공유 범위 오류는 기존 처리에 연결한다. 사용자 저장 키의 합성 실제 Gemini 정상/정보 부족 호출2개는 확인했다. 다양한 원문 품질/쿼터·배포 환경 및 프로젝트 FE adapter/화면 연결은 #20/#30/#31 대기다.
