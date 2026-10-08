@@ -73,16 +73,34 @@ class SupabaseJdbcSmokeTests {
                        (select count(*) from pg_policies where schemaname='discushion'
                          and roles=array['discushion_server']::name[]),
                        (select count(distinct tablename) from pg_policies where schemaname='discushion'
-                         and roles=array['discushion_server']::name[])
+                         and roles=array['discushion_server']::name[]),
+                       (select name from supabase_migrations.schema_migrations where version='20261008111216'),
+                       (select md5(btrim(regexp_replace(regexp_replace(array_to_string(statements,chr(10)),
+                           '--[^\\r\\n]*','','g'),'\\s+',' ','g')))
+                         from supabase_migrations.schema_migrations where version='20261008111216'),
+                       (select count(*) from information_schema.columns where table_schema='discushion'
+                         and table_name='media_files' and column_name in ('upload_transport','upload_attempt_id',
+                           'upload_attempt_status','upload_attempt_started_at','upload_attempt_finished_at')),
+                       (select count(*) from pg_constraint where conrelid='discushion.media_files'::regclass
+                         and convalidated and conname in ('media_upload_transport','media_relay_shape',
+                           'media_upload_attempt_shape','media_relay_deleted_safe')),
+                       (select count(*) from pg_trigger where tgrelid='discushion.media_files'::regclass
+                         and not tgisinternal and tgenabled='O'
+                         and tgfoid='discushion.guard_photo_upload_attempt()'::regprocedure),
+                       (select not prosecdef and proconfig=array['search_path=pg_catalog']::text[]
+                         and has_function_privilege('discushion_server',oid,'EXECUTE')
+                         and not exists(select 1 from aclexplode(coalesce(proacl,acldefault('f',proowner))) a
+                           where a.grantee=0 and a.privilege_type='EXECUTE')
+                         from pg_proc where oid='discushion.guard_photo_upload_attempt()'::regprocedure)
                      """)) {
             assertThat(result.next()).isTrue();
             assertThat(result.getInt(1)).isEqualTo(27);
-            assertThat(result.getInt(2)).isEqualTo(180);
+            assertThat(result.getInt(2)).isEqualTo(185);
             assertThat(result.getInt(3)).isEqualTo(55);
             assertThat(result.getInt(4)).isEqualTo(27);
             // The remote apply recorded a different version for the reviewed #138 SQL.
             // Preserve both applied histories and verify this explicit mapping by name AND content.
-            assertThat(result.getString(5)).isEqualTo("20261006182228,20261007011459,20261007021128,20261007023149,20261007104543,20261008014345");
+            assertThat(result.getString(5)).isEqualTo("20261006182228,20261007011459,20261007021128,20261007023149,20261007104543,20261008014345,20261008111216");
             assertThat(result.getInt(6)).isEqualTo(4);
             assertThat(result.getInt(7)).isEqualTo(6);
             assertThat(result.getInt(8)).isEqualTo(2);
@@ -93,6 +111,16 @@ class SupabaseJdbcSmokeTests {
             assertThat(result.getString(10)).as("Remote #138 SQL must match the repository migration").isEqualTo(expectedDigest);
             assertThat(result.getInt(11)).isEqualTo(27);
             assertThat(result.getInt(12)).isEqualTo(12);
+            // Supabase apply_migration generated this version; preserve the local applied file name.
+            assertThat(result.getString(13)).isEqualTo("track_server_photo_uploads");
+            var relaySql = Files.readString(Path.of("../supabase/migrations/20261008071616_track_server_photo_uploads.sql"), StandardCharsets.UTF_8);
+            var normalizedRelay = relaySql.replaceAll("--[^\\r\\n]*", "").replaceAll("\\s+", " ").strip();
+            var relayDigest = HexFormat.of().formatHex(MessageDigest.getInstance("MD5").digest(normalizedRelay.getBytes(StandardCharsets.UTF_8)));
+            assertThat(result.getString(14)).as("Remote relay SQL must match the repository migration").isEqualTo(relayDigest);
+            assertThat(result.getInt(15)).isEqualTo(5);
+            assertThat(result.getInt(16)).isEqualTo(4);
+            assertThat(result.getInt(17)).isEqualTo(1);
+            assertThat(result.getBoolean(18)).as("Relay guard must retain invoker security and least privilege").isTrue();
         }
     }
 

@@ -666,3 +666,25 @@ DB 기준2시간 안에 전송을 시작하고 실제 크기를 예약 sizeBytes
 2026-10-08 16:48 KST 최종 검증: 기준 back/develop `04d60fa`와 현재 `back/feature/13-storage-verification`의 미커밋 서버 중계 구현으로 Java17 test/build를 새로 실행했다. **전체256개 통과·실패0·오류0·skip0·build 성공(7분6초)**. 관리자 원격 감사3개, 기존 직접 Storage 회귀2개, 새 서버 중계 실제 Storage2개와 JDBC 안전성9개를 포함한다. 새 실제 시험은 합성 인증·격리된 최소 권한 서버 LOGIN으로 Spring PUT→실제 Storage 쓰기/익명 공개 조회→complete→취소→최종 DELETED→늦은 PUT 거부를 확인했으며 정확히10,000,000 bytes PNG도 같은 흐름을 통과했다. JPG 내용 검사 등 기존 검증은 유지한다. 실제 Privy OTP·FE 화면·배포 환경의10MB 수용 시험을 대신하지 않는다.
 
 로컬 PostgreSQL 제약133개, 공개 역할 차단9개, 전체7 Migration의 적용/재실행 불변성, ERD27테이블/185컬럼 일치를 검증했다. 시험 Storage object 삭제·부재, 로컬 사진 회원/파일0개, 임시 서버 역할 NOLOGIN/비밀번호 제거, 운영 JAR의 테스트 fixture0개를 확인했다. 문서 상대 링크와 diff 공백 검사를 통과했다. 공유 Supabase에는 새 Migration을 적용하지 않았으며 PHOTO_* 활성화·FE 연결·GitHub 상대 승인·commit/push/PR은 별도다. 결과 불명확 전송과 기존 직접 전송 파일은 삭제 대기를 유지하고 시간 경과로 최종 삭제하지 않는다.
+
+### #13 공유 DB 적용과 실제 인증 연결 대기 (2026-10-08)
+
+사진 중계 코드는 back/develop에 통합됐고 이번 기준 dd5cb52에서 공유 DB에도 해당 Migration을 적용했다. 전송 추적5컬럼·제약/trigger/최소 권한을 확인하고 실제 원격 감사3개/build를 통과했다. 사진 API 계약 §13.9·10장/총10,000,000 bytes·공개 열람·최초24시간 정리 정책은 변경하지 않았다.
+
+Render 사진 Storage 설정3개는 사용자 승인 후 비밀 환경변수에 저장했으며 아직 재배포/사진 활성화하지 않았다. Privy 앱은 미준비다. FE와 BE는 같은 실제 Privy 앱을 사용하고 FE는 현재 access token을 앱 API에만 Bearer로 전달한다. 테스트 인증을 배포하지 않는다. 실제 로그인/가입 회원 준비 후 배포10MB 업로드→공개 조회→complete→취소/최종 삭제·늦은 PUT 거부, 24시간 후보 정리 및 휴면 뒤 재개와 FE 흐름을 확인해야 한다. 새 문서/파일명을 만들지 않고 기존 문서에 진행 상태를 갱신했다.
+
+### 실제 Privy 앱 연결 준비 — FE 전달 (2026-10-08)
+
+사용자 승인으로 Discushion Privy 앱을 무료 개발 모드로 생성했다. 공개 App ID는 `cmuzh7iga01ao0cjv2jqayvxa`이며 로컬 Backend와 Render의 PRIVY_APP_ID에 저장했다. 이메일 OTP만 활성화하고 외부 지갑 로그인·자동 지갑 생성은 비활성화했다. 공식 JWKS의 EC/P-256 공개키2개 조회도 확인했다. 자동 생성 Secret의 재조회가 불가능해 대기했던 추가 발급을 사용자가 허용하여 서버용 새 Secret1개를 발급하고 ignored backend/.env와 Render PRIVY_APP_SECRET에 저장했다. 공식 사용자 목록 API의 HTTP200·사용자0건으로 서버 키 인증을 확인했다. Secret은 FE나 Git에 제공하지 않았다. Render는 Save only이며 재배포하지 않았다. 실제 OTP/가입/FE 연동과 허용 origin 설정 완료는 아니다. frontend 파일은 변경하지 않았다.
+
+FE와 BE는 같은 Privy 앱을 사용한다. FE에는 공개 App ID만 전달하며 실제 FE 변수 이름과 SDK 구성은 FE가 현재 구현에 맞춰 선택한다. 조회한 origin/front/develop에는 Privy SDK와 앱 변수 설정이 아직 없고 source='privy' 세션 adapter 계약만 준비돼 있으므로 별도 실제 adapter 연결이 필요하다. 서버 App Secret은 Backend의 검증된 이메일 조회에만 사용하고 FE에 제공하지 않는다.
+
+로그인은 Privy 이메일 OTP로 수행하고 최신 access token을 공통 앱 API Bearer로 전달한다. 기존 가입/회원 API 및 오류 계약으로 미가입/가입 미완료/완료를 구분하고 최초 가입 후 상태를 다시 확인한다. 허용 origin에는 실제 FE 주소만 확인해 등록한다. 사용자가 구매 도메인 galds.shop을 확인해 예정 FE origin을 https://galds.shop으로 기록했다. 조회 시점의 apex A/AAAA IP 주소는 없으며 실제 FE 배포·DNS/HTTPS 연결은 후속이다. www·preview·개발 포트는 별도 확인하고 Render API 주소를 FE origin으로 대신 등록하지 않는다. OTP·현재 회원·사진 앱 서버 중계·오류/재시도·로그아웃의 실제 사용자 흐름을 확인하기 전에는 연동 완료로 기록하지 않는다.
+
+2026-10-08 후속: Privy 설정 저장 후 기존 Live `4fffb1e`를 수동 재배포해 Live 전환을 확인했다. HTTPS `/health`와 실제 DB의 월계1동 조회는 모두 HTTP200이다. 가입 검증용 지역 `서울특별시 노원구 월계1동`(ID1)을 준비했으며 공적 코드/지도 key는 미확인으로 NULL이다. 이 지역 등록만으로 이웃/기관 자격을 부여하지 않는다. 최신 back/develop `26cb5e8` 전체를 배포한 것은 아니며 추가 기능과 권한 Migration은 별도 rollout 대상이다.
+
+실제 OTP/가입 확인에는 프로젝트 밖의 임시 Privy SDK 화면과 로컬 중계로 Render API를 사용했다. 테스트 JWT나 서버 Secret을 FE에 전달하지 않았고 frontend 브랜치/파일을 변경하지 않았다. 공식 Privy 모달 OTP 성공→가입 전 회원 조회403→사용자 동의 후 가입201→가입 재요청200→본인 프로필200을 실제 확인했다. 이 성공은 실제 Privy와 Backend 연결 검증이며 프로젝트 FE 화면·배포 origin/CORS 검증 완료를 대신하지 않는다.
+
+사용자 승인 후 사진 플래그3개를 true로 저장하고 같은 `4fffb1e`를 재배포했다. 실제 Privy 회원으로 예약201·Render10,000,000 bytes RAW PUT200·complete200/UNLINKED·익명 공개 조회200/원본 내용 일치·complete 시각 불변을 확인했다. 미인증 PUT401·상한 초과 예약413·삭제202/DELETE_PENDING·삭제 이후 늦은 PUT409·worker 최종 DELETED/공개 파일 부재도 확인했다. 미완료25시간 전 예약은 시험용 새 행을 생성해 실제 worker 정리를 검증했으며 실제24시간 대기와 구분한다. Storage 잔여 object0개, 삭제된 검증 파일 이력2행은 보존한다. 무료 휴면 후 재개와 FE SDK/adapter·실제 배포 origin/CORS·프로젝트 화면 연결은 후속이며 이 결과로 전체 연동을 완료 처리하지 않는다.
+
+22:06:30 KST 실제15분 무요청 후 서버 종료를 확인했다. 휴면 중 생성한 별도 만료 예약은 정리 시도0회로 남았고, Health 요청 후76.29초 만에 UP 응답과 서버 재기동을 확인했다.22:10:56에 worker가 해당 예약을 DELETED·정리1회·오류 없음으로 처리해 **실제 휴면 후 재개**도 검증했다. 최종 삭제 이력3행·Storage object0개를 유지한다. 이 후속 결과가 위 휴면 검증 대기 표현을 대체한다. FE SDK/adapter·배포 origin/CORS·프로젝트 화면과 게시물 사진 연결은 별도 후속이다. 무료 플랜에서는24시간 이후 정리 대상이어도 휴면 동안 실제 실행이 지연될 수 있다.
