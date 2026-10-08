@@ -688,3 +688,9 @@ FE와 BE는 같은 Privy 앱을 사용한다. FE에는 공개 App ID만 전달�
 사용자 승인 후 사진 플래그3개를 true로 저장하고 같은 `4fffb1e`를 재배포했다. 실제 Privy 회원으로 예약201·Render10,000,000 bytes RAW PUT200·complete200/UNLINKED·익명 공개 조회200/원본 내용 일치·complete 시각 불변을 확인했다. 미인증 PUT401·상한 초과 예약413·삭제202/DELETE_PENDING·삭제 이후 늦은 PUT409·worker 최종 DELETED/공개 파일 부재도 확인했다. 미완료25시간 전 예약은 시험용 새 행을 생성해 실제 worker 정리를 검증했으며 실제24시간 대기와 구분한다. Storage 잔여 object0개, 삭제된 검증 파일 이력2행은 보존한다. 무료 휴면 후 재개와 FE SDK/adapter·실제 배포 origin/CORS·프로젝트 화면 연결은 후속이며 이 결과로 전체 연동을 완료 처리하지 않는다.
 
 22:06:30 KST 실제15분 무요청 후 서버 종료를 확인했다. 휴면 중 생성한 별도 만료 예약은 정리 시도0회로 남았고, Health 요청 후76.29초 만에 UP 응답과 서버 재기동을 확인했다.22:10:56에 worker가 해당 예약을 DELETED·정리1회·오류 없음으로 처리해 **실제 휴면 후 재개**도 검증했다. 최종 삭제 이력3행·Storage object0개를 유지한다. 이 후속 결과가 위 휴면 검증 대기 표현을 대체한다. FE SDK/adapter·배포 origin/CORS·프로젝트 화면과 게시물 사진 연결은 별도 후속이다. 무료 플랜에서는24시간 이후 정리 대상이어도 휴면 동안 실제 실행이 지연될 수 있다.
+
+### #19 지도 소비 계약 확정 (2026-10-08)
+
+GET /api/v1/map/dongs?regionIds=15,18&centerRegionId=15를 사용한다. FE가 실제 경계 데이터의 지역과 서버 카탈로그 ID를 연결한 뒤 현재 viewport ID 목록을 중복 없이 전달한다. centerRegionId 생략은 최신 프로필 기본 지역, 임시 선택은 프로필에 저장하지 않는다. dongs는 요청 순서로 유지하며 representativePost=null을 후보 없음으로 표시한다. 대표는 공개 안건/투표만 반응 합계·작성시각·ID 순서다. 경계·좌표·SDK는 응답에 가짜 값으로 추가하지 않는다. 지도 geometry와 API adapter/말풍선·반응 재조회 실제 연동은 #30/#31 대기이며 backend 조회만으로 지도 완료로 표시하지 않는다.
+
+2026-10-08 확인: origin/front/develop ad0700c의 frontend/src/features/map/service.ts/model.ts는 FE 표시 계약이며 실제 HTTP adapter가 없다. viewport는 centerRegionId/zoom만 갖고 regionIds 수집이 없다. 서버 숫자 ID의 FE 문자열 변환, 실제 geometry의 ID 매핑, 대표 최소 DTO의 말풍선 표시 모델 연결을 FE 후속으로 남긴다. 해당 브랜치를 수정하지 않았다.

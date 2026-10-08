@@ -257,3 +257,10 @@ Storage object0개·초기 최종 DELETED 검증 이력2행·시연 회원1명·
 최신 `origin/back/develop 26cb5e8`을 Feature에 반영한 `1d6e6fa`에서 Java17 전체 `test build --rerun-tasks --max-workers=2 --offline`을 실행했다. 22:31 KST 종료, 소요8분19초, **328개 통과·실패0·오류0·skip0·build 성공**이다. 실제 Supabase SELECT-only 감사3개와 직접/서버 중계 Storage 시험4개를 모두 실행했다. 격리 PostgreSQL에는 최신 북마크/기관 조회 권한 Migration2개를 추가 적용했고 제약133개·공개 역할 차단9개를 확인했다. 공유 DB의 추가 기능 권한은 이 검증으로 적용하지 않았다.
 
 종료 후 로컬 시험 회원/사진0개·임시 서버 역할 NOLOGIN/password null·운영 JAR의 테스트 클래스/fixture0개를 확인하고 시험 DB를 정상 종료했다. 기존6파일만 PR에 포함하고 frontend·제품 코드·적용된 Migration 파일은 변경하지 않는다. 실제 프로젝트 FE 및 게시물 사진 연결이 남아 있으므로 PR은 #13/#30을 참조하며 이슈를 자동 종료하지 않는다. 병합 후에도 Render 자동 배포는 꺼져 있고 현재 Live `4fffb1e`와 개발 브랜치 최신 코드를 구분한다.
+
+### #19 지도 대표 조회 구현·검증 (2026-10-08)
+
+back/feature/19-map, 기준 a9ad5c9. 사용자 채택 regionIds CSV·선택 centerRegionId로 실제 catalog를 읽고 동별 공개 안건/투표의 반응 합계·created_at·id 순서 대표를 조회한다. 입력 순서·빈 동 null·임시 중심 지역의 프로필 불변·재조회 대표 변경·삭제/활동/다른 지역 제외·회원 상태·잘못된 query를 검증했다. Batch 지역/대표 조회이며 임의 경계/좌표/GPS/캐시를 추가하지 않는다. endpoint는 no-store다.
+
+23:41 KST 전체 Java17 test build --rerun-tasks --max-workers=2 --offline,336개 통과/실패0/오류0/skip0·build 성공(8분1초). 실제 Supabase SELECT-only 감사3개·Storage4개를 포함했다. 로컬 Schema 제약133개·공개 API 역할 차단9개 통과, 시험 데이터 정리·서버 역할 NOLOGIN 복원을 확인했다. 공유 DB에는 Migration을 적용하지 않았으며 실제 geometry/프로젝트 FE adapter 연결·배포는 #30/#31 대기다. front/develop ad0700c의 지도 인터페이스를 읽기 전용으로 확인하고 통합 지침에 후속 매핑을 기록했다. 현재 back/develop d1f8bcf의 #14는 작업 도중 병합됐으므로 commit/PR 전 최신 기준 갱신·권한/CI 재검증이 필요하다. 아직 commit/push/PR/병합하지 않았다.
+지도 추가 사진 회귀(2026-10-09): 사진2개를 생성 ID와 다른 첨부 순서로 연결해 첫 사진·공개 URL 공백 인코딩을 확인했다. map 관련9개 재실행·실패0/오류0/skip0·build 성공(1분16초). 이 추가 시험은 앞선 전체336개와 구분하며 데이터/사진 참조를 정리했다.
