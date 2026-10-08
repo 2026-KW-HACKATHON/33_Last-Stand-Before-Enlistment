@@ -1501,9 +1501,9 @@ BE1은 A·C·D/참여 집계, BE2는 B/게시물 요약·사진·환경을 맡�
 
 ### FE 데이터 계약 검토안 — 합의된 공통 규약을 변경하지 않음
 
-다음은 아직 비어 있는 Auth wire를 채우기 위한 제안이다. 기존 endpoint 후보를 재사용하며 구현·FE/BE2 확인 완료로 선언하지 않는다. 일반 프로필/자격/사진 DTO를 변경하지 않는다.
+아래 로그인 wire는 2026-10-09 사용자 복원 결정에 따라 채택했다. 다른 제안의 확정 여부와 실제 FE 확인·연동 완료는 각각의 후속 기록으로 판단한다. 일반 프로필/자격/사진 DTO를 변경하지 않는다.
 
-1. `POST /api/v1/auth/login`: Bearer 필요, JSON `{}`. 자체 비밀번호·이메일·token body는 받지 않는다. 새 세션을 발급하는 endpoint가 아니라 검증된 현재 주체의 로컬 가입 상태 조회로 정리하는 안이다. 200 성공 envelope에 registrationStatus와 nullable member를 반환한다. NOT_REGISTERED에서는 member=null, INCOMPLETE에서는 완료시각 null, COMPLETED에서는 완료시각이 존재한다. 반환 토큰·refresh token·Privy subject·역할/배지는 추가하지 않는다.
+1. `POST /api/v1/auth/login`: **2026-10-09 사용자 복원 결정으로 채택한 계약.** Bearer 필요, JSON `{}`. 자체 비밀번호·이메일·token body는 받지 않는다. 새 세션을 발급하지 않고 검증된 현재 주체의 로컬 가입 상태를 조회한다. 200 성공 envelope에 registrationStatus와 nullable member를 반환한다. NOT_REGISTERED에서는 member=null, INCOMPLETE에서는 완료시각 null, COMPLETED에서는 완료시각이 존재한다. 반환 토큰·refresh token·Privy subject·역할/배지는 추가하지 않는다. 회원 ID는 기존 JSON number, 완료시각은 ISO-8601 +09:00이다. 잘못된 본문400 VALIDATION_ERROR, 무효·만료·무토큰401 UNAUTHORIZED, 검증키 장애503 AUTH_PROVIDER_UNAVAILABLE, DB/내부 장애500 INTERNAL_ERROR를 기존 오류 envelope로 반환한다. 회원 생성·갱신·자격 부여·redirect는 하지 않는다. 실제 FE 상태 분기·returnTo·Privy 연결 검증은 #30/#31에서 확인한다.
 
 ```json
 { "data": { "registrationStatus": "NOT_REGISTERED", "member": null } }
