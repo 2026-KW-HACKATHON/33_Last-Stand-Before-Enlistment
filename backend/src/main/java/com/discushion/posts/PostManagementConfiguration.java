@@ -9,7 +9,6 @@ import com.discushion.photos.PhotoAttachments;
 import java.util.Optional;
 import javax.sql.DataSource;
 import org.springframework.beans.factory.ObjectProvider;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
@@ -22,7 +21,7 @@ class PostManagementConfiguration {
     @Bean PostJdbcStore postJdbcStore(DataSource source) { return new PostJdbcStore(source); }
 
     @Bean
-    @ConditionalOnMissingBean(PostContextReader.class)
+    @Profile("!local & !share21-http-test & !comment22-http-test & !bookmark26-http-test & !reaction23-http-test & !vote25-http-test & !evaluation24-http-test")
     PostContextReader postContextReader(PostJdbcStore store) {
         return new PostContextReader() {
             @Override public Optional<PostContext> find(long postId) { return store.find(postId); }
