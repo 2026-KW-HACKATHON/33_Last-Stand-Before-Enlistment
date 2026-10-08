@@ -16,8 +16,8 @@ test("three status filters and actual choice/final result, not submission contro
   const html = await render();
   assert.equal((html.match(/aria-pressed=/g) ?? []).length, 3);
   for (const text of ["참여한 투표", "진행 중", "종료", "토요일 오전", "평일 저녁", "최종 결과", "접근 불가 안내"]) assert.ok(html.includes(text));
-  for (const label of ["내 선택", "최다", "최종 결과"]) assert.match(html, new RegExp(`bg-white[^>]*>${label}</span>`));
-  assert.ok(html.includes("</span>토요일 오전 32%")); assert.ok(html.includes("</span>평일 저녁 48%"));
+  for (const label of ["내 선택", "최다", "최종 결과"]) assert.match(html, new RegExp(`shrink-0 whitespace-nowrap">${label}</span>`));
+  assert.match(html, /bg-white[^>]*>토요일 오전 32%<\/span>/); assert.match(html, /bg-white[^>]*>평일 저녁 48%<\/span>/);
   assert.ok(!html.includes("bg-[#CDE9E2]"));
   assert.ok(!html.includes("투표 제출")); assert.ok(!html.includes("선택 변경"));
 });
@@ -52,10 +52,10 @@ test("Loading and missing adapter do not expose ready records", async () => {
   assert.ok(!markup().includes("내 선택:"));
 });
 
-test("summary labels share white pills while values and waiting remain plain text", () => {
+test("summary values share white pills while labels and waiting remain plain text", () => {
   const html = renderToStaticMarkup(<VoteSummaryContent summary="현재 결과: 평일 저녁 48% | 최종 결과: 평일 저녁 52%"/>);
-  for (const label of ["현재 결과", "최종 결과"]) assert.match(html, new RegExp(`bg-white[^>]*>${label}</span>`));
-  assert.ok(html.includes("</span>평일 저녁 48%")); assert.ok(html.includes("</span>평일 저녁 52%"));
+  for (const label of ["현재 결과", "최종 결과"]) assert.match(html, new RegExp(`shrink-0 whitespace-nowrap">${label}</span>`));
+  assert.match(html, /bg-white[^>]*>평일 저녁 48%<\/span>/); assert.match(html, /bg-white[^>]*>평일 저녁 52%<\/span>/);
   assert.ok(!html.includes(":")); assert.ok(!html.includes("<button"));
   const waiting = renderToStaticMarkup(<VoteSummaryContent summary="본인 선택과 결과 조회 대기"/>);
   assert.ok(waiting.includes("본인 선택과 결과 조회 대기")); assert.ok(!waiting.includes("bg-white"));

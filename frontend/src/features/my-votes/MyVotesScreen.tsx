@@ -14,7 +14,7 @@ import { useMyVotes, useMyVotesState } from "./provider";
 export function VoteSummaryContent({ summary }: { summary: string }) {
   return <div className="flex flex-wrap gap-x-2 gap-y-1">{summary.split(" | ").map((part, index) => {
     const labeled = /^([^:]+): ([\s\S]*)$/.exec(part);
-    return <span key={index} className="min-w-0">{labeled ? <><span className="mr-1 inline-flex items-center whitespace-nowrap rounded-chip bg-white px-[10px] py-1 align-middle text-[11px] leading-none">{labeled[1]}</span>{labeled[2]}</> : part}</span>;
+    return <span key={index} className="inline-flex max-w-full min-w-0 items-center gap-1">{labeled ? <><span className="shrink-0 whitespace-nowrap">{labeled[1]}</span><span className="min-w-0 whitespace-normal break-words rounded-chip bg-white px-[10px] py-1 text-[11px] leading-snug">{labeled[2]}</span></> : part}</span>;
   })}</div>;
 }
 export function MyVotesScreen({ store, subjectKey, onBack, renderDetail }: { store: MyVotesStore; subjectKey: string | null; onBack: () => void; renderDetail?: PersonalDetailRenderer }) {
